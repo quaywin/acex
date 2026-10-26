@@ -1620,7 +1620,7 @@ defmodule AcexGateway.Web.DashboardView do
             </div>
 
             <div class="panel-actions-row">
-              <button class="btn btn-secondary btn-sm" onclick="copyQuickStreamUrl()">
+              <button class="btn btn-secondary btn-sm" onclick="copyQuickStreamUrl(this)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy Link</span>
               </button>
@@ -1645,7 +1645,7 @@ defmodule AcexGateway.Web.DashboardView do
 
             <div class="input-row">
               <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{m3u_display_url}">
-              <button id="copyM3uBtn" class="btn btn-primary btn-md" onclick="copyM3uUrl()">
+              <button id="copyM3uBtn" class="btn btn-primary btn-md" onclick="copyM3uUrl(this)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy</span>
               </button>
@@ -1915,7 +1915,7 @@ defmodule AcexGateway.Web.DashboardView do
             <label class="form-label">Direct MPEG-TS Stream URL:</label>
             <div class="input-row">
               <input type="text" id="launcherStreamUrl" class="text-input-styled" readonly>
-              <button class="btn btn-primary btn-sm" onclick="copyLauncherUrl()">Copy</button>
+              <button class="btn btn-primary btn-sm" onclick="copyLauncherUrl(this)">Copy</button>
             </div>
           </div>
 
@@ -2024,7 +2024,7 @@ defmodule AcexGateway.Web.DashboardView do
               <label class="form-label" style="font-size: 12px;">Server URL / Host:</label>
               <div class="input-row">
                 <input type="text" id="xtreamServerInput" class="text-input-styled" readonly value="#{base_url}">
-                <button class="btn btn-primary btn-sm" onclick="copyInput('xtreamServerInput', 'Server URL copied!')">Copy</button>
+                <button class="btn btn-primary btn-sm" onclick="copyInput('xtreamServerInput', 'Server URL copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2033,7 +2033,7 @@ defmodule AcexGateway.Web.DashboardView do
               <label class="form-label" style="font-size: 12px;">Port:</label>
               <div class="input-row">
                 <input type="text" id="xtreamPortInput" class="text-input-styled" readonly value="#{server_port}">
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPortInput', 'Port copied!')">Copy</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPortInput', 'Port copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2042,7 +2042,7 @@ defmodule AcexGateway.Web.DashboardView do
               <label class="form-label" style="font-size: 12px;">Username:</label>
               <div class="input-row">
                 <input type="text" id="xtreamUserInput" class="text-input-styled" value="#{auth_user}" placeholder="e.g. admin">
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamUserInput', 'Username copied!')">Copy</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamUserInput', 'Username copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2052,7 +2052,7 @@ defmodule AcexGateway.Web.DashboardView do
               <div class="input-row">
                 <input type="text" id="xtreamPassInput" class="text-input-styled" value="#{auth_pass}" placeholder="e.g. acex123">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="generateRandomPass()" title="Generate Random Password">🎲 Random</button>
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPassInput', 'Password copied!')">Copy</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPassInput', 'Password copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2061,7 +2061,7 @@ defmodule AcexGateway.Web.DashboardView do
               <label class="form-label" style="font-size: 12px;">EPG URL (XMLTV):</label>
               <div class="input-row">
                 <input type="text" id="xtreamEpgInput" class="text-input-styled" value="#{epg_url}" placeholder="https://example.com/epg.xml">
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamEpgInput', 'EPG URL copied!')">Copy</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamEpgInput', 'EPG URL copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2124,7 +2124,7 @@ defmodule AcexGateway.Web.DashboardView do
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label" style="margin-bottom: 0;">Content IDs Preview (Clean format):</label>
-              <button class="btn btn-secondary btn-xs" onclick="copyExportText()">
+              <button class="btn btn-secondary btn-xs" onclick="copyExportText(this)">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy All</span>
               </button>
@@ -2213,10 +2213,11 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         // Render Channel Catalog
-        function renderChannels(channels) {
-          channelCountBadge.innerText = channels.length + " channels";
+        function renderChannels(channels = null) {
+          const list = Array.isArray(channels) ? channels : (allChannels || []);
+          channelCountBadge.innerText = list.length + " channels";
 
-          if (!channels || channels.length === 0) {
+          if (list.length === 0) {
             const emptyHtml = `
               <div style="grid-column: 1/-1; text-align: center; padding: 48px 24px; background: var(--surface-card); border-radius: var(--radius-md); border: 1px dashed var(--border-default);">
                 <div style="font-size: 32px; margin-bottom: 8px;">📡</div>
@@ -2234,7 +2235,7 @@ defmodule AcexGateway.Web.DashboardView do
             channelGrid.style.display = "grid";
             if (channelTableContainer) channelTableContainer.classList.remove("show");
 
-            channelGrid.innerHTML = channels.map(c => {
+            channelGrid.innerHTML = list.map(c => {
               const sources = c.sources || [];
               const fallbackCount = sources.length;
               const liveUrl = getLiveStreamUrl(c.id);
@@ -2244,7 +2245,7 @@ defmodule AcexGateway.Web.DashboardView do
                 <div class="source-item">
                   <span style="color: var(--color-primary); font-weight: 700;">#${idx + 1}</span>
                   <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
-                  <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Source hash copied!')">Copy</button>
+                  <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Source hash copied!', this)">Copy</button>
                 </div>
               `).join("");
 
@@ -2299,7 +2300,7 @@ defmodule AcexGateway.Web.DashboardView do
                       </button>
 
                       <div class="card-icon-actions">
-                        <button class="btn btn-ghost btn-icon btn-sm" onclick="copyText('${liveUrl}', 'Stream link copied!')" title="Copy stream link">
+                        <button class="btn btn-ghost btn-icon btn-sm" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy stream link">
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         </button>
                         <button class="btn btn-ghost btn-icon btn-sm" onclick="editChannel('${c.id}')" title="Edit channel">
@@ -2318,7 +2319,7 @@ defmodule AcexGateway.Web.DashboardView do
             channelGrid.style.display = "none";
             if (channelTableContainer) channelTableContainer.classList.add("show");
 
-            channelTableBody.innerHTML = channels.map(c => {
+            channelTableBody.innerHTML = list.map(c => {
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
               const safeName = (c.name || "Channel").replace(/'/g, "\\'");
@@ -2345,7 +2346,7 @@ defmodule AcexGateway.Web.DashboardView do
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px;">
                       <button class="btn btn-primary btn-xs" onclick="openLauncherModal('${safeName}', '${liveUrl}')">Watch</button>
-                      <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!')">Link</button>
+                      <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)">Link</button>
                       <button class="btn btn-secondary btn-xs" onclick="editChannel('${c.id}')">Edit</button>
                       <button class="btn btn-destructive btn-xs" onclick="deleteChannel('${c.id}')">Delete</button>
                     </div>
@@ -2416,7 +2417,7 @@ defmodule AcexGateway.Web.DashboardView do
           openLauncherModal("Quick Stream (" + clean.substring(0, 8) + "...)", streamUrl);
         }
 
-        function copyQuickStreamUrl() {
+        function copyQuickStreamUrl(btn = null) {
           const val = document.getElementById("quickTestInput").value.trim();
           const clean = extractCleanHash(val);
           if (!clean) {
@@ -2424,7 +2425,7 @@ defmodule AcexGateway.Web.DashboardView do
             return;
           }
           const url = getQuickStreamUrl(clean);
-          copyText(url, "Link copied: " + url);
+          copyText(url, "Link copied: " + url, btn);
         }
 
         function fillAddModalWithQuick() {
@@ -2763,11 +2764,13 @@ defmodule AcexGateway.Web.DashboardView do
           document.getElementById("exportModal").classList.remove("active");
         }
 
-        function copyExportText() {
+        function copyExportText(btn = null) {
           const text = document.getElementById("exportPreviewText").value;
-          if (text) {
-            copyText(text, "All channels copied in Content ID format!");
+          if (!text || !text.trim()) {
+            showToast("Export preview is empty!", false);
+            return;
           }
+          copyText(text, "All channels copied in Content ID format!", btn);
         }
 
         // Stream Launcher Modal
@@ -2788,9 +2791,13 @@ defmodule AcexGateway.Web.DashboardView do
           document.getElementById("launcherModal").classList.remove("active");
         }
 
-        function copyLauncherUrl() {
+        function copyLauncherUrl(btn = null) {
           const url = document.getElementById("launcherStreamUrl").value;
-          copyText(url, "Stream URL copied!");
+          if (!url || !url.trim()) {
+            showToast("Stream URL is empty!", false);
+            return;
+          }
+          copyText(url, "Stream URL copied!", btn);
         }
 
         // QR Code Modal
@@ -2887,7 +2894,7 @@ defmodule AcexGateway.Web.DashboardView do
 
             appSettings = settings;
             updateAuthDependentLinks(settings);
-            renderChannels();
+            filterChannels();
 
             showToast("Xtream & Auth settings saved successfully!");
             btn.innerHTML = "<span>✓ Saved!</span>";
@@ -2922,9 +2929,14 @@ defmodule AcexGateway.Web.DashboardView do
           if (qrDisplay) qrDisplay.innerText = m3uUrl;
         }
 
-        function copyInput(elementId, successMsg) {
-          const val = document.getElementById(elementId).value;
-          copyText(val, successMsg || "Copied to clipboard!");
+        function copyInput(elementId, successMsg, btn = null) {
+          const input = document.getElementById(elementId);
+          const val = input ? input.value.trim() : "";
+          if (!val) {
+            showToast("Field is empty — nothing to copy!", false);
+            return;
+          }
+          copyText(val, successMsg || "Copied to clipboard!", btn);
         }
 
         function closeOnBackdrop(e, modalId) {
@@ -3047,27 +3059,70 @@ defmodule AcexGateway.Web.DashboardView do
           });
         }
 
-        function copyM3uUrl() {
+        function copyM3uUrl(btn = null) {
           const input = document.getElementById("m3uUrlInput");
-          copyText(input.value, "M3U8 Playlist link copied!");
-          const btn = document.getElementById("copyM3uBtn");
-          const original = btn.innerHTML;
-          btn.innerHTML = "<span>✓ Copied!</span>";
-          setTimeout(() => btn.innerHTML = original, 2000);
+          if (!input || !input.value.trim()) {
+            showToast("M3U8 Playlist link is empty!", false);
+            return;
+          }
+          const targetBtn = btn || document.getElementById("copyM3uBtn");
+          copyText(input.value, "M3U8 Playlist link copied!", targetBtn);
         }
 
-        function copyText(text, successMsg) {
-          navigator.clipboard.writeText(text).then(() => {
-            showToast(successMsg);
-          }).catch(() => {
-            const temp = document.createElement("input");
-            temp.value = text;
-            document.body.appendChild(temp);
-            temp.select();
-            document.execCommand("copy");
-            document.body.removeChild(temp);
-            showToast(successMsg);
-          });
+        function copyText(text, successMsg, btn = null) {
+          if (!text && text !== 0) {
+            showToast("Nothing to copy!", false);
+            return;
+          }
+
+          function flashBtn() {
+            if (!btn) return;
+            const originalHtml = btn.innerHTML;
+            if (btn.tagName === "BUTTON") {
+              if (btn.classList.contains("btn-icon")) {
+                btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+              } else {
+                btn.innerHTML = "<span>✓ Copied!</span>";
+              }
+              setTimeout(() => { btn.innerHTML = originalHtml; }, 1800);
+            }
+          }
+
+          function fallbackCopy() {
+            try {
+              const textarea = document.createElement("textarea");
+              textarea.value = String(text);
+              textarea.style.position = "fixed";
+              textarea.style.top = "-9999px";
+              textarea.style.left = "-9999px";
+              textarea.style.opacity = "0";
+              textarea.setAttribute("readonly", "");
+              document.body.appendChild(textarea);
+              textarea.select();
+              textarea.setSelectionRange(0, textarea.value.length);
+              const successful = document.execCommand("copy");
+              document.body.removeChild(textarea);
+              if (successful) {
+                showToast(successMsg || "Copied to clipboard!");
+                flashBtn();
+              } else {
+                showToast("Failed to copy to clipboard", false);
+              }
+            } catch (_) {
+              showToast("Failed to copy to clipboard", false);
+            }
+          }
+
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(String(text)).then(() => {
+              showToast(successMsg || "Copied to clipboard!");
+              flashBtn();
+            }).catch(() => {
+              fallbackCopy();
+            });
+          } else {
+            fallbackCopy();
+          }
         }
 
         function showToast(msg, isSuccess = true) {

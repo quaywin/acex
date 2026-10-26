@@ -42,9 +42,26 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 
 ## Quick Start
 
-Run using Docker Compose:
+### 1. Docker Run (Fastest)
 
-### `docker-compose.yml`
+```bash
+docker run -d \
+  --name acex-gateway \
+  --restart unless-stopped \
+  -p 8686:8686 \
+  -p 8621:8621/tcp \
+  -p 8621:8621/udp \
+  -v $(pwd)/data:/app/data \
+  --tmpfs /root/.ACEStream/cache:size=1024M,mode=1777 \
+  --tmpfs /root/.ACEStream/buffer:size=512M,mode=1777 \
+  -e ACE_LIVE_BUFFER=20 \
+  -e ACE_MAX_PEERS=80 \
+  ghcr.io/quaywin/acex:latest
+```
+
+### 2. Docker Compose
+
+`docker-compose.yml`:
 
 ```yaml
 services:
@@ -68,13 +85,13 @@ services:
       - GRACE_PERIOD_MS=15000
 ```
 
-Start the container:
 ```bash
 docker compose up -d
 ```
+
 Open the dashboard at **http://localhost:8686**.
 
-> **Tip:** On a dedicated Linux host or VPS, use `network_mode: host` instead of `ports:` to eliminate Docker NAT overhead and maximize P2P swarm discovery.
+> **Tip:** On a dedicated Linux host or VPS, use `--network host` (or `network_mode: host` in compose) to eliminate Docker NAT overhead and maximize P2P swarm discovery.
 
 ---
 
