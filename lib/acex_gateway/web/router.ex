@@ -244,7 +244,7 @@ defmodule AcexGateway.Web.Router do
       if session_info.speed_kbps > 0, do: session_info.speed_kbps, else: engine_stats.speed_kbps
 
     response = %{
-      version: "0.1.0",
+      version: AcexGateway.version(),
       engine: "AcexGateway (Elixir/OTP)",
       status: session_info.status,
       active_target: session_info.active_target,

@@ -47,7 +47,10 @@ RUN chmod +x /docker-entrypoint.sh && mkdir -p /app/data
 
 EXPOSE 8686 6878 62062 8621/tcp 8621/udp
 
+ARG APP_VERSION=0.1.0
+
 ENV PORT=8686 \
+    APP_VERSION=$APP_VERSION \
     HTTP_PORT=6878 \
     HTTPS_PORT=6879 \
     ACE_TELNET_HOST=127.0.0.1 \

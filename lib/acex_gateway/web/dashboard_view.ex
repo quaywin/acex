@@ -1480,6 +1480,7 @@ defmodule AcexGateway.Web.DashboardView do
               <div class="brand-title">
                 Acex<span class="brand-title-accent">Gateway</span>
                 <span class="brand-badge">⚡ OTP CORE</span>
+                <span class="brand-badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); border-color: var(--border-subtle);">v#{AcexGateway.version()}</span>
               </div>
               <div class="brand-sub">STREAMFLIX IPTV GATEWAY / ACESTREAM BROADCAST</div>
             </div>

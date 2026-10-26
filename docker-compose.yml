@@ -1,6 +1,7 @@
 services:
   # AcexGateway All-in-One: AceStream Engine + Elixir/OTP Relay Hub
   acex-gateway:
+    image: ghcr.io/quaywin/acex:latest
     platform: linux/amd64
     build:
       context: .
