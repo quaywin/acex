@@ -1,12 +1,2038 @@
 [
   {
-    "group": "Benchmark & Demo",
-    "id": "big-buck-bunny",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
-    "name": "Big Buck Bunny (Benchmark Test)",
+    "country": "VN",
+    "group": "Vietnam",
+    "id": "ca-mau-tv",
+    "logo": "",
+    "name": "Ca Mau TV",
     "source_type": "content_id",
     "sources": [
-      "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"
+      "69f0503e266c3c90041d674624abbe18fb6e6768"
+    ]
+  },
+  {
+    "country": "VN",
+    "group": "Vietnam",
+    "id": "hoa-binh-tv",
+    "logo": "",
+    "name": "Hoa Binh TV",
+    "source_type": "content_id",
+    "sources": [
+      "6d1ec2c76dcd36ec2a813604bc7b3ab8a48e883b"
+    ]
+  },
+  {
+    "country": "VN",
+    "group": "Vietnam",
+    "id": "kien-giang-tv",
+    "logo": "",
+    "name": "Kien Giang TV",
+    "source_type": "content_id",
+    "sources": [
+      "53c2a8b40293258ffc267260055aa5d6b734fa97"
+    ]
+  },
+  {
+    "country": "VN",
+    "group": "Vietnam",
+    "id": "quang-nam-tv",
+    "logo": "",
+    "name": "Quang Nam TV",
+    "source_type": "content_id",
+    "sources": [
+      "cb7ec7de999e89d0235e35e85f528e46f66f238c"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "premier-sports-1",
+    "logo": "",
+    "name": "Premier Sports 1",
+    "source_type": "content_id",
+    "sources": [
+      "75a56863b6fe0407ad4305b4d7ee5643c3923565"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "premier-sports-2",
+    "logo": "",
+    "name": "Premier Sports 2",
+    "source_type": "content_id",
+    "sources": [
+      "4903ca695edb64bc72ae29eb85a5333ba0139537"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sport-arena",
+    "logo": "",
+    "name": "Sky Sport Arena",
+    "source_type": "content_id",
+    "sources": [
+      "d317a003e8047da2c36a2a2bb2289578c9a3b79c"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports-cricket",
+    "logo": "",
+    "name": "Sky Sports Cricket",
+    "source_type": "content_id",
+    "sources": [
+      "6d95e4b0893e155cc674b84e0763150c445d3ddd"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports-f1-hd",
+    "logo": "",
+    "name": "Sky Sports F1 HD",
+    "source_type": "content_id",
+    "sources": [
+      "8afb62049f30ba4fb4a74c0c4165313d40b20ccb"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports-football",
+    "logo": "",
+    "name": "Sky Sports Football",
+    "source_type": "content_id",
+    "sources": [
+      "8dbe2d515e9131fa311353537736f8c94be9b26d"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports-main-event",
+    "logo": "",
+    "name": "Sky Sports Main Event",
+    "source_type": "content_id",
+    "sources": [
+      "eab7aeef0218ce8b0752e596e4792b69eda4df5e"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports-premier-league",
+    "logo": "",
+    "name": "Sky Sports Premier League",
+    "source_type": "content_id",
+    "sources": [
+      "ec5eabe0144ccfffc337e1d6708e2afb81d0638e"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "sky-sports",
+    "logo": "",
+    "name": "Sky Sports+",
+    "source_type": "content_id",
+    "sources": [
+      "d317a003e8047da2c36a2a2bb2289578c9a3b79c"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "tnt-sports-1",
+    "logo": "",
+    "name": "TNT Sports 1",
+    "source_type": "content_id",
+    "sources": [
+      "efc60cfe5e3a349baa02bcc49f6647c21a9c3c5b"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "tnt-sports-2",
+    "logo": "",
+    "name": "TNT Sports 2",
+    "source_type": "content_id",
+    "sources": [
+      "d63d8a57cf471394bfa9f619bbd68b01ae27a801"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "tnt-sports-3",
+    "logo": "",
+    "name": "TNT Sports 3",
+    "source_type": "content_id",
+    "sources": [
+      "5f966c123759de46dff29c379266b7a403452033"
+    ]
+  },
+  {
+    "country": "UK",
+    "group": "Sports - UK",
+    "id": "tnt-sports-4",
+    "logo": "",
+    "name": "TNT Sports 4",
+    "source_type": "content_id",
+    "sources": [
+      "fc5089d8e1519872fdf951779ccbca913acc9bce"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "dazn-1-de",
+    "logo": "",
+    "name": "DAZN 1 DE",
+    "source_type": "content_id",
+    "sources": [
+      "897e73c9d578848f596585314ecb9ae067c0e229"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "dazn-2-de",
+    "logo": "",
+    "name": "DAZN 2 DE",
+    "source_type": "content_id",
+    "sources": [
+      "12ea555d431dbe51fc8e4ca745aec09fe22a4865"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "eurosport-1",
+    "logo": "",
+    "name": "Eurosport 1",
+    "source_type": "content_id",
+    "sources": [
+      "b8cad4710b1c3b2b84a82c1ece40c08517b8f766"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "eurosport-2",
+    "logo": "",
+    "name": "Eurosport 2",
+    "source_type": "content_id",
+    "sources": [
+      "ac675c82d6dfd4a201532c18b42e48dacb7c32c6"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-1",
+    "logo": "",
+    "name": "Magenta Sport 1",
+    "source_type": "content_id",
+    "sources": [
+      "501141c649a2b78c4965cbf3257224181cc55072"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-10",
+    "logo": "",
+    "name": "Magenta Sport 10",
+    "source_type": "content_id",
+    "sources": [
+      "6058a4c0f2569bd81c687aa7dfb48b8a9569fb29"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-11",
+    "logo": "",
+    "name": "Magenta Sport 11",
+    "source_type": "content_id",
+    "sources": [
+      "c21316ad4b7f44eaf6fcfb2c245c46de8b746cc6"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-2",
+    "logo": "",
+    "name": "Magenta Sport 2",
+    "source_type": "content_id",
+    "sources": [
+      "ab0d54995bdcea2d8f9f588ef631ebbfb3f5a9ab"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-3",
+    "logo": "",
+    "name": "Magenta Sport 3",
+    "source_type": "content_id",
+    "sources": [
+      "d0ca51f6145514ee605c2ef5d5a137e2a08c95b8"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-4",
+    "logo": "",
+    "name": "Magenta Sport 4",
+    "source_type": "content_id",
+    "sources": [
+      "1fb794b1503c5955b75ea0106ee6360b80d78849"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-5",
+    "logo": "",
+    "name": "Magenta Sport 5",
+    "source_type": "content_id",
+    "sources": [
+      "428b92f3c71cd3cbf66ef6193808b39d16a52730"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-6",
+    "logo": "",
+    "name": "Magenta Sport 6",
+    "source_type": "content_id",
+    "sources": [
+      "14317c55fadc80ef2b7fb42b3d53e8ccb3b52cd8"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-7",
+    "logo": "",
+    "name": "Magenta Sport 7",
+    "source_type": "content_id",
+    "sources": [
+      "ac839cda9709255c21a98af455731f037e77a9e4"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-8",
+    "logo": "",
+    "name": "Magenta Sport 8",
+    "source_type": "content_id",
+    "sources": [
+      "11c5823d4196a90b509f03df1fe78e13cfbbb175"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "magenta-sport-9",
+    "logo": "",
+    "name": "Magenta Sport 9",
+    "source_type": "content_id",
+    "sources": [
+      "86495fe134ff065d5217497babe6be33f81d37d1"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "motorvision",
+    "logo": "",
+    "name": "Motorvision",
+    "source_type": "content_id",
+    "sources": [
+      "acd7e3ae185a376e6596e60a414bebbf3321b37f"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "rtl-de",
+    "logo": "",
+    "name": "RTL DE",
+    "source_type": "content_id",
+    "sources": [
+      "bc9610c2cb92a71a5c17f357d66719fa1c054ced"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sport1-de",
+    "logo": "",
+    "name": "SPORT1 DE",
+    "source_type": "content_id",
+    "sources": [
+      "1950633a3723cb52b17c764125decc04445bd5ff"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sport1",
+    "logo": "",
+    "name": "SPORT1+",
+    "source_type": "content_id",
+    "sources": [
+      "e61b6538df35e5016635dfa2b3073f5b82ee4c2b"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "servus-tv",
+    "logo": "",
+    "name": "Servus TV",
+    "source_type": "content_id",
+    "sources": [
+      "988f4d88d74ec0d2b3584f6c7e067fcbdb501115"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sky-sport-1-de",
+    "logo": "",
+    "name": "Sky Sport 1 DE",
+    "source_type": "content_id",
+    "sources": [
+      "7c12288663069a12aff58f3f62e8ea47ab78c65d"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sky-sport-2-de",
+    "logo": "",
+    "name": "Sky Sport 2 DE",
+    "source_type": "content_id",
+    "sources": [
+      "fc9f1f580da8f641a5991d44b399982a3a069f69"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sky-sport-f1-de",
+    "logo": "",
+    "name": "Sky Sport F1 DE",
+    "source_type": "content_id",
+    "sources": [
+      "b04372b9543d763bd2dbd2a1842d9723fd080076"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "sportdigital-fussball",
+    "logo": "",
+    "name": "Sportdigital FUSSBALL",
+    "source_type": "content_id",
+    "sources": [
+      "5e94200ae8b1d95cb559fb150e5993d92e15d4e7"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Sports - Germany",
+    "id": "zdf",
+    "logo": "",
+    "name": "ZDF",
+    "source_type": "content_id",
+    "sources": [
+      "c71fb593810ce837545e8d8b384e50a42c35a316"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "orf-1",
+    "logo": "",
+    "name": "ORF 1",
+    "source_type": "content_id",
+    "sources": [
+      "c9d6412050226de0968cea19a383b50dc1966363"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "orf-2",
+    "logo": "",
+    "name": "ORF 2",
+    "source_type": "content_id",
+    "sources": [
+      "f5d3ea421c4c067b5c90161a8ae4d93482fb9edd"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "orf-3",
+    "logo": "",
+    "name": "ORF 3",
+    "source_type": "content_id",
+    "sources": [
+      "41ac7892b8fde95d5110d83d7324044145c7f86a"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "orf-sport",
+    "logo": "",
+    "name": "ORF Sport+",
+    "source_type": "content_id",
+    "sources": [
+      "0dfa37340ca0300a41f7a78bd3a0f024c3296974"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "sky-sport-austria-1",
+    "logo": "",
+    "name": "Sky Sport Austria 1",
+    "source_type": "content_id",
+    "sources": [
+      "eec3f8107e008cec3679f76e078deeefd1348a3e"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "sky-sport-austria-2",
+    "logo": "",
+    "name": "Sky Sport Austria 2",
+    "source_type": "content_id",
+    "sources": [
+      "ce4ae0c3491acd4272340029139ba25642e2516b"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "sky-sport-austria-3",
+    "logo": "",
+    "name": "Sky Sport Austria 3",
+    "source_type": "content_id",
+    "sources": [
+      "a435581e6cba56972e48cf4519d1b2af735eec2f"
+    ]
+  },
+  {
+    "country": "AT",
+    "group": "Sports - Austria",
+    "id": "sky-sport-austria-4",
+    "logo": "",
+    "name": "Sky Sport Austria 4",
+    "source_type": "content_id",
+    "sources": [
+      "e6cce13cb4005ec3c7d77db47865385927a7ab7e"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "dazn-1-es",
+    "logo": "",
+    "name": "DAZN 1 ES",
+    "source_type": "content_id",
+    "sources": [
+      "d5b2c6b940cf3df5e8f9dc6f000f0ea23a10b151"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "dazn-2-es",
+    "logo": "",
+    "name": "DAZN 2 ES",
+    "source_type": "content_id",
+    "sources": [
+      "b0eabe0fdd02fdd165896236765a9b753a2ff516"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "dazn-3-es",
+    "logo": "",
+    "name": "DAZN 3 ES",
+    "source_type": "content_id",
+    "sources": [
+      "d1d9ec2361a6ac8edc0b2841866383768cc28df9"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "dazn-4-es",
+    "logo": "",
+    "name": "DAZN 4 ES",
+    "source_type": "content_id",
+    "sources": [
+      "7e90956539f4e1318a63f3960e4f75c7c7c5a3b8"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "movistar-deportes",
+    "logo": "",
+    "name": "Movistar Deportes",
+    "source_type": "content_id",
+    "sources": [
+      "acb510858f34c3c6fd5f79395b031abd6885c2b3"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "movistar-golf",
+    "logo": "",
+    "name": "Movistar Golf",
+    "source_type": "content_id",
+    "sources": [
+      "872608e734992db636eb79426802cd08f4029afb"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "movistar-laliga",
+    "logo": "",
+    "name": "Movistar LaLiga",
+    "source_type": "content_id",
+    "sources": [
+      "cc9b7f5fe416069a2110da0909b0f915043c468b"
+    ]
+  },
+  {
+    "country": "ES",
+    "group": "Sports - Spain",
+    "id": "movistar-liga-de-campeones",
+    "logo": "",
+    "name": "Movistar Liga de Campeones",
+    "source_type": "content_id",
+    "sources": [
+      "e572a5178ff72eed7d1d751a18b4b3419699f370"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "canal-sport-1-pl",
+    "logo": "",
+    "name": "Canal+ Sport 1 PL",
+    "source_type": "content_id",
+    "sources": [
+      "cc7b8c39f70aa342248d02c8ab55bafdb4116ed7"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "canal-sport-2-pl",
+    "logo": "",
+    "name": "Canal+ Sport 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "6390b1ab967a25777ea2dde1d41b7400cc0601d3"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "canal-sport-3-pl",
+    "logo": "",
+    "name": "Canal+ Sport 3 PL",
+    "source_type": "content_id",
+    "sources": [
+      "3e87464ed8c42ed14464461ea08860a3040a8944"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "canal-sport-4-pl",
+    "logo": "",
+    "name": "Canal+ Sport 4 PL",
+    "source_type": "content_id",
+    "sources": [
+      "04448c3ca0b7518819491e468adbabc8a2551bd7"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "canal-sports-5",
+    "logo": "",
+    "name": "Canal+ Sports 5",
+    "source_type": "content_id",
+    "sources": [
+      "5f595b1bbade5e7c915d99f90645f4c30d4ba540"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eleven-sports-1-pl",
+    "logo": "",
+    "name": "Eleven Sports 1 PL",
+    "source_type": "content_id",
+    "sources": [
+      "14407b00d454cb7dc0d70aa26e8bbc554f457f00"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eleven-sports-2-pl",
+    "logo": "",
+    "name": "Eleven Sports 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "54a4a28882d3cae1ca19de5d4b022ebea40351f9"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eleven-sports-3-pl",
+    "logo": "",
+    "name": "Eleven Sports 3 PL",
+    "source_type": "content_id",
+    "sources": [
+      "b146ee4b6e16c9df58e27bd02ffd6cea840ff212"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eleven-sports-4-pl",
+    "logo": "",
+    "name": "Eleven Sports 4 PL",
+    "source_type": "content_id",
+    "sources": [
+      "458a0ddd7d193f6d2750cd14d03a47f47a808e09"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eurosport-1-pl",
+    "logo": "",
+    "name": "Eurosport 1 PL",
+    "source_type": "content_id",
+    "sources": [
+      "314eb626864faf52e01624361bd6906b5406127f"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "eurosport-2-pl",
+    "logo": "",
+    "name": "Eurosport 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "7aa9cc819c6fa781dea6b4de3aa5393258b766d8"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "extreme-sports",
+    "logo": "",
+    "name": "Extreme Sports",
+    "source_type": "content_id",
+    "sources": [
+      "73ff07648e367efebd94636047b07625f664a082"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "fightbox-pl",
+    "logo": "",
+    "name": "Fightbox PL",
+    "source_type": "content_id",
+    "sources": [
+      "49b734a5a3365674480089264be00ae28fabb640",
+      "d9e5e213121f3ea7fbcb216b48c306cd935b017a"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "fightklub-pl",
+    "logo": "",
+    "name": "Fightklub PL",
+    "source_type": "content_id",
+    "sources": [
+      "b73da828421018c98905ed05934b77ea35aa1b29"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "golf-channel-pl",
+    "logo": "",
+    "name": "Golf Channel PL",
+    "source_type": "content_id",
+    "sources": [
+      "d4acffe8f08b7728d3b489ab5ca37398a5636689"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "motowizja",
+    "logo": "",
+    "name": "Motowizja",
+    "source_type": "content_id",
+    "sources": [
+      "8ef4e74336a0114d6def70de9d15cc4817d2f350"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport",
+    "logo": "",
+    "name": "Polsat Sport",
+    "source_type": "content_id",
+    "sources": [
+      "92b6ba09dae4bbb8a67a405125d08ca8d15380ee"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-1-pl",
+    "logo": "",
+    "name": "Polsat Sport 1 PL",
+    "source_type": "content_id",
+    "sources": [
+      "92b6ba09dae4bbb8a67a405125d08ca8d15380ee"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-2-pl",
+    "logo": "",
+    "name": "Polsat Sport 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "ef2cf11fc83f4f15a33c9a514a7afd2bce73122f"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-extra-pl",
+    "logo": "",
+    "name": "Polsat Sport Extra PL",
+    "source_type": "content_id",
+    "sources": [
+      "ef2cf11fc83f4f15a33c9a514a7afd2bce73122f"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-fight-pl",
+    "logo": "",
+    "name": "Polsat Sport Fight PL",
+    "source_type": "content_id",
+    "sources": [
+      "9e7fe279f421b734a8af9e68320955fd16f80b4b"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-premium-1-pl",
+    "logo": "",
+    "name": "Polsat Sport Premium 1 PL",
+    "source_type": "content_id",
+    "sources": [
+      "4ce55db7e578ff52a6e526cf610e477464b8a99f"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "polsat-sport-premium-2-pl",
+    "logo": "",
+    "name": "Polsat Sport Premium 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "3147c586346aee00c005d1caa55204d38678c95f"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "sport-klub",
+    "logo": "",
+    "name": "Sport Klub",
+    "source_type": "content_id",
+    "sources": [
+      "35575a31d76f6c5f5e9e6364dacfdeca3b85f2ee"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Sports - Poland",
+    "id": "tvp-sport-pl",
+    "logo": "",
+    "name": "TVP Sport PL",
+    "source_type": "content_id",
+    "sources": [
+      "d6f0a6377c31f68b1c1c071e0a8f9f105a455867"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-1-pt",
+    "logo": "",
+    "name": "DAZN 1 PT",
+    "source_type": "content_id",
+    "sources": [
+      "36cad67fed5a739757a9db844a551aa845a8d51b"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-2-pt",
+    "logo": "",
+    "name": "DAZN 2 PT",
+    "source_type": "content_id",
+    "sources": [
+      "d08013df6e437a1fdf1e0c34f573fdf6a40c7fce"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-3-pt",
+    "logo": "",
+    "name": "DAZN 3 PT",
+    "source_type": "content_id",
+    "sources": [
+      "dae7d1251f069516cc0a9c8f15f6639d2a17df1e"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-4-pt",
+    "logo": "",
+    "name": "DAZN 4 PT",
+    "source_type": "content_id",
+    "sources": [
+      "0f32c0131a2d9444996410801f4e18b04384db98"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-5-pt",
+    "logo": "",
+    "name": "DAZN 5 PT",
+    "source_type": "content_id",
+    "sources": [
+      "4dbe63b44fc4f439f5b634c0d2aa7e0cccad808a"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "dazn-6-pt",
+    "logo": "",
+    "name": "DAZN 6 PT",
+    "source_type": "content_id",
+    "sources": [
+      "50b6d2b5fd59fefb9f4fd2176994d418f2b94a80"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-1-pt",
+    "logo": "",
+    "name": "Eleven Sports 1 PT",
+    "source_type": "content_id",
+    "sources": [
+      "36cad67fed5a739757a9db844a551aa845a8d51b"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-2-pt",
+    "logo": "",
+    "name": "Eleven Sports 2 PT",
+    "source_type": "content_id",
+    "sources": [
+      "d08013df6e437a1fdf1e0c34f573fdf6a40c7fce"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-3-pt",
+    "logo": "",
+    "name": "Eleven Sports 3 PT",
+    "source_type": "content_id",
+    "sources": [
+      "dae7d1251f069516cc0a9c8f15f6639d2a17df1e"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-4-pt",
+    "logo": "",
+    "name": "Eleven Sports 4 PT",
+    "source_type": "content_id",
+    "sources": [
+      "0f32c0131a2d9444996410801f4e18b04384db98"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-5-pt",
+    "logo": "",
+    "name": "Eleven Sports 5 PT",
+    "source_type": "content_id",
+    "sources": [
+      "4dbe63b44fc4f439f5b634c0d2aa7e0cccad808a"
+    ]
+  },
+  {
+    "country": "PT",
+    "group": "Sports - Portugal",
+    "id": "eleven-sports-6-pt",
+    "logo": "",
+    "name": "Eleven Sports 6 PT",
+    "source_type": "content_id",
+    "sources": [
+      "50b6d2b5fd59fefb9f4fd2176994d418f2b94a80"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "espn-1-nl",
+    "logo": "",
+    "name": "ESPN 1 NL",
+    "source_type": "content_id",
+    "sources": [
+      "79f10c6c6168e42bfc606f3f7b9e5f3ca79dedab"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "espn-2-nl",
+    "logo": "",
+    "name": "ESPN 2 NL",
+    "source_type": "content_id",
+    "sources": [
+      "3e0ba6867173f345d482d80c771f1a5dc3b37e63"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "espn-3",
+    "logo": "",
+    "name": "ESPN 3",
+    "source_type": "content_id",
+    "sources": [
+      "a97cafedefe189d63e52eadc5c9bbc351b01540a"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "espn-4",
+    "logo": "",
+    "name": "ESPN 4",
+    "source_type": "content_id",
+    "sources": [
+      "5f9b19c57195cc28ab81e0ec8cad03b55118687a"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "ziggo-sport",
+    "logo": "",
+    "name": "Ziggo Sport",
+    "source_type": "content_id",
+    "sources": [
+      "45eab0695ce13265687ace5e5bcef8d8ee8bc69a",
+      "95769f95c6af45e8ec46526c3be1104d0a0c7b91",
+      "77800bb07c1d69135024ee2379c97472eb12dd45",
+      "035e34b791335962ca817f42fd14300382af3797",
+      "fcd7621df513f600652b4813d5d8fd1daed60058"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "ziggo-sport-2",
+    "logo": "",
+    "name": "Ziggo Sport 2",
+    "source_type": "content_id",
+    "sources": [
+      "868a6187d6aeec65ded84bd777814c9f7b7a9027"
+    ]
+  },
+  {
+    "country": "NL",
+    "group": "Sports - Netherlands",
+    "id": "ziggo-sport-6",
+    "logo": "",
+    "name": "Ziggo Sport 6",
+    "source_type": "content_id",
+    "sources": [
+      "9231f38e71a85ad24b4c11a5e360992e30c916ed"
+    ]
+  },
+  {
+    "country": "FR",
+    "group": "Sports - France",
+    "id": "bein-sports-1",
+    "logo": "",
+    "name": "Bein Sports 1",
+    "source_type": "content_id",
+    "sources": [
+      "bba1905fcd1c4975aec544047bf8e4cd23ce3fe0",
+      "118416583faa3fb4f03800173429b6b844b43a52"
+    ]
+  },
+  {
+    "country": "FR",
+    "group": "Sports - France",
+    "id": "bein-sports-2",
+    "logo": "",
+    "name": "Bein Sports 2",
+    "source_type": "content_id",
+    "sources": [
+      "edb507e38394d614c9ff55805c9d354ae13210bc",
+      "48bee10b883f17c7186d60f1e8022dca0ba41a05"
+    ]
+  },
+  {
+    "country": "FR",
+    "group": "Sports - France",
+    "id": "bein-sports-3",
+    "logo": "",
+    "name": "Bein Sports 3",
+    "source_type": "content_id",
+    "sources": [
+      "731bd3336ec0986ff9100efe40dbaf1473a22cf8",
+      "ed81c333815247536edfcdb2755147e8c4144d62"
+    ]
+  },
+  {
+    "country": "US",
+    "group": "Sports - USA",
+    "id": "espn-1",
+    "logo": "",
+    "name": "ESPN 1",
+    "source_type": "content_id",
+    "sources": [
+      "4b4907de51ec11087d4bed5876f2a0c68264f442"
+    ]
+  },
+  {
+    "country": "US",
+    "group": "Sports - USA",
+    "id": "espn-2",
+    "logo": "",
+    "name": "ESPN 2",
+    "source_type": "content_id",
+    "sources": [
+      "664eb5fe460b96941aed633959a845b185cd8394"
+    ]
+  },
+  {
+    "country": "US",
+    "group": "Sports - USA",
+    "id": "fox-sports-1",
+    "logo": "",
+    "name": "Fox Sports 1",
+    "source_type": "content_id",
+    "sources": [
+      "c9c062941fbecb16ce29437f346ea7177d720898"
+    ]
+  },
+  {
+    "country": "US",
+    "group": "Sports - USA",
+    "id": "fox-sports-2",
+    "logo": "",
+    "name": "Fox Sports 2",
+    "source_type": "content_id",
+    "sources": [
+      "cba8d369eac629b577750edb90370cd1c5fb03b7"
+    ]
+  },
+  {
+    "country": "US",
+    "group": "Sports - USA",
+    "id": "nba-tv",
+    "logo": "",
+    "name": "NBA TV",
+    "source_type": "content_id",
+    "sources": [
+      "e72d03fb9694164317260f684470be9ab781ed95"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "eurosport-1-ru",
+    "logo": "",
+    "name": "Eurosport 1 RU",
+    "source_type": "content_id",
+    "sources": [
+      "1b0bc4d4dcd609d3c092712e721392b199f50a62"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "eurosport-2-ru",
+    "logo": "",
+    "name": "Eurosport 2 RU",
+    "source_type": "content_id",
+    "sources": [
+      "6176281b9c46a5621a0e88524f8dc621f173b8e0"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "khl",
+    "logo": "",
+    "name": "KHL",
+    "source_type": "content_id",
+    "sources": [
+      "aa6c193b9de1e6b6277e3075299fdeea925e2dc0"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "khl-prime",
+    "logo": "",
+    "name": "KHL Prime",
+    "source_type": "content_id",
+    "sources": [
+      "dcda9de85f7d662c5c3c2efd74eca0fb5c6aab3b"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-arena-hd",
+    "logo": "",
+    "name": "MATCH! Arena HD",
+    "source_type": "content_id",
+    "sources": [
+      "a1d67cb505881b2b5bc58ce2af367e5e6d26cab5"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-boets",
+    "logo": "",
+    "name": "MATCH! Boets",
+    "source_type": "content_id",
+    "sources": [
+      "822654b2c0db24d1de149cb21fdd44a3b968fbfa"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-football-2",
+    "logo": "",
+    "name": "MATCH! Football 2",
+    "source_type": "content_id",
+    "sources": [
+      "ffbf8c687c788d9a1a7c651e24802ee773ff3f04"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-football-3",
+    "logo": "",
+    "name": "MATCH! Football 3",
+    "source_type": "content_id",
+    "sources": [
+      "b6baa046075d82da300fc1b16de96067a8b9540e"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-football-hd",
+    "logo": "",
+    "name": "MATCH! Football HD",
+    "source_type": "content_id",
+    "sources": [
+      "b28db77c5084da7993395d77df96c30bb134f0a9"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-hd",
+    "logo": "",
+    "name": "MATCH! HD",
+    "source_type": "content_id",
+    "sources": [
+      "a203f6b935a8ad8659c4c76c1d9c13afa6368ef2"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-igra-hd",
+    "logo": "",
+    "name": "MATCH! Igra HD",
+    "source_type": "content_id",
+    "sources": [
+      "762e1d11f7d07029f316c6f61b8ef73289c6673c"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-nash-sport-hd",
+    "logo": "",
+    "name": "MATCH! Nash Sport HD",
+    "source_type": "content_id",
+    "sources": [
+      "7b4362cb04a3df40bdfa3800af0cc78309a60771"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-prime-hd",
+    "logo": "",
+    "name": "MATCH! Prime HD",
+    "source_type": "content_id",
+    "sources": [
+      "4b7c5f21b435d79c823e47572655a9c157a3ba12"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-football-1",
+    "logo": "",
+    "name": "Match Football 1",
+    "source_type": "content_id",
+    "sources": [
+      "b28db77c5084da7993395d77df96c30bb134f0a9"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "match-premier",
+    "logo": "",
+    "name": "Match Premier",
+    "source_type": "content_id",
+    "sources": [
+      "4b7c5f21b435d79c823e47572655a9c157a3ba12"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "setanta-sports-1-ru",
+    "logo": "",
+    "name": "Setanta Sports 1 RU",
+    "source_type": "content_id",
+    "sources": [
+      "42fe2ce3ef6b92653a74d85b6e98c2ba0abee707"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "setanta-sports-2-ru",
+    "logo": "",
+    "name": "Setanta Sports 2 RU",
+    "source_type": "content_id",
+    "sources": [
+      "f6d68cfa8694f814983f2a5757f4e0c4964b880c"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "viasat-sport",
+    "logo": "",
+    "name": "Viasat Sport",
+    "source_type": "content_id",
+    "sources": [
+      "dec96c86080c26ddf667ea90adfb513a40007a0b"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Sports - Russia",
+    "id": "футбол-hd",
+    "logo": "",
+    "name": "Футбол HD",
+    "source_type": "content_id",
+    "sources": [
+      "fce354f24fe26ca527e2c38b14eb7b0c81f756dd"
+    ]
+  },
+  {
+    "country": "UA",
+    "group": "Sports - Ukraine",
+    "id": "setanta-sports-1",
+    "logo": "",
+    "name": "Setanta Sports 1",
+    "source_type": "content_id",
+    "sources": [
+      "42fe2ce3ef6b92653a74d85b6e98c2ba0abee707"
+    ]
+  },
+  {
+    "country": "UA",
+    "group": "Sports - Ukraine",
+    "id": "setanta-sports-2",
+    "logo": "",
+    "name": "Setanta Sports 2",
+    "source_type": "content_id",
+    "sources": [
+      "f6d68cfa8694f814983f2a5757f4e0c4964b880c"
+    ]
+  },
+  {
+    "country": "TR",
+    "group": "Sports - Turkey",
+    "id": "bein-sports-4",
+    "logo": "",
+    "name": "Bein Sports 4",
+    "source_type": "content_id",
+    "sources": [
+      "7683cd0cbacf55fa8b39c363219ffba1bc47cf9d"
+    ]
+  },
+  {
+    "country": "TR",
+    "group": "Sports - Turkey",
+    "id": "bein-sports-haber",
+    "logo": "",
+    "name": "Bein Sports HABER",
+    "source_type": "content_id",
+    "sources": [
+      "47c1b3a68d03bd190fed521d144ad08fa0f195f3"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "bein-sports-3-tu",
+    "logo": "",
+    "name": "BEIN SPORTS 3 TU",
+    "source_type": "content_id",
+    "sources": [
+      "ed81c333815247536edfcdb2755147e8c4144d62"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "canal-sport-pl",
+    "logo": "",
+    "name": "CANAL+ SPORT PL",
+    "source_type": "content_id",
+    "sources": [
+      "cc7b8c39f70aa342248d02c8ab55bafdb4116ed7"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "espn-1-be",
+    "logo": "",
+    "name": "ESPN 1 BE",
+    "source_type": "content_id",
+    "sources": [
+      "79f10c6c6168e42bfc606f3f7b9e5f3ca79dedab"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "espn-2-be",
+    "logo": "",
+    "name": "ESPN 2 BE",
+    "source_type": "content_id",
+    "sources": [
+      "3e0ba6867173f345d482d80c771f1a5dc3b37e63"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "espn-3-be",
+    "logo": "",
+    "name": "ESPN 3 BE",
+    "source_type": "content_id",
+    "sources": [
+      "a97cafedefe189d63e52eadc5c9bbc351b01540a"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "espn-4-be",
+    "logo": "",
+    "name": "ESPN 4 BE",
+    "source_type": "content_id",
+    "sources": [
+      "5f9b19c57195cc28ab81e0ec8cad03b55118687a"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "espn-be",
+    "logo": "",
+    "name": "ESPN BE",
+    "source_type": "content_id",
+    "sources": [
+      "79f10c6c6168e42bfc606f3f7b9e5f3ca79dedab"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "free-hd",
+    "logo": "",
+    "name": "FREE HD",
+    "source_type": "content_id",
+    "sources": [
+      "8db2dfb85a003147c2735af5bbdb35f63ca37988",
+      "9f4d443e3343250831edef53d70c8671cb4bcce5",
+      "2330e1760ef757dfca451a042bf4c83388204de2"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "match-game",
+    "logo": "",
+    "name": "MATCH GAME",
+    "source_type": "content_id",
+    "sources": [
+      "762e1d11f7d07029f316c6f61b8ef73289c6673c"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "match-tv",
+    "logo": "",
+    "name": "MATCH TV",
+    "source_type": "content_id",
+    "sources": [
+      "a203f6b935a8ad8659c4c76c1d9c13afa6368ef2"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "one-golf-hd",
+    "logo": "",
+    "name": "ONE GOLF HD",
+    "source_type": "content_id",
+    "sources": [
+      "60e1595db53c6af5339b50ad21d957ad9a44a311"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "polsat-premium-1",
+    "logo": "",
+    "name": "POLSAT PREMIUM 1",
+    "source_type": "content_id",
+    "sources": [
+      "4ce55db7e578ff52a6e526cf610e477464b8a99f"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "polsat-premium-2",
+    "logo": "",
+    "name": "POLSAT PREMIUM 2",
+    "source_type": "content_id",
+    "sources": [
+      "3147c586346aee00c005d1caa55204d38678c95f"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "sport-digital-de",
+    "logo": "",
+    "name": "SPORT DIGITAL DE",
+    "source_type": "content_id",
+    "sources": [
+      "5e94200ae8b1d95cb559fb150e5993d92e15d4e7"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Sports",
+    "id": "sportklub-pl",
+    "logo": "",
+    "name": "SPORTKLUB PL",
+    "source_type": "content_id",
+    "sources": [
+      "35575a31d76f6c5f5e9e6364dacfdeca3b85f2ee"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "bcu-kids-4k",
+    "logo": "",
+    "name": "BCU Kids 4K",
+    "source_type": "content_id",
+    "sources": [
+      "c3aa52aab6bd48c3b79189410fbf716f2e4dd293"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "bcu-premiere-ultra-4k",
+    "logo": "",
+    "name": "BCU Premiere Ultra 4K",
+    "source_type": "content_id",
+    "sources": [
+      "30b1dba65edffa2c0c8ade75257508b00d8a61ea"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "bcu-ultra-4k",
+    "logo": "",
+    "name": "BCU Ultra 4K",
+    "source_type": "content_id",
+    "sources": [
+      "6c82a952053419ef358907fc2fc52151626be0b7"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "cinema-4k",
+    "logo": "",
+    "name": "Cinema 4K",
+    "source_type": "content_id",
+    "sources": [
+      "6c76dccd15ff935fb1442223529d1aecc8f515d8",
+      "038b448c810cad19a2a9e615d94696a23141e379"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "clarity-4k",
+    "logo": "",
+    "name": "Clarity 4K",
+    "source_type": "content_id",
+    "sources": [
+      "f7537658cf8b49139386ce6f0f84d7d90f143d4a"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "insight-uhd-4k",
+    "logo": "",
+    "name": "Insight UHD 4K",
+    "source_type": "content_id",
+    "sources": [
+      "2bc787fab6cfce8b5c7a7c6b85e862066d967a68"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "love-nature-4k",
+    "logo": "",
+    "name": "Love Nature 4K",
+    "source_type": "content_id",
+    "sources": [
+      "a54d3ec9d49487cb1e9102c74f341fec4cebd189"
+    ]
+  },
+  {
+    "country": "",
+    "group": "4K UHD",
+    "id": "serial-4k",
+    "logo": "",
+    "name": "Serial 4K",
+    "source_type": "content_id",
+    "sources": [
+      "3a71745381e1a6821a881c96a230b6cd365d4da5"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "4K UHD",
+    "id": "sky-sport-bundesliga-4k",
+    "logo": "",
+    "name": "Sky Sport Bundesliga 4K",
+    "source_type": "content_id",
+    "sources": [
+      "169da1e59ffd3947c09d65eb1a0de0c831bef390"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "4K UHD",
+    "id": "sky-sport-de-4k",
+    "logo": "",
+    "name": "Sky Sport DE 4K",
+    "source_type": "content_id",
+    "sources": [
+      "96f3385d7bd5420ffad7d54ecae5cab2b9da25c3"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "4K UHD",
+    "id": "eleven-sports-1-4k-pl",
+    "logo": "",
+    "name": "Eleven Sports 1 4K PL",
+    "source_type": "content_id",
+    "sources": [
+      "7ac2d74ef6df9d15012992d7e0e635a95f58c652"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "4K UHD",
+    "id": "our-siberia-4k",
+    "logo": "",
+    "name": "Our Siberia 4K",
+    "source_type": "content_id",
+    "sources": [
+      "4b7237f2e654d6c1e03ece1d2fffc249e0324ae6"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "4K UHD",
+    "id": "russian-extreme-4k",
+    "logo": "",
+    "name": "Russian Extreme 4K",
+    "source_type": "content_id",
+    "sources": [
+      "9214a597a38ed669aba1fe73351a580b1a77ce6e"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Documentary & Movies",
+    "id": "nat-geo-wild-de",
+    "logo": "",
+    "name": "Nat Geo Wild DE",
+    "source_type": "content_id",
+    "sources": [
+      "394354a04edd738876b8b2ecab15d4765d33b37f"
+    ]
+  },
+  {
+    "country": "DE",
+    "group": "Documentary & Movies",
+    "id": "national-geographic-de",
+    "logo": "",
+    "name": "National Geographic DE",
+    "source_type": "content_id",
+    "sources": [
+      "45f110711ddffc71167cb09c8c7992689694f5d6"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "animal-planet-pl",
+    "logo": "",
+    "name": "Animal Planet PL",
+    "source_type": "content_id",
+    "sources": [
+      "f0606ea7c732bdc8c04b7624d89be04aed70d92b"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "cinemax-2-pl",
+    "logo": "",
+    "name": "Cinemax 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "5cc11fdb007856a52f131a63a5baee1b15908046"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "cinemax-pl",
+    "logo": "",
+    "name": "Cinemax PL",
+    "source_type": "content_id",
+    "sources": [
+      "624ba2d277ec55c7d742acd687dadc6e69a8fea9"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "hbo-2-pl",
+    "logo": "",
+    "name": "HBO 2 PL",
+    "source_type": "content_id",
+    "sources": [
+      "a17f77bbe25cb90f1b7b138ae718b6ae8997000c"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "hbo-3-pl",
+    "logo": "",
+    "name": "HBO 3 PL",
+    "source_type": "content_id",
+    "sources": [
+      "e2de327f6e9ea10cd76b52ddd5e03a63c0e1241d"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "hbo-pl",
+    "logo": "",
+    "name": "HBO PL",
+    "source_type": "content_id",
+    "sources": [
+      "bb497b248bb728dbe27f731f084e06462c05a04c"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "nat-geo-wild-pl",
+    "logo": "",
+    "name": "Nat Geo Wild PL",
+    "source_type": "content_id",
+    "sources": [
+      "67ad6e798f206193a5b8f456a622460d9c7d2e29"
+    ]
+  },
+  {
+    "country": "PL",
+    "group": "Documentary & Movies",
+    "id": "national-geographic-pl",
+    "logo": "",
+    "name": "National Geographic PL",
+    "source_type": "content_id",
+    "sources": [
+      "08fc2ddc0b95776368901b22a506fa22a8ff9fe2"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Documentary & Movies",
+    "id": "animal-planet-ru",
+    "logo": "",
+    "name": "Animal Planet RU",
+    "source_type": "content_id",
+    "sources": [
+      "4326cb056ec172c0d9958cd44535045723b66068"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Documentary & Movies",
+    "id": "nat-geo-wild-ru",
+    "logo": "",
+    "name": "Nat Geo Wild RU",
+    "source_type": "content_id",
+    "sources": [
+      "5347a5417c376ac10cdf9c1a3a26eadbe76c280a"
+    ]
+  },
+  {
+    "country": "RU",
+    "group": "Documentary & Movies",
+    "id": "national-geographic-ru",
+    "logo": "",
+    "name": "National Geographic RU",
+    "source_type": "content_id",
+    "sources": [
+      "3a08c5a973e162429910f441bf8aa45b24d667e0"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "acetop-1",
+    "logo": "",
+    "name": "Acetop 1",
+    "source_type": "content_id",
+    "sources": [
+      "2b0acad014567bbbe0664904af8c001754283eb1"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "acetop-2",
+    "logo": "",
+    "name": "Acetop 2",
+    "source_type": "content_id",
+    "sources": [
+      "5f569f3ecf8b4d2f2f4bc732dd7023568f76e4a9"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "acetop-3",
+    "logo": "",
+    "name": "Acetop 3",
+    "source_type": "content_id",
+    "sources": [
+      "9e04108345f4ca8cd33e418b91002d5b0ccd2690"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-1",
+    "logo": "",
+    "name": "PimpleTV 1",
+    "source_type": "content_id",
+    "sources": [
+      "8442b5c7c99e5af57c2c40c1e28153072968988a"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-2",
+    "logo": "",
+    "name": "PimpleTV 2",
+    "source_type": "content_id",
+    "sources": [
+      "aca05dc506242324c1727525d0535ceda24f8dea",
+      "e38b33c56332de27ff25df223cdf488b1ec6051f"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-3",
+    "logo": "",
+    "name": "PimpleTV 3",
+    "source_type": "content_id",
+    "sources": [
+      "350b2044f1c9e87e18d8fbda1bcc456c22cf9296"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-4",
+    "logo": "",
+    "name": "PimpleTV 4",
+    "source_type": "content_id",
+    "sources": [
+      "016d48fb89bb9505ab3f883db1bfb3a7c0a3eccc"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-5",
+    "logo": "",
+    "name": "PimpleTV 5",
+    "source_type": "content_id",
+    "sources": [
+      "aca05dc506242324c1727525d0535ceda24f8dea"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-6",
+    "logo": "",
+    "name": "PimpleTV 6",
+    "source_type": "content_id",
+    "sources": [
+      "bc99becb2a74f8f455d6dbaa3bd85c6c7e938a6c"
+    ]
+  },
+  {
+    "country": "",
+    "group": "Live Feeds",
+    "id": "pimpletv-7",
+    "logo": "",
+    "name": "PimpleTV 7",
+    "source_type": "content_id",
+    "sources": [
+      "e38b33c56332de27ff25df223cdf488b1ec6051f"
     ]
   }
 ]

@@ -34,6 +34,19 @@ defmodule AcexGateway.Web.DashboardView do
   """
   def render(base_url, channels) do
     channels_json = Jason.encode!(channels)
+    auth_enabled = AcexGateway.Config.auth_enabled?()
+    auth_user = AcexGateway.Config.auth_username()
+    auth_pass = AcexGateway.Config.auth_password()
+    epg_url = AcexGateway.Config.epg_url()
+    parsed_uri = URI.parse(base_url)
+    server_port = to_string(parsed_uri.port || 8686)
+
+    m3u_display_url =
+      if auth_enabled and auth_user != "" and auth_pass != "" do
+        "#{base_url}/playlist.m3u8?username=#{URI.encode_www_form(auth_user)}&password=#{URI.encode_www_form(auth_pass)}"
+      else
+        "#{base_url}/playlist.m3u8"
+      end
 
     """
     <!DOCTYPE html>
@@ -316,6 +329,7 @@ defmodule AcexGateway.Web.DashboardView do
           justify-content: center;
           gap: var(--space-sm);
           font-family: var(--font-body);
+          font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           border: none;
@@ -327,6 +341,9 @@ defmodule AcexGateway.Web.DashboardView do
           line-height: 1.2;
           box-sizing: border-box;
           max-width: 100%;
+          padding: 10px 18px;
+          min-height: 38px;
+          flex-shrink: 0;
         }
 
         .btn:disabled {
@@ -558,7 +575,19 @@ defmodule AcexGateway.Web.DashboardView do
         .input-row {
           display: flex;
           gap: var(--space-sm);
+          align-items: stretch;
           width: 100%;
+        }
+
+        .input-row .btn {
+          flex-shrink: 0;
+          padding: 0 20px;
+          min-width: 96px;
+        }
+
+        .input-row .btn.btn-sm {
+          min-width: 76px;
+          padding: 0 16px;
         }
 
         .text-input-styled {
@@ -728,6 +757,7 @@ defmodule AcexGateway.Web.DashboardView do
           display: flex;
           gap: var(--space-sm);
           overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
           padding-bottom: var(--space-md);
           margin-bottom: var(--space-md);
           scrollbar-width: thin;
@@ -1436,6 +1466,7 @@ defmodule AcexGateway.Web.DashboardView do
             padding: 16px 14px;
             max-height: 94vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
           }
           .modal-top h3 {
             font-size: 20px;
@@ -1463,8 +1494,68 @@ defmodule AcexGateway.Web.DashboardView do
             padding-top: var(--space-md);
           }
         }
+
+        /* Modern Toggle Switch & Status Badges */
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 44px;
+          height: 24px;
+          flex-shrink: 0;
+        }
+        .switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background-color: #374151;
+          transition: .25s ease;
+          border-radius: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 18px;
+          width: 18px;
+          left: 2px;
+          bottom: 2px;
+          background-color: #FFFFFF;
+          transition: .25s ease;
+          border-radius: 50%;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
+        input:checked + .slider {
+          background-color: #10B981;
+        }
+        input:checked + .slider:before {
+          transform: translateX(20px);
+        }
+        .badge-status {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          font-size: 11px;
+          font-weight: 700;
+          border-radius: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .badge-status.badge-enabled {
+          background: rgba(16, 185, 129, 0.18);
+          color: #10B981;
+          border: 1px solid rgba(16, 185, 129, 0.35);
+        }
+        .badge-status.badge-disabled {
+          background: rgba(156, 163, 175, 0.15);
+          color: #9CA3AF;
+          border: 1px solid rgba(156, 163, 175, 0.25);
+        }
       </style>
-      <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
     </head>
     <body>
       <div class="container">
@@ -1517,9 +1608,9 @@ defmodule AcexGateway.Web.DashboardView do
 
             <div class="input-row">
               <input type="text" id="quickTestInput" class="text-input-styled" placeholder="e.g., a895ab5bcc8beba2d2aa6d5aa332927f005baa65" oninput="handleQuickInput(this.value)">
-              <button class="btn btn-primary" onclick="launchQuickStream()">
+              <button class="btn btn-primary btn-md" onclick="launchQuickStream()">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>Play Now</span>
+                <span>Play</span>
               </button>
             </div>
 
@@ -1547,27 +1638,31 @@ defmodule AcexGateway.Web.DashboardView do
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </div>
               <div>
-                <h2>Smart TV M3U Playlist</h2>
+                <h2>Smart TV M3U8 Playlist</h2>
                 <p>Import into TiviMate, IPTV Smarters, Apple TV, or scan QR code on mobile:</p>
               </div>
             </div>
 
             <div class="input-row">
-              <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{base_url}/playlist.m3u">
-              <button id="copyM3uBtn" class="btn btn-primary" onclick="copyM3uUrl()">
+              <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{m3u_display_url}">
+              <button id="copyM3uBtn" class="btn btn-primary btn-md" onclick="copyM3uUrl()">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span>Copy M3U</span>
+                <span>Copy</span>
               </button>
             </div>
 
             <div class="panel-actions-row">
+              <button class="btn btn-secondary btn-sm" onclick="openXtreamModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+                <span>Xtream Codes</span>
+              </button>
               <button class="btn btn-secondary btn-sm" onclick="openQrModal()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 <span>QR Code</span>
               </button>
-              <a href="#{base_url}/playlist.m3u" download="acex_playlist.m3u" class="btn btn-secondary btn-sm">
+              <a id="m3uDownloadLink" href="#{m3u_display_url}" download="acex_playlist.m3u8" class="btn btn-secondary btn-sm">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span>Download M3U</span>
+                <span>Download M3U8</span>
               </a>
             </div>
           </div>
@@ -1606,7 +1701,7 @@ defmodule AcexGateway.Web.DashboardView do
                   <span>Bulk Import</span>
                 </button>
 
-                <button class="btn btn-secondary btn-sm" onclick="openExportModal()" title="Export lineup as Content IDs, M3U playlist, or JSON backup">
+                <button class="btn btn-secondary btn-sm" onclick="openExportModal()" title="Export lineup as Content IDs, M3U8 playlist, or JSON backup">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <span>Export</span>
                 </button>
@@ -1662,7 +1757,7 @@ defmodule AcexGateway.Web.DashboardView do
             <span class="footer-sub">STREAMFLIX CORE</span>
           </div>
           <div class="footer-right">
-            <span>High-Performance Elixir/OTP Relay Engine</span>
+            <span>Stream Relay Gateway</span>
             <span class="footer-sep">•</span>
             <span>AceStream Protocol</span>
           </div>
@@ -1731,7 +1826,7 @@ defmodule AcexGateway.Web.DashboardView do
               📋 Paste Text / Content IDs
             </button>
             <button id="importTabFileBtn" type="button" class="btn btn-sm btn-ghost" style="flex: 1; color: var(--text-secondary);" onclick="switchImportTab('file')">
-              📁 Upload File (.m3u, .txt)
+              📁 Upload File (.m3u8, .m3u, .txt)
             </button>
           </div>
 
@@ -1805,33 +1900,15 @@ defmodule AcexGateway.Web.DashboardView do
         </div>
       </div>
 
-      <!-- Stream Launcher & In-Browser Player Modal -->
+      <!-- Stream Launcher Modal -->
       <div id="launcherModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'launcherModal')">
-        <div class="modal-window" style="max-width: 760px;">
+        <div class="modal-window" style="max-width: 580px;">
           <div class="modal-top">
             <div>
-              <h3 id="launcherModalTitle">Watch Live Stream</h3>
-              <p id="launcherModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Direct in-browser playback powered by MSE demuxer</p>
+              <h3 id="launcherModalTitle">Launch Live Stream</h3>
+              <p id="launcherModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Play directly in your media player or copy stream URL</p>
             </div>
             <button class="btn btn-secondary btn-xs" onclick="closeLauncherModal()">✕</button>
-          </div>
-
-          <!-- In-Browser HTML5 Live Player (mpegts.js) -->
-          <div id="videoPlayerBox" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center;">
-            <video id="liveVideoPlayer" controls autoplay style="width: 100%; height: 100%; object-fit: contain; display: block;" playsinline></video>
-
-            <!-- Loading Indicator -->
-            <div id="videoLoadingOverlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 2;">
-              <div class="pulse-dot" style="width: 16px; height: 16px; background: var(--color-primary);"></div>
-              <span id="videoLoadingText" style="font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono);">Connecting AceStream Swarm...</span>
-            </div>
-
-            <!-- Error Banner -->
-            <div id="videoErrorOverlay" style="position: absolute; inset: 0; background: rgba(18,18,18,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 3; padding: 20px; text-align: center;">
-              <span style="font-size: 28px;">⚠️</span>
-              <span style="color: #ff5555; font-weight: 700; font-size: 14px;">Browser Playback Unavailable</span>
-              <span style="font-size: 12px; color: var(--text-secondary); max-width: 440px;">This browser may not support MSE demuxing (e.g. iOS Safari) or stream is offline. Please use VLC or external players below.</span>
-            </div>
           </div>
 
           <div style="margin-bottom: var(--space-md);">
@@ -1842,43 +1919,45 @@ defmodule AcexGateway.Web.DashboardView do
             </div>
           </div>
 
-          <label class="form-label">Or Launch on External Device / App:</label>
-          <div class="launcher-links-grid">
+          <label class="form-label">Open in Media Player:</label>
+          <div class="launcher-links-grid" style="margin-bottom: var(--space-md);">
             <a id="launchVlc" href="#" class="app-launch-card">
               <div style="font-size: 24px;">🟧</div>
               <div>
                 <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">VLC Media Player</div>
-                <div style="font-size: 12px; color: var(--text-tertiary);">vlc:// protocol</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">vlc:// protocol (All OS)</div>
               </div>
             </a>
 
             <a id="launchIina" href="#" class="app-launch-card">
               <div style="font-size: 24px;">🎬</div>
               <div>
-                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">IINA Player (Mac)</div>
-                <div style="font-size: 12px; color: var(--text-tertiary);">iina:// protocol</div>
+                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">IINA Player</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">iina:// protocol (Mac)</div>
               </div>
             </a>
 
             <a id="launchPot" href="#" class="app-launch-card">
               <div style="font-size: 24px;">⚡</div>
               <div>
-                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">PotPlayer (Windows)</div>
-                <div style="font-size: 12px; color: var(--text-tertiary);">potplayer:// protocol</div>
+                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">PotPlayer</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">potplayer:// protocol (Win)</div>
               </div>
             </a>
 
             <a id="launchBrowser" href="#" target="_blank" class="app-launch-card">
               <div style="font-size: 24px;">🌐</div>
               <div>
-                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">Open in New Tab</div>
-                <div style="font-size: 12px; color: var(--text-tertiary);">Raw HTTP stream</div>
+                <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">Raw Stream</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Open stream link</div>
               </div>
             </a>
           </div>
 
-          <div style="margin-top: var(--space-lg); text-align: center;">
-            <button class="btn btn-secondary btn-sm" onclick="closeLauncherModal()">Close Player</button>
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+              💡 <strong>Pro Tip:</strong> Dedicated players like VLC, IINA, or PotPlayer handle P2P jitter and dropped packets natively, ensuring buttery-smooth playback with 0% CPU overhead.
+            </div>
           </div>
         </div>
       </div>
@@ -1892,13 +1971,110 @@ defmodule AcexGateway.Web.DashboardView do
           </div>
           <div class="qr-card-box">
             <div class="qr-img-wrap">
-              <img id="qrImageElement" src="" alt="M3U QR Code">
+              <img id="qrImageElement" src="" alt="M3U8 QR Code">
             </div>
             <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
-              Open your camera app on your phone or Smart TV to automatically import the M3U playlist.
+              Open your camera app on your phone or Smart TV to automatically import the M3U8 playlist.
             </p>
-            <div style="width: 100%; background: #0A0A0A; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 10px; font-family: var(--font-mono); font-size: 13px; color: var(--color-primary); word-break: break-all;">
-              #{base_url}/playlist.m3u
+            <div id="qrM3uDisplay" style="width: 100%; background: #0A0A0A; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 10px; font-family: var(--font-mono); font-size: 13px; color: var(--color-primary); word-break: break-all;">
+              #{m3u_display_url}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Xtream Codes Modal -->
+      <div id="xtreamModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'xtreamModal')">
+        <div class="modal-window" style="max-width: 540px;">
+          <div class="modal-top">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="panel-icon-wrap" style="width: 36px; height: 36px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+              </div>
+              <div>
+                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Xtream Codes Login & Auth</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">For TiviMate, IPTV Smarters, XCIPTV & Smart TVs</p>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="closeXtreamModal()">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 13px; margin-top: 14px;">
+            <!-- Authentication Status Card with Toggle -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>Authentication</span>
+                  <span id="authStatusBadge" class="badge-status #{if auth_enabled, do: "badge-enabled", else: "badge-disabled"}">
+                    #{if auth_enabled, do: "ENABLED", else: "DISABLED (OPEN)"}
+                  </span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Enforce username & password for stream access & Xtream API
+                </p>
+              </div>
+              <label class="switch" title="Toggle Authentication">
+                <input type="checkbox" id="authToggleInput" #{if auth_enabled, do: "checked", else: ""} onchange="onAuthToggleChange()">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Server URL -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">Server URL / Host:</label>
+              <div class="input-row">
+                <input type="text" id="xtreamServerInput" class="text-input-styled" readonly value="#{base_url}">
+                <button class="btn btn-primary btn-sm" onclick="copyInput('xtreamServerInput', 'Server URL copied!')">Copy</button>
+              </div>
+            </div>
+
+            <!-- Port -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">Port:</label>
+              <div class="input-row">
+                <input type="text" id="xtreamPortInput" class="text-input-styled" readonly value="#{server_port}">
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPortInput', 'Port copied!')">Copy</button>
+              </div>
+            </div>
+
+            <!-- Username -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">Username:</label>
+              <div class="input-row">
+                <input type="text" id="xtreamUserInput" class="text-input-styled" value="#{auth_user}" placeholder="e.g. admin">
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamUserInput', 'Username copied!')">Copy</button>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">Password:</label>
+              <div class="input-row">
+                <input type="text" id="xtreamPassInput" class="text-input-styled" value="#{auth_pass}" placeholder="e.g. acex123">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="generateRandomPass()" title="Generate Random Password">🎲 Random</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamPassInput', 'Password copied!')">Copy</button>
+              </div>
+            </div>
+
+            <!-- EPG URL -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">EPG URL (XMLTV):</label>
+              <div class="input-row">
+                <input type="text" id="xtreamEpgInput" class="text-input-styled" value="#{epg_url}" placeholder="https://example.com/epg.xml">
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('xtreamEpgInput', 'EPG URL copied!')">Copy</button>
+              </div>
+            </div>
+
+            <!-- Save Credentials Button -->
+            <button id="saveXtreamBtn" class="btn btn-primary btn-md" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="saveXtreamSettings()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Save Credentials</span>
+            </button>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-top: 2px;">
+              <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                💡 <strong>Tip:</strong> In your Smart TV IPTV app, choose <em>Add Playlist</em> &rarr; <em>Xtream Codes API</em>, and paste the parameters above. Saved credentials apply immediately without server restarts.
+              </div>
             </div>
           </div>
         </div>
@@ -1929,10 +2105,10 @@ defmodule AcexGateway.Web.DashboardView do
               <span style="font-size: 11px; color: var(--text-tertiary);">Pipe format list</span>
             </a>
 
-            <!-- Format 2: M3U Playlist -->
-            <a href="/api/channels/export?format=m3u" download="acex_playlist.m3u" class="btn btn-secondary" style="flex-direction: column; padding: 14px 10px; gap: 4px; text-decoration: none; text-align: center;">
+            <!-- Format 2: M3U8 Playlist -->
+            <a href="/api/channels/export?format=m3u8" download="acex_playlist.m3u8" class="btn btn-secondary" style="flex-direction: column; padding: 14px 10px; gap: 4px; text-decoration: none; text-align: center;">
               <span style="font-size: 20px;">📺</span>
-              <span style="font-weight: 700; color: #fff; font-size: 13px;">IPTV Playlist (.m3u)</span>
+              <span style="font-weight: 700; color: #fff; font-size: 13px;">IPTV Playlist (.m3u8)</span>
               <span style="font-size: 11px; color: var(--text-tertiary);">For IPTV players</span>
             </a>
 
@@ -1968,9 +2144,31 @@ defmodule AcexGateway.Web.DashboardView do
       <script>
         let allChannels = #{channels_json};
         const baseUrl = "#{base_url}";
+        let appSettings = #{Jason.encode!(%{
+          auth_enabled: auth_enabled,
+          auth_username: auth_user,
+          auth_password: auth_pass,
+          epg_url: epg_url
+        })};
         let currentFilterGroup = "ALL";
         let currentView = "grid";
         let activeStreamUrl = "";
+
+        function getLiveStreamUrl(target) {
+          if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
+            return baseUrl + "/live/" + encodeURIComponent(appSettings.auth_username) + "/" + encodeURIComponent(appSettings.auth_password) + "/" + encodeURIComponent(target) + ".ts";
+          } else {
+            return baseUrl + "/live?channel=" + encodeURIComponent(target);
+          }
+        }
+
+        function getQuickStreamUrl(target) {
+          if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
+            return baseUrl + "/live/" + encodeURIComponent(appSettings.auth_username) + "/" + encodeURIComponent(appSettings.auth_password) + "/" + encodeURIComponent(target) + ".ts";
+          } else {
+            return baseUrl + "/live?id=" + encodeURIComponent(target);
+          }
+        }
 
         // DOM Elements
         const channelGrid = document.getElementById("channelGrid");
@@ -2039,7 +2237,7 @@ defmodule AcexGateway.Web.DashboardView do
             channelGrid.innerHTML = channels.map(c => {
               const sources = c.sources || [];
               const fallbackCount = sources.length;
-              const liveUrl = baseUrl + "/live?channel=" + encodeURIComponent(c.id);
+              const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
 
               const sourcesListHtml = sources.map((s, idx) => `
@@ -2070,7 +2268,7 @@ defmodule AcexGateway.Web.DashboardView do
                     </div>
 
                     <!-- Centered Hover Play CTA (Primary Red) -->
-                    <button class="poster-play-btn" onclick="openLauncherModal('${c.name}', '${liveUrl}')" title="Play Now">
+                    <button class="poster-play-btn" onclick="openLauncherModal('${c.name}', '${liveUrl}')" title="Play">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </button>
                   </div>
@@ -2121,7 +2319,7 @@ defmodule AcexGateway.Web.DashboardView do
             if (channelTableContainer) channelTableContainer.classList.add("show");
 
             channelTableBody.innerHTML = channels.map(c => {
-              const liveUrl = baseUrl + "/live?channel=" + encodeURIComponent(c.id);
+              const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
               const safeName = (c.name || "Channel").replace(/'/g, "\\'");
               return `
@@ -2214,7 +2412,7 @@ defmodule AcexGateway.Web.DashboardView do
             showToast("Please enter a valid Content ID (40 hex chars)", false);
             return;
           }
-          const streamUrl = baseUrl + "/live?id=" + clean;
+          const streamUrl = getQuickStreamUrl(clean);
           openLauncherModal("Quick Stream (" + clean.substring(0, 8) + "...)", streamUrl);
         }
 
@@ -2225,7 +2423,7 @@ defmodule AcexGateway.Web.DashboardView do
             showToast("Please enter a valid Content ID to copy link!", false);
             return;
           }
-          const url = baseUrl + "/live?id=" + clean;
+          const url = getQuickStreamUrl(clean);
           copyText(url, "Link copied: " + url);
         }
 
@@ -2264,7 +2462,7 @@ defmodule AcexGateway.Web.DashboardView do
             document.getElementById("inputName").value = channel.name || "";
             document.getElementById("inputCountry").value = channel.country || "";
             document.getElementById("inputGroup").value = channel.group || "";
-            document.getElementById("inputSources").value = (channel.sources || []).join("\n");
+            document.getElementById("inputSources").value = (channel.sources || []).join("\\n");
             document.getElementById("inputLogo").value = channel.logo || "";
             validateSourcesInput(document.getElementById("inputSources").value);
           } else {
@@ -2572,28 +2770,7 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        // Stream Launcher & In-Browser Player Modal
-        let activeMpegtsPlayer = null;
-
-        function destroyActivePlayer() {
-          if (activeMpegtsPlayer) {
-            try {
-              activeMpegtsPlayer.pause();
-              activeMpegtsPlayer.unload();
-              activeMpegtsPlayer.detachMediaElement();
-              activeMpegtsPlayer.destroy();
-            } catch (err) {
-              console.warn("[Player] Destroy error:", err);
-            }
-            activeMpegtsPlayer = null;
-          }
-          const video = document.getElementById("liveVideoPlayer");
-          if (video) {
-            video.removeAttribute("src");
-            video.load();
-          }
-        }
-
+        // Stream Launcher Modal
         function openLauncherModal(title, streamUrl) {
           document.getElementById("launcherModalTitle").innerText = title;
           document.getElementById("launcherStreamUrl").value = streamUrl;
@@ -2605,73 +2782,9 @@ defmodule AcexGateway.Web.DashboardView do
           document.getElementById("launchBrowser").href = streamUrl;
 
           document.getElementById("launcherModal").classList.add("active");
-
-          // Reset overlays
-          const loadingOverlay = document.getElementById("videoLoadingOverlay");
-          const errorOverlay = document.getElementById("videoErrorOverlay");
-          const loadingText = document.getElementById("videoLoadingText");
-          const videoElement = document.getElementById("liveVideoPlayer");
-
-          loadingOverlay.style.display = "flex";
-          errorOverlay.style.display = "none";
-          loadingText.innerText = "Connecting AceStream Swarm...";
-
-          destroyActivePlayer();
-
-          // Initialize mpegts.js MSE player if supported
-          if (typeof mpegts !== "undefined" && mpegts.isSupported()) {
-            try {
-              activeMpegtsPlayer = mpegts.createPlayer(
-                {
-                  type: "mse",
-                  isLive: true,
-                  url: streamUrl,
-                  hasAudio: true,
-                  hasVideo: true
-                },
-                {
-                  enableWorker: true,
-                  lazyLoad: false,
-                  liveBufferLatencyChasing: true,
-                  liveBufferLatencyMaxLatency: 3.5,
-                  liveBufferLatencyMinRemain: 1.0,
-                  autoCleanupSourceBuffer: true
-                }
-              );
-
-              activeMpegtsPlayer.attachMediaElement(videoElement);
-              activeMpegtsPlayer.load();
-
-              videoElement.onplaying = () => {
-                loadingOverlay.style.display = "none";
-              };
-
-              activeMpegtsPlayer.on(mpegts.Events.ERROR, (errType, errDetail) => {
-                console.warn("[mpegts] playback error:", errType, errDetail);
-                if (errType === mpegts.ErrorTypes.NETWORK_ERROR) {
-                  loadingText.innerText = "Waiting for stream data...";
-                }
-              });
-
-              videoElement.play().catch(e => {
-                // Autoplay with sound might be blocked, retry muted
-                console.log("[Player] Autoplay prevented, retrying muted:", e);
-                videoElement.muted = true;
-                videoElement.play().catch(err => console.warn("[Player] Play failed:", err));
-              });
-            } catch (err) {
-              console.error("[mpegts] Setup failed:", err);
-              loadingOverlay.style.display = "none";
-              errorOverlay.style.display = "flex";
-            }
-          } else {
-            loadingOverlay.style.display = "none";
-            errorOverlay.style.display = "flex";
-          }
         }
 
         function closeLauncherModal() {
-          destroyActivePlayer();
           document.getElementById("launcherModal").classList.remove("active");
         }
 
@@ -2682,8 +2795,11 @@ defmodule AcexGateway.Web.DashboardView do
 
         // QR Code Modal
         function openQrModal() {
-          const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(baseUrl + "/playlist.m3u");
+          const currentM3u = document.getElementById("m3uUrlInput") ? document.getElementById("m3uUrlInput").value : (baseUrl + "/playlist.m3u8");
+          const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(currentM3u);
           document.getElementById("qrImageElement").src = qrUrl;
+          const qrDisplay = document.getElementById("qrM3uDisplay");
+          if (qrDisplay) qrDisplay.innerText = currentM3u;
           document.getElementById("qrModal").classList.add("active");
         }
 
@@ -2691,11 +2807,128 @@ defmodule AcexGateway.Web.DashboardView do
           document.getElementById("qrModal").classList.remove("active");
         }
 
+        // Xtream Codes Modal & Auth Settings
+        function openXtreamModal() {
+          document.getElementById("xtreamModal").classList.add("active");
+        }
+
+        function closeXtreamModal() {
+          document.getElementById("xtreamModal").classList.remove("active");
+        }
+
+        function onAuthToggleChange() {
+          const isChecked = document.getElementById("authToggleInput").checked;
+          const badge = document.getElementById("authStatusBadge");
+          if (isChecked) {
+            badge.className = "badge-status badge-enabled";
+            badge.textContent = "ENABLED";
+            const userIn = document.getElementById("xtreamUserInput");
+            const passIn = document.getElementById("xtreamPassInput");
+            if (!userIn.value.trim()) userIn.value = "admin";
+            if (!passIn.value.trim()) generateRandomPass();
+          } else {
+            badge.className = "badge-status badge-disabled";
+            badge.textContent = "DISABLED (OPEN)";
+          }
+        }
+
+        function generateRandomPass() {
+          const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+          let res = "";
+          const vals = new Uint8Array(10);
+          window.crypto.getRandomValues(vals);
+          for (let i = 0; i < 10; i++) {
+            res += chars[vals[i] % chars.length];
+          }
+          document.getElementById("xtreamPassInput").value = res;
+          showToast("Generated new random password!");
+        }
+
+        async function saveXtreamSettings() {
+          const btn = document.getElementById("saveXtreamBtn");
+          const originalContent = btn.innerHTML;
+          const isAuthEnabled = document.getElementById("authToggleInput").checked;
+          const userVal = document.getElementById("xtreamUserInput").value.trim();
+          const passVal = document.getElementById("xtreamPassInput").value.trim();
+          const epgVal = document.getElementById("xtreamEpgInput").value.trim();
+
+          if (isAuthEnabled && (!userVal || !passVal)) {
+            showToast("Username and Password are required when authentication is enabled!", false);
+            return;
+          }
+
+          btn.disabled = true;
+          btn.innerHTML = "<span>Saving...</span>";
+
+          try {
+            const resp = await fetch("/api/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                auth_enabled: isAuthEnabled,
+                auth_username: userVal,
+                auth_password: passVal,
+                epg_url: epgVal
+              })
+            });
+
+            if (!resp.ok) {
+              const errData = await resp.json().catch(() => ({}));
+              throw new Error(errData.error || "Failed to update settings");
+            }
+
+            const data = await resp.json();
+            const settings = data.settings || {
+              auth_enabled: isAuthEnabled,
+              auth_username: userVal,
+              auth_password: passVal,
+              epg_url: epgVal
+            };
+
+            appSettings = settings;
+            updateAuthDependentLinks(settings);
+            renderChannels();
+
+            showToast("Xtream & Auth settings saved successfully!");
+            btn.innerHTML = "<span>✓ Saved!</span>";
+            setTimeout(() => {
+              btn.innerHTML = originalContent;
+              btn.disabled = false;
+            }, 1800);
+          } catch (err) {
+            showToast(err.message || "Error saving settings", false);
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+          }
+        }
+
+        function updateAuthDependentLinks(settings) {
+          const isAuth = settings.auth_enabled;
+          const user = settings.auth_username || "";
+          const pass = settings.auth_password || "";
+
+          let m3uUrl = baseUrl + "/playlist.m3u8";
+          if (isAuth && user && pass) {
+            m3uUrl += "?username=" + encodeURIComponent(user) + "&password=" + encodeURIComponent(pass);
+          }
+
+          const m3uInput = document.getElementById("m3uUrlInput");
+          if (m3uInput) m3uInput.value = m3uUrl;
+
+          const downloadLink = document.getElementById("m3uDownloadLink");
+          if (downloadLink) downloadLink.href = m3uUrl;
+
+          const qrDisplay = document.getElementById("qrM3uDisplay");
+          if (qrDisplay) qrDisplay.innerText = m3uUrl;
+        }
+
+        function copyInput(elementId, successMsg) {
+          const val = document.getElementById(elementId).value;
+          copyText(val, successMsg || "Copied to clipboard!");
+        }
+
         function closeOnBackdrop(e, modalId) {
           if (e.target.id === modalId) {
-            if (modalId === "launcherModal") {
-              destroyActivePlayer();
-            }
             document.getElementById(modalId).classList.remove("active");
           }
         }
@@ -2816,7 +3049,7 @@ defmodule AcexGateway.Web.DashboardView do
 
         function copyM3uUrl() {
           const input = document.getElementById("m3uUrlInput");
-          copyText(input.value, "M3U Playlist link copied!");
+          copyText(input.value, "M3U8 Playlist link copied!");
           const btn = document.getElementById("copyM3uBtn");
           const original = btn.innerHTML;
           btn.innerHTML = "<span>✓ Copied!</span>";

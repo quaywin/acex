@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: acex-gateway
     restart: unless-stopped
+    # Note: On a dedicated Linux host/VPS, you can use `network_mode: host`
+    # instead of `ports:` to eliminate Docker NAT overhead and maximize P2P swarm discovery.
     ports:
       - "8686:8686"       # AcexGateway Web Dashboard, M3U & Stream Relay
       - "6878:6878"       # AceStream HTTP API
@@ -26,12 +28,14 @@ services:
       - ACE_TELNET_HOST=127.0.0.1
       - ACE_TELNET_PORT=62062
       - ACE_HTTP_PORT=6878
-      - GRACE_PERIOD_MS=5000
-      - ACE_LIVE_BUFFER=25
-      - ACE_MAX_PEERS=60
+      - GRACE_PERIOD_MS=15000
+      - ACE_LIVE_BUFFER=20
+      - ACE_MAX_PEERS=80
+      - RING_BUFFER_BYTES=4194304
       - ACE_EARLY_FAILOVER_TIMEOUT_MS=10000
       - ACE_START_TIMEOUT_MS=60000
       - CHANNELS_FILE=/app/data/channels.json
+      - SETTINGS_FILE=/app/data/settings.json
       - DEFAULT_CHANNEL_ID=dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
       - EPG_URL=
       - AUTH_USERNAME=

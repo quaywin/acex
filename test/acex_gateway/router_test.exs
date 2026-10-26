@@ -166,18 +166,25 @@ defmodule AcexGateway.Web.RouterTest do
     AcexGateway.Channels.Store.delete_channel("eurosport-1")
   end
 
-  test "GET /api/channels/export returns txt, m3u, and json downloads" do
+  test "GET /api/channels/export returns txt, m3u, m3u8, and json downloads" do
     # 1. Text format
     conn_txt = conn(:get, "/api/channels/export?format=txt") |> Router.call(@opts)
     assert conn_txt.status == 200
     assert get_resp_header(conn_txt, "content-type") == ["text/plain; charset=utf-8"]
     assert conn_txt.resp_body =~ " | "
 
-    # 2. M3U format
+    # 2. M3U and M3U8 formats
     conn_m3u = conn(:get, "/api/channels/export?format=m3u") |> Router.call(@opts)
     assert conn_m3u.status == 200
     assert get_resp_header(conn_m3u, "content-type") == ["application/x-mpegurl; charset=utf-8"]
+    assert get_resp_header(conn_m3u, "content-disposition") == ["attachment; filename=\"acex_channels.m3u\""]
     assert conn_m3u.resp_body =~ "#EXTM3U"
+
+    conn_m3u8 = conn(:get, "/api/channels/export?format=m3u8") |> Router.call(@opts)
+    assert conn_m3u8.status == 200
+    assert get_resp_header(conn_m3u8, "content-type") == ["application/x-mpegurl; charset=utf-8"]
+    assert get_resp_header(conn_m3u8, "content-disposition") == ["attachment; filename=\"acex_channels.m3u8\""]
+    assert conn_m3u8.resp_body =~ "#EXTM3U"
 
     # 3. JSON format
     conn_json = conn(:get, "/api/channels/export?format=json") |> Router.call(@opts)
@@ -185,5 +192,51 @@ defmodule AcexGateway.Web.RouterTest do
     assert get_resp_header(conn_json, "content-type") == ["application/json; charset=utf-8"]
     decoded = Jason.decode!(conn_json.resp_body)
     assert is_list(decoded)
+  end
+
+  test "GET and POST /api/settings manages runtime credentials" do
+    # 1. GET settings
+    conn_get = conn(:get, "/api/settings") |> Router.call(@opts)
+    assert conn_get.status == 200
+    initial = Jason.decode!(conn_get.resp_body)
+    assert Map.has_key?(initial, "auth_enabled")
+    assert Map.has_key?(initial, "auth_username")
+    assert Map.has_key?(initial, "auth_password")
+
+    # 2. POST update settings
+    payload = %{
+      "auth_enabled" => true,
+      "auth_username" => "testadmin",
+      "auth_password" => "testpass123",
+      "epg_url" => "https://my-epg.com/epg.xml"
+    }
+
+    conn_post =
+      conn(:post, "/api/settings", payload)
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_post.status == 200
+    resp = Jason.decode!(conn_post.resp_body)
+    assert resp["status"] == "updated"
+    assert resp["settings"]["auth_enabled"] == true
+    assert resp["settings"]["auth_username"] == "testadmin"
+    assert resp["settings"]["auth_password"] == "testpass123"
+
+    # 3. Playlist exports with auth credentials attached
+    conn_m3u =
+      conn(:get, "/playlist.m3u8?username=testadmin&password=testpass123")
+      |> Router.call(@opts)
+
+    assert conn_m3u.status == 200
+    assert conn_m3u.resp_body =~ "/live/testadmin/testpass123/"
+
+    # Reset settings back to disabled for other tests
+    conn_reset =
+      conn(:post, "/api/settings", %{"auth_enabled" => false})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_reset.status == 200
   end
 end

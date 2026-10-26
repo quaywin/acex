@@ -10,6 +10,7 @@ defmodule AcexGateway.Application do
     Logger.info("[Application] Starting AcexGateway on port #{port}...")
 
     children = [
+      AcexGateway.Settings.Store,
       AcexGateway.Channels.Store,
       AcexGateway.Engine.TelnetClient,
       {Registry, keys: :unique, name: AcexGateway.ChannelRegistry},

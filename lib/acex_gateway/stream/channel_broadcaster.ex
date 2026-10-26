@@ -12,8 +12,6 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   alias AcexGateway.Engine.Protocol
   alias AcexGateway.Stream.RingBuffer
 
-  @ring_buffer_size 2_097_152
-
   # Client API
 
   def via_tuple(channel_key) do
@@ -87,7 +85,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       cooldown_timer: nil,
       start_timer: nil,
       early_failover_timer: nil,
-      ring_buffer: RingBuffer.new(@ring_buffer_size),
+      ring_buffer: RingBuffer.new(Config.ring_buffer_bytes()),
       bytes_transferred: 0,
       peers: 0,
       speed_kbps: 0

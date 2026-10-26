@@ -16,6 +16,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Stream.Broadcaster
   alias AcexGateway.Engine.TelnetClient
   alias AcexGateway.Channels.Store
+  alias AcexGateway.Settings.Store, as: SettingsStore
   alias AcexGateway.Web.DashboardView
   alias AcexGateway.Web.XtreamCodes
 
@@ -61,28 +62,40 @@ defmodule AcexGateway.Web.Router do
   defp serve_playlist(conn) do
     case authenticate_request(conn) do
       :ok ->
-        conn = fetch_query_params(conn)
         base_url = request_base_url(conn)
-        username = conn.query_params["username"] || conn.query_params["user"]
-        password = conn.query_params["password"] || conn.query_params["pass"]
-
-        auth_opts =
-          if is_binary(username) and is_binary(password) and username != "" and password != "" do
-            %{"username" => username, "password" => password}
-          else
-            %{}
-          end
-
+        auth_opts = get_playlist_auth_opts(conn)
         m3u_content = Store.export_m3u(base_url, auth_opts)
+
+        filename =
+          if String.ends_with?(conn.request_path, ".m3u"),
+            do: "acex_playlist.m3u",
+            else: "acex_playlist.m3u8"
 
         conn
         |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
-        |> put_resp_header("content-disposition", "inline; filename=\"acex_playlist.m3u\"")
+        |> put_resp_header("content-disposition", "inline; filename=\"#{filename}\"")
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_resp(200, m3u_content)
 
       :unauthorized ->
         send_unauthorized(conn)
+    end
+  end
+
+  defp get_playlist_auth_opts(conn) do
+    conn = fetch_query_params(conn)
+    username = conn.query_params["username"] || conn.query_params["user"]
+    password = conn.query_params["password"] || conn.query_params["pass"]
+
+    cond do
+      is_binary(username) and is_binary(password) and username != "" and password != "" ->
+        %{"username" => username, "password" => password}
+
+      Config.auth_enabled?() ->
+        %{"username" => Config.auth_username(), "password" => Config.auth_password()}
+
+      true ->
+        %{}
     end
   end
 
@@ -100,13 +113,15 @@ defmodule AcexGateway.Web.Router do
     format = conn.query_params["format"] || "txt"
 
     case format do
-      "m3u" ->
+      f when f in ["m3u", "m3u8"] ->
         base_url = request_base_url(conn)
-        m3u = Store.export_m3u(base_url)
+        auth_opts = get_playlist_auth_opts(conn)
+        m3u = Store.export_m3u(base_url, auth_opts)
+        filename = if f == "m3u8", do: "acex_channels.m3u8", else: "acex_channels.m3u"
 
         conn
         |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
-        |> put_resp_header("content-disposition", "attachment; filename=\"acex_channels.m3u\"")
+        |> put_resp_header("content-disposition", "attachment; filename=\"#{filename}\"")
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_resp(200, m3u)
 
@@ -222,6 +237,39 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(200, Jason.encode!(%{status: "deleted", id: id}))
   end
 
+  get "/api/settings" do
+    settings = SettingsStore.get_all_settings()
+
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(settings, pretty: true))
+  end
+
+  post "/api/settings" do
+    handle_update_settings(conn)
+  end
+
+  put "/api/settings" do
+    handle_update_settings(conn)
+  end
+
+  defp handle_update_settings(conn) do
+    case SettingsStore.update_settings(conn.body_params) do
+      {:ok, settings} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{status: "updated", settings: settings}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "Failed to update settings", reason: to_string(reason)}))
+    end
+  end
+
   head "/live" do
     case authenticate_request(conn) do
       :ok -> send_head_live(conn)
@@ -332,15 +380,7 @@ defmodule AcexGateway.Web.Router do
   get "/live/:target_name" do
     case authenticate_request(conn) do
       :ok ->
-        raw = String.replace_suffix(target_name, ".ts", "")
-
-        {target, source_type} =
-          if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
-            {Store.sanitize_hash(raw), :content_id}
-          else
-            {raw, :channel}
-          end
-
+        {target, source_type} = parse_stream_target(target_name)
         handle_live_stream(conn, target, source_type)
 
       :unauthorized ->
@@ -350,18 +390,20 @@ defmodule AcexGateway.Web.Router do
 
   get "/live/:username/:password/:target_name" do
     if Config.authenticate?(username, password) do
-      raw = String.replace_suffix(target_name, ".ts", "")
-
-      {target, source_type} =
-        if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
-          {Store.sanitize_hash(raw), :content_id}
-        else
-          {raw, :channel}
-        end
-
+      {target, source_type} = parse_stream_target(target_name)
       handle_live_stream(conn, target, source_type)
     else
       send_unauthorized(conn)
+    end
+  end
+
+  defp parse_stream_target(target_name) do
+    raw = String.replace_suffix(target_name, ".ts", "")
+
+    if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
+      {Store.sanitize_hash(raw), :content_id}
+    else
+      {raw, :channel}
     end
   end
 
@@ -409,7 +451,7 @@ defmodule AcexGateway.Web.Router do
 
     response = %{
       version: AcexGateway.version(),
-      engine: "AcexGateway (Elixir/OTP)",
+      engine: "AcexGateway",
       status: session_info.status,
       active_target: session_info.active_target,
       active_channel: session_info.active_channel,
@@ -478,6 +520,8 @@ defmodule AcexGateway.Web.Router do
 
   # Helpers
 
+  @max_backlog_chunks 120
+
   defp request_base_url(conn) do
     host =
       case Plug.Conn.get_req_header(conn, "host") do
@@ -489,28 +533,55 @@ defmodule AcexGateway.Web.Router do
   end
 
   defp stream_loop(conn, broadcaster_pid) do
-    receive do
-      {:stream_chunk, chunk} ->
-        case chunk(conn, chunk) do
-          {:ok, conn} ->
+    # Backpressure guard: prevent slow clients from exhausting server memory
+    case :erlang.process_info(self(), :message_queue_len) do
+      {:message_queue_len, len} when len > @max_backlog_chunks ->
+        Logger.warning(
+          "[Router] Slow client detected (#{inspect(self())}): mailbox backlog reached #{len} chunks. Draining stale buffer."
+        )
+
+        drain_stale_chunks(@max_backlog_chunks - 30)
+        stream_loop(conn, broadcaster_pid)
+
+      _ ->
+        receive do
+          {:stream_chunk, chunk} ->
+            case chunk(conn, chunk) do
+              {:ok, conn} ->
+                stream_loop(conn, broadcaster_pid)
+
+              {:error, :closed} ->
+                Broadcaster.unsubscribe(broadcaster_pid, self())
+                conn
+
+              {:error, reason} ->
+                Logger.warning("[Router] Downstream write error: #{inspect(reason)}")
+                Broadcaster.unsubscribe(broadcaster_pid, self())
+                conn
+            end
+
+          {:stream_closed, reason} ->
+            Logger.info("[Router] Upstream stream closed: #{inspect(reason)}")
+            conn
+        after
+          45_000 ->
             stream_loop(conn, broadcaster_pid)
+        end
+    end
+  end
 
-          {:error, :closed} ->
-            Broadcaster.unsubscribe(broadcaster_pid, self())
-            conn
-
-          {:error, reason} ->
-            Logger.warning("[Router] Downstream write error: #{inspect(reason)}")
-            Broadcaster.unsubscribe(broadcaster_pid, self())
-            conn
+  defp drain_stale_chunks(target_len) do
+    case :erlang.process_info(self(), :message_queue_len) do
+      {:message_queue_len, len} when len > target_len ->
+        receive do
+          {:stream_chunk, _chunk} ->
+            drain_stale_chunks(target_len)
+        after
+          0 -> :ok
         end
 
-      {:stream_closed, reason} ->
-        Logger.info("[Router] Upstream stream closed: #{inspect(reason)}")
-        conn
-    after
-      45_000 ->
-        stream_loop(conn, broadcaster_pid)
+      _ ->
+        :ok
     end
   end
 end

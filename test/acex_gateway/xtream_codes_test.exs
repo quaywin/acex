@@ -47,12 +47,14 @@ defmodule AcexGateway.Web.XtreamCodesTest do
   end
 
   test "GET /player_api.php blocks unauthorized user when auth configured" do
-    System.put_env("AUTH_USERNAME", "admin")
-    System.put_env("AUTH_PASSWORD", "secret123")
+    AcexGateway.Settings.Store.update_settings(%{
+      "auth_enabled" => true,
+      "auth_username" => "admin",
+      "auth_password" => "secret123"
+    })
 
     on_exit(fn ->
-      System.delete_env("AUTH_USERNAME")
-      System.delete_env("AUTH_PASSWORD")
+      AcexGateway.Settings.Store.update_settings(%{"auth_enabled" => false})
     end)
 
     # 1. Without credentials -> disabled
@@ -76,12 +78,14 @@ defmodule AcexGateway.Web.XtreamCodesTest do
   end
 
   test "HEAD /live/:username/:password/:channel.ts validates Xtream stream credentials" do
-    System.put_env("AUTH_USERNAME", "admin")
-    System.put_env("AUTH_PASSWORD", "secret123")
+    AcexGateway.Settings.Store.update_settings(%{
+      "auth_enabled" => true,
+      "auth_username" => "admin",
+      "auth_password" => "secret123"
+    })
 
     on_exit(fn ->
-      System.delete_env("AUTH_USERNAME")
-      System.delete_env("AUTH_PASSWORD")
+      AcexGateway.Settings.Store.update_settings(%{"auth_enabled" => false})
     end)
 
     # Wrong credentials -> 401

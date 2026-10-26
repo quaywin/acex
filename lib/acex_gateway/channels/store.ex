@@ -194,10 +194,6 @@ defmodule AcexGateway.Channels.Store do
     end
   end
 
-  def handle_call({:export_m3u, base_url}, from, state) do
-    handle_call({:export_m3u, base_url, %{}}, from, state)
-  end
-
   def handle_call({:export_m3u, base_url, auth_opts}, _from, state) do
     base = String.trim_trailing(base_url, "/")
     epg = AcexGateway.Config.epg_url()
@@ -399,6 +395,8 @@ defmodule AcexGateway.Channels.Store do
       cond do
         is_list(params["sources"]) -> params["sources"]
         is_list(params[:sources]) -> params[:sources]
+        is_binary(params["sources"]) -> String.split(params["sources"], ~r/[\s,]+/)
+        is_binary(params[:sources]) -> String.split(params[:sources], ~r/[\s,]+/)
         params["source"] && params["source"] != "" -> [params["source"]]
         params[:source] && params[:source] != "" -> [params[:source]]
         params["content_id"] && params["content_id"] != "" -> [params["content_id"]]
@@ -408,8 +406,23 @@ defmodule AcexGateway.Channels.Store do
 
     sources =
       raw_sources
-      |> Enum.map(&sanitize_hash/1)
+      |> List.flatten()
+      |> Enum.flat_map(fn
+        item when is_binary(item) ->
+          scanned = Regex.scan(~r/[a-fA-F0-9]{40}/, item)
+
+          if length(scanned) > 1 do
+            Enum.map(scanned, &String.downcase(hd(&1)))
+          else
+            [sanitize_hash(item)]
+          end
+
+        other ->
+          [sanitize_hash(other)]
+      end)
+      |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
 
     %{
       "id" => id,
@@ -438,14 +451,18 @@ defmodule AcexGateway.Channels.Store do
             {acc, current_meta}
 
           true ->
-            case Regex.run(~r/([a-fA-F0-9]{40})/, line) do
-              [_, hash] ->
-                clean_hash = String.downcase(hash)
-                meta = current_meta || %{}
+            hashes =
+              Regex.scan(~r/[a-fA-F0-9]{40}/, line)
+              |> Enum.map(&String.downcase(hd(&1)))
+              |> Enum.uniq()
 
+            case hashes do
+              [_ | _] ->
+                meta = current_meta || %{}
                 name = meta[:name] || "AceStream Channel #{length(acc) + 1}"
                 id = meta[:id] || generate_slug(name)
-                id = if id == "", do: "channel-#{String.slice(clean_hash, 0, 8)}", else: id
+                first_hash = hd(hashes)
+                id = if id == "", do: "channel-#{String.slice(first_hash, 0, 8)}", else: id
 
                 ch = %{
                   "id" => id,
@@ -454,12 +471,13 @@ defmodule AcexGateway.Channels.Store do
                   "group" => meta[:group] || default_group,
                   "logo" => meta[:logo] || "",
                   "source_type" => "content_id",
-                  "sources" => [clean_hash]
+                  "sources" => hashes
                 }
 
-                {acc ++ [ch], nil}
+                # Retain current_meta so consecutive stream lines under the same EXTINF merge together
+                {acc ++ [ch], current_meta}
 
-              nil ->
+              [] ->
                 {acc, current_meta}
             end
         end
@@ -519,13 +537,17 @@ defmodule AcexGateway.Channels.Store do
       |> Enum.reject(&(String.starts_with?(&1, "#") or &1 == ""))
       |> Enum.with_index(1)
       |> Enum.flat_map(fn {line, idx} ->
-        case Regex.run(~r/([a-fA-F0-9]{40})/, line) do
-          [_, hash] ->
-            clean_hash = String.downcase(hash)
-            meta = parse_line_meta(line, clean_hash, idx, default_group, default_country)
+        hashes =
+          Regex.scan(~r/[a-fA-F0-9]{40}/, line)
+          |> Enum.map(&String.downcase(hd(&1)))
+          |> Enum.uniq()
+
+        case hashes do
+          [_ | _] ->
+            meta = parse_line_meta(line, hashes, idx, default_group, default_country)
             [meta]
 
-          nil ->
+          [] ->
             []
         end
       end)
@@ -533,55 +555,71 @@ defmodule AcexGateway.Channels.Store do
     consolidate_channels(raw_items)
   end
 
-  defp parse_line_meta(line, clean_hash, idx, default_group, default_country) do
+  defp parse_line_meta(line, hashes, idx, default_group, default_country) do
     cond do
       String.contains?(line, "|") ->
         parts = String.split(line, "|") |> Enum.map(&String.trim/1)
-        other_parts = Enum.reject(parts, &(&1 =~ clean_hash))
+
+        other_parts =
+          Enum.reject(parts, fn part ->
+            tokens =
+              String.split(part, ~r/[\s,]+/)
+              |> Enum.reject(&(&1 == ""))
+
+            tokens != [] and
+              Enum.all?(tokens, fn token ->
+                clean = sanitize_hash(token)
+                clean in hashes or clean == ""
+              end)
+          end)
 
         case other_parts do
           [] ->
-            build_channel_item("Channel #{idx}", clean_hash, default_country, default_group)
+            build_channel_item("Channel #{idx}", hashes, default_country, default_group)
 
           [name] ->
-            build_channel_item(name, clean_hash, default_country, default_group)
+            build_channel_item(name, hashes, default_country, default_group)
 
           [p1, p2] ->
             if String.length(p2) <= 3 and String.upcase(p2) == p2 do
-              build_channel_item(p1, clean_hash, p2, default_group)
+              build_channel_item(p1, hashes, p2, default_group)
             else
-              build_channel_item(p1, clean_hash, default_country, p2)
+              build_channel_item(p1, hashes, default_country, p2)
             end
 
           [name, country, group | _] ->
-            build_channel_item(name, clean_hash, country, group)
+            build_channel_item(name, hashes, country, group)
         end
 
       String.contains?(line, "#") ->
         [_url, name] = String.split(line, "#", parts: 2)
-        build_channel_item(String.trim(name), clean_hash, default_country, default_group)
+        build_channel_item(String.trim(name), hashes, default_country, default_group)
 
-      line =~ ~r/:\s*(?:acestream:\/\/)?#{clean_hash}/i ->
+      line =~ ~r/:\s*(?:acestream:\/\/)?/i and not String.starts_with?(line, "http") and
+          not String.starts_with?(line, "acestream") ->
         [name | _] = String.split(line, ":", parts: 2)
-        build_channel_item(String.trim(name), clean_hash, default_country, default_group)
+        build_channel_item(String.trim(name), hashes, default_country, default_group)
 
-      line =~ ~r/\s+-\s+(?:acestream:\/\/)?#{clean_hash}/i ->
+      line =~ ~r/\s+-\s+/ ->
         [name | _] = String.split(line, ~r/\s+-\s+/, parts: 2)
-        build_channel_item(String.trim(name), clean_hash, default_country, default_group)
+        build_channel_item(String.trim(name), hashes, default_country, default_group)
 
       true ->
-        build_channel_item("Channel #{idx}", clean_hash, default_country, default_group)
+        build_channel_item("Channel #{idx}", hashes, default_country, default_group)
     end
   end
 
-  defp build_channel_item(raw_name, hash, country, group) do
+  defp build_channel_item(raw_name, hashes, country, group) do
     {country_from_name, clean_name} = extract_country_from_bracket(raw_name)
 
     final_country =
       if country != "" and country != nil, do: country, else: country_from_name || ""
 
+    sources = if is_list(hashes), do: hashes, else: [hashes]
+    first_hash = hd(sources)
+
     id = generate_slug(clean_name)
-    id = if id == "", do: "channel-#{String.slice(hash, 0, 8)}", else: id
+    id = if id == "", do: "channel-#{String.slice(first_hash, 0, 8)}", else: id
 
     %{
       "id" => id,
@@ -590,7 +628,7 @@ defmodule AcexGateway.Channels.Store do
       "group" => if(group != "" and group != nil, do: group, else: "General"),
       "logo" => "",
       "source_type" => "content_id",
-      "sources" => [hash]
+      "sources" => sources
     }
   end
 

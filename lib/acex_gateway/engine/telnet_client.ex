@@ -1,7 +1,7 @@
 defmodule AcexGateway.Engine.TelnetClient do
   @moduledoc """
-  GenServer that maintains the persistent Telnet API connection to the AceStream engine.
-  Handles authentication handshake, starting/stopping streams, and parsing telemetry.
+  GenServer that maintains the persistent singleton Telnet API connection to the AceStream engine.
+  Handles authentication handshake and parses engine telemetry (peers, download speed).
   """
 
   use GenServer
@@ -11,27 +11,11 @@ defmodule AcexGateway.Engine.TelnetClient do
   alias AcexGateway.Engine.Protocol
 
   @reconnect_interval_ms 2000
-  @start_timeout_ms 60_000
 
   # Client API
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  @doc """
-  Initiates streaming for a given content_id or infohash.
-  Returns `{:ok, playback_url}` or `{:error, reason}`.
-  """
-  def start_stream(channel_id, source_type \\ :content_id, timeout \\ 65_000) do
-    GenServer.call(__MODULE__, {:start_stream, channel_id, source_type}, timeout)
-  end
-
-  @doc """
-  Stops active playback in the AceStream engine.
-  """
-  def stop_stream do
-    GenServer.call(__MODULE__, :stop_stream)
   end
 
   @doc """
@@ -51,11 +35,6 @@ defmodule AcexGateway.Engine.TelnetClient do
       http_port: Config.http_port(),
       peers: 0,
       speed_kbps: 0,
-      downloaded_bytes: 0,
-      active_channel: nil,
-      source_type: nil,
-      playback_url: nil,
-      pending_start: nil,
       retry_count: 0
     }
 
@@ -64,79 +43,11 @@ defmodule AcexGateway.Engine.TelnetClient do
   end
 
   @impl true
-  def handle_call({:start_stream, _channel_id, _source_type}, _from, %{socket: nil} = state) do
-    {:reply, {:error, :engine_not_connected}, state}
-  end
-
-  def handle_call(
-        {:start_stream, _channel_id, _source_type},
-        _from,
-        %{authenticated: false} = state
-      ) do
-    {:reply, {:error, :engine_not_authenticated}, state}
-  end
-
-  def handle_call({:start_stream, channel_id, source_type}, from, state) do
-    if state.pending_start != nil do
-      {:reply, {:error, :busy}, state}
-    else
-      # Send LOADASYNC PID
-      cmd = "LOADASYNC 0 PID #{channel_id}\r\n"
-      :gen_tcp.send(state.socket, cmd)
-
-      timer_ref = Process.send_after(self(), :start_timeout, @start_timeout_ms)
-
-      pending = %{
-        from: from,
-        channel_id: channel_id,
-        source_type: source_type,
-        timer_ref: timer_ref,
-        canonical_hash: nil
-      }
-
-      {:noreply, %{state | pending_start: pending}}
-    end
-  end
-
-  def handle_call(:stop_stream, _from, %{socket: nil} = state) do
-    if state.pending_start do
-      Process.cancel_timer(state.pending_start.timer_ref)
-      GenServer.reply(state.pending_start.from, {:error, :stopped})
-    end
-
-    {:reply, :ok, %{state | active_channel: nil, playback_url: nil, pending_start: nil}}
-  end
-
-  def handle_call(:stop_stream, _from, state) do
-    if state.pending_start do
-      Process.cancel_timer(state.pending_start.timer_ref)
-      GenServer.reply(state.pending_start.from, {:error, :stopped})
-    end
-
-    :gen_tcp.send(state.socket, "STOP\r\n")
-    :gen_tcp.send(state.socket, "STOPDL\r\n")
-
-    new_state = %{
-      state
-      | active_channel: nil,
-        playback_url: nil,
-        source_type: nil,
-        peers: 0,
-        speed_kbps: 0,
-        pending_start: nil
-    }
-
-    {:reply, :ok, new_state}
-  end
-
   def handle_call(:get_stats, _from, state) do
     stats = %{
       connected: state.socket != nil,
       authenticated: state.authenticated,
       http_port: state.http_port,
-      active_channel: state.active_channel,
-      source_type: state.source_type,
-      playback_url: state.playback_url,
       peers: state.peers,
       speed_kbps: state.speed_kbps
     }
@@ -183,16 +94,6 @@ defmodule AcexGateway.Engine.TelnetClient do
     end
   end
 
-  def handle_info(:start_timeout, %{pending_start: nil} = state) do
-    {:noreply, state}
-  end
-
-  def handle_info(:start_timeout, %{pending_start: pending} = state) do
-    Logger.error("[TelnetClient] Timeout waiting for stream START response.")
-    GenServer.reply(pending.from, {:error, :start_timeout})
-    {:noreply, %{state | pending_start: nil}}
-  end
-
   def handle_info({:tcp, socket, line}, %{socket: socket} = state) do
     line_clean = String.trim(line)
     new_state = process_line(line_clean, state)
@@ -201,27 +102,15 @@ defmodule AcexGateway.Engine.TelnetClient do
 
   def handle_info({:tcp_closed, socket}, %{socket: socket} = state) do
     Logger.warning("[TelnetClient] Telnet socket closed by remote. Scheduling reconnect...")
-
-    if state.pending_start do
-      Process.cancel_timer(state.pending_start.timer_ref)
-      GenServer.reply(state.pending_start.from, {:error, :connection_lost})
-    end
-
     Process.send_after(self(), :connect, @reconnect_interval_ms)
-    {:noreply, %{state | socket: nil, authenticated: false, pending_start: nil, retry_count: 0}}
+    {:noreply, %{state | socket: nil, authenticated: false, retry_count: 0}}
   end
 
   def handle_info({:tcp_error, socket, reason}, %{socket: socket} = state) do
     Logger.error("[TelnetClient] Telnet socket error: #{inspect(reason)}")
     :gen_tcp.close(socket)
-
-    if state.pending_start do
-      Process.cancel_timer(state.pending_start.timer_ref)
-      GenServer.reply(state.pending_start.from, {:error, :tcp_error})
-    end
-
     Process.send_after(self(), :connect, @reconnect_interval_ms)
-    {:noreply, %{state | socket: nil, authenticated: false, pending_start: nil, retry_count: 0}}
+    {:noreply, %{state | socket: nil, authenticated: false, retry_count: 0}}
   end
 
   def handle_info(_other, state) do
@@ -251,82 +140,6 @@ defmodule AcexGateway.Engine.TelnetClient do
   defp process_line("NOTREADY", state) do
     Logger.error("[TelnetClient] Engine returned NOTREADY during auth handshake.")
     %{state | authenticated: false}
-  end
-
-  defp process_line("LOADRESP " <> _ = line, %{pending_start: pending} = state)
-       when pending != nil do
-    Logger.debug("[TelnetClient] Received LOADRESP: #{line}")
-
-    # Extract infohash if present
-    canonical_hash =
-      case Protocol.parse_infohash_from_loadresp(line) do
-        {:ok, hash} -> hash
-        :none -> pending.canonical_hash
-      end
-
-    start_cmd =
-      if canonical_hash do
-        "START INFOHASH #{canonical_hash} 0 0 0 0 output_format=http\r\n"
-      else
-        "START PID #{pending.channel_id} 0 output_format=http\r\n"
-      end
-
-    Logger.info("[TelnetClient] Dispatching command: #{String.trim(start_cmd)}")
-    :gen_tcp.send(state.socket, start_cmd)
-
-    # Reset timeout timer so START phase gets full prebuffering window
-    Process.cancel_timer(pending.timer_ref)
-    new_timer = Process.send_after(self(), :start_timeout, @start_timeout_ms)
-
-    new_pending = %{pending | canonical_hash: canonical_hash, timer_ref: new_timer}
-    %{state | pending_start: new_pending}
-  end
-
-  defp process_line("START " <> _ = line, %{pending_start: pending} = state)
-       when pending != nil do
-    Logger.info("[TelnetClient] Received START response: #{line}")
-
-    case Protocol.parse_start_url(line) do
-      {:ok, playback_url} ->
-        Process.cancel_timer(pending.timer_ref)
-        GenServer.reply(pending.from, {:ok, playback_url})
-
-        %{
-          state
-          | pending_start: nil,
-            active_channel: pending.channel_id,
-            source_type: pending.source_type,
-            playback_url: playback_url
-        }
-
-      :error ->
-        Process.cancel_timer(pending.timer_ref)
-        GenServer.reply(pending.from, {:error, :missing_playback_url})
-        %{state | pending_start: nil}
-    end
-  end
-
-  defp process_line("EVENT showdialog" <> rest = line, %{pending_start: pending} = state)
-       when pending != nil do
-    Logger.error("[TelnetClient] Engine returned dialog: #{line}")
-
-    reason =
-      case Regex.run(~r/text=([^\s]+)/, rest) do
-        [_, encoded] -> URI.decode(encoded)
-        _ -> "dialog_constraint"
-      end
-
-    Process.cancel_timer(pending.timer_ref)
-    GenServer.reply(pending.from, {:error, reason})
-    %{state | pending_start: nil}
-  end
-
-  defp process_line("EVENT download_stopped" <> _, %{pending_start: pending} = state)
-       when pending != nil do
-    Logger.warning("[TelnetClient] Engine stopped download prematurely.")
-    Process.cancel_timer(pending.timer_ref)
-    GenServer.reply(pending.from, {:error, :download_stopped})
-    %{state | pending_start: nil}
   end
 
   defp process_line("STATUS " <> _ = line, state) do

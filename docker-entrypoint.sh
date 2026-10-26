@@ -7,7 +7,9 @@ echo "=========================================================="
 
 HTTP_PORT="${HTTP_PORT:-6878}"
 HTTPS_PORT="${HTTPS_PORT:-6879}"
-ACESTREAM_EXTRA_FLAGS="${ACESTREAM_EXTRA_FLAGS:---live-cache-type memory --memory-cache-limit 1073741824}"
+ACE_LIVE_BUFFER="${ACE_LIVE_BUFFER:-20}"
+ACE_MAX_PEERS="${ACE_MAX_PEERS:-80}"
+ACESTREAM_EXTRA_FLAGS="${ACESTREAM_EXTRA_FLAGS:---live-cache-type memory --memory-cache-limit 1073741824 --live-buffer ${ACE_LIVE_BUFFER} --max-peers ${ACE_MAX_PEERS}}"
 
 # Ensure data and cache directories exist
 mkdir -p /app/data /root/.ACEStream/cache /root/.ACEStream/buffer /root/.ACEStream/content_cache /tmp

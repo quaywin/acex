@@ -93,11 +93,12 @@ defmodule AcexGateway.Channels.StoreTest do
     assert length(parsed_multi) == 1
     assert length(hd(parsed_multi)["sources"]) == 2
 
-    # 3. M3U playlist format with #EXTINF
+    # 3. M3U playlist format with multiple streams under one #EXTINF
     m3u_text = """
     #EXTM3U
     #EXTINF:-1 tvg-id="espn-hd" tvg-name="ESPN HD" tvg-country="US" tvg-logo="https://logo.com/espn.png" group-title="Sports",ESPN HD
     acestream://1111222233334444555566667777888899990000
+    acestream://2222333344445555666677778888999900001111
     """
 
     parsed_m3u = Store.parse_import_text(m3u_text)
@@ -106,7 +107,22 @@ defmodule AcexGateway.Channels.StoreTest do
     assert ch_m3u["name"] == "ESPN HD"
     assert ch_m3u["country"] == "US"
     assert ch_m3u["logo"] == "https://logo.com/espn.png"
-    assert ch_m3u["sources"] == ["1111222233334444555566667777888899990000"]
+    assert length(ch_m3u["sources"]) == 2
+    assert "1111222233334444555566667777888899990000" in ch_m3u["sources"]
+    assert "2222333344445555666677778888999900001111" in ch_m3u["sources"]
+
+    # 4. Multiple Content IDs on the SAME line separated by comma or space
+    single_line_multi_hashes = """
+    1111222233334444555566667777888899990000, 2222333344445555666677778888999900001111 | Multi Source Line | VN | Sports
+    """
+
+    parsed_single_line = Store.parse_import_text(single_line_multi_hashes)
+    assert length(parsed_single_line) == 1
+    ch_single = hd(parsed_single_line)
+    assert ch_single["name"] == "Multi Source Line"
+    assert length(ch_single["sources"]) == 2
+    assert "1111222233334444555566667777888899990000" in ch_single["sources"]
+    assert "2222333344445555666677778888999900001111" in ch_single["sources"]
   end
 
   test "import_channels adds new channels and merges with existing lineup" do
@@ -123,6 +139,18 @@ defmodule AcexGateway.Channels.StoreTest do
 
     # Clean up
     Store.delete_channel("imported-test-channel")
+  end
+
+  test "normalize_channel_param handles string with comma or newline separated hashes" do
+    param = %{
+      "name" => "K+ Sport 1",
+      "sources" => "1111222233334444555566667777888899990000, 2222333344445555666677778888999900001111"
+    }
+
+    normalized = Store.normalize_channel_param(param)
+    assert length(normalized["sources"]) == 2
+    assert "1111222233334444555566667777888899990000" in normalized["sources"]
+    assert "2222333344445555666677778888999900001111" in normalized["sources"]
   end
 
   test "export_txt returns pipe-delimited content id list" do

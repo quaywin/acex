@@ -36,19 +36,18 @@ defmodule AcexGateway.Stream.Broadcaster do
   end
 
   @doc """
-  Unsubscribes a client PID from a channel broadcaster.
+  Unsubscribes a client PID from a specific channel broadcaster, or from all active channels.
   """
-  def unsubscribe(channel_broadcaster_pid, client_pid \\ self())
-
-  def unsubscribe(pid, client_pid) when is_pid(pid) do
-    ChannelBroadcaster.unsubscribe(pid, client_pid)
+  def unsubscribe(pid) when is_pid(pid) do
+    # Fallback: unsubscribe client PID from all active channels
+    for {_key, broadcaster_pid} <- list_active_channels() do
+      ChannelBroadcaster.unsubscribe(broadcaster_pid, pid)
+    end
   end
 
-  def unsubscribe(client_pid, _) when is_pid(client_pid) do
-    # Fallback: unsubscribe from all active channels
-    for {_key, pid} <- list_active_channels() do
-      ChannelBroadcaster.unsubscribe(pid, client_pid)
-    end
+  def unsubscribe(channel_broadcaster_pid, client_pid)
+      when is_pid(channel_broadcaster_pid) and is_pid(client_pid) do
+    ChannelBroadcaster.unsubscribe(channel_broadcaster_pid, client_pid)
   end
 
   @doc """

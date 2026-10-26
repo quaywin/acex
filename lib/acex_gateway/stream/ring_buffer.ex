@@ -7,8 +7,8 @@ defmodule AcexGateway.Stream.RingBuffer do
 
   defstruct chunks: :queue.new(),
             total_bytes: 0,
-            # 2MB default (~2-3 seconds of 1080p stream)
-            max_bytes: 2_097_152
+            # 4MB default (~5-6 seconds of 1080p stream for instant playback & sports-ready low latency)
+            max_bytes: 4_194_304
 
   @type t :: %__MODULE__{
           chunks: :queue.queue(binary()),
@@ -19,7 +19,7 @@ defmodule AcexGateway.Stream.RingBuffer do
   @doc """
   Creates a new RingBuffer with a given max size in bytes.
   """
-  def new(max_bytes \\ 2_097_152) when is_integer(max_bytes) and max_bytes > 0 do
+  def new(max_bytes \\ 4_194_304) when is_integer(max_bytes) and max_bytes > 0 do
     %__MODULE__{chunks: :queue.new(), total_bytes: 0, max_bytes: max_bytes}
   end
 

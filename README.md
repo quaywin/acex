@@ -1,168 +1,153 @@
-# Acex ⚡
+<p align="center">
+  <a href="https://github.com/quaywin/acex">
+    <img src="assets/logo.svg" alt="Acex Logo" width="96" height="96">
+  </a>
+</p>
 
-[![Elixir: 1.18](https://img.shields.io/badge/Elixir-1.18%2B-purple.svg)](https://elixir-lang.org)
-[![Erlang/OTP: 27](https://img.shields.io/badge/Erlang%2FOTP-27-red.svg)](https://www.erlang.org)
-[![HTTP Server: Bandit](https://img.shields.io/badge/HTTP%20Server-Bandit%201.6-blue.svg)](https://github.com/mtrudel/bandit)
-[![Stream Port: 8686](https://img.shields.io/badge/Stream%20Port-8686-orange.svg)]()
-[![Docker: Ready](https://img.shields.io/badge/Docker-All--in--One%20Container-success.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
+<h1 align="center">Acex</h1>
 
-An ultra-lightweight, high-performance **Headless LAN Stream Gateway & IPTV Relay** for AceStream, built entirely on **Elixir / OTP** and the **Bandit** HTTP server.
+<p align="center">
+  <strong>High-Performance 0-Transcode Stream Gateway & IPTV Hub for AceStream</strong>
+</p>
 
-Acex delivers an enterprise-grade upgrade and full replacement for legacy Python gateways (`acehub_proxy.py`) across **Docker, Homelab, NAS, and VPS** environments—bringing instantaneous, artifact-free, and fault-tolerant live TV playback to Smart TVs and media players worldwide.
-
----
-
-## 🌟 Key Features & Architectural Highlights
-
-1. **📺 Auto-Generated M3U Playlist (`/playlist.m3u`)**:
-   - Automatically exports standard IPTV playlists (`#EXTM3U`) complete with high-resolution channel logos and dynamic category grouping (Sports, News, Entertainment, etc.).
-   - Smart Host Detection: Operates seamlessly across local **LAN**, **Tailscale** private mesh networks (`http://100.x.x.x:8686/playlist.m3u`), or **Custom Domains**.
-   - One-click import into **TiviMate, IPTV Smarters, OTT Navigator, Apple TV, VLC**, enabling instant channel surfing like traditional cable television.
-
-2. **⚡ Multi-Format Live Streaming (`/live`)**:
-   - `http://<IP>:8686/live?id=<CONTENT_ID>`: Direct playback via Content ID (PID).
-   - `http://<IP>:8686/live?channel=<SLUG>`: Channel lineup playback with active **Auto-Failover** protection.
-   - Supports both chunked streaming **`GET`** and header probing **`HEAD`** requests for picky media players.
-
-3. **🧹 Auto-Sanitize Stream Hashes**:
-   - Automatically scrubs URL noise, `acestream://` schemes, `&pid=...` query parameters, and extraneous whitespace copied from the web, returning a canonical 40-character hex string to the engine.
-
-4. **🛡️ Dynamic Auto-Failover**:
-   - Channels support multiple backup broadcast sources (`sources: ["primary_hash", "backup_hash_1", "backup_hash_2"]`).
-   - If the active stream encounters network drops or hits 0 peers, the gateway automatically switches to the next available backup source in the background without interrupting client playback.
-
-5. **🚀 MPEG-TS Keyframe RingBuffer (Instant Playback & Anti-Artifact)**:
-   - Maintains a rolling ~2MB memory buffer of recent video chunks in BEAM process memory.
-   - When a player connects to an active stream, the RingBuffer immediately delivers PAT/PMT packets and the latest keyframe, **eliminating 3–5s black screens and initial pixelation**.
-
-6. **⚡ Non-Blocking Asynchronous Architecture**:
-   - Stream startup and P2P swarm pre-buffering are non-blocking (`status: "starting"`).
-   - The Web Dashboard and `/stat` telemetry API **never freeze or time out**.
-
-7. **👥 Multi-Channel Concurrent Streaming & Zero-Copy Fan-Out**:
-   - **True Multi-Channel Concurrency**: Watch different channels simultaneously on different TVs, mobile phones, or desktop players. Starting, switching, or stopping a channel on one device never interrupts streams on other devices.
-   - **Dynamic OTP Supervision**: Supervised on-demand by `DynamicSupervisor` and `Registry`. Channels automatically spawn dedicated `ChannelBroadcaster` processes with isolated AceStream engine sessions, and gracefully shut down with auto-cooldown when viewer counts reach zero.
-   - **Shared Channel Zero-Copy Fan-Out**: Multiple devices watching the same channel share one `ChannelBroadcaster` instance and RingBuffer via BEAM **Refc Binaries**, saving memory and local network bandwidth. Slow connections on one screen never drag down or stutter other screens (no head-of-line blocking).
-
-8. **🎛️ StreamFlix Mission Control Dashboard (`/`)**:
-   - Dark cinematic NOC interface with crimson accents (`#E11D48`), glowing vector badge, and SVG favicon.
-   - **⚡ Quick Stream Launcher**: Paste any Content ID or `acestream://` link for instant preview or direct streaming without adding it to the channel directory.
-   - **📱 Smart TV QR Code Generator**: Generates an on-screen QR code for mobile devices or Smart TV cameras to scan the M3U playlist URL directly without typing.
-   - **🎬 1-Click App Deep Links**: Launch streams directly into dedicated native video players (**VLC**, **IINA**, **PotPlayer**) or open in a browser tab.
-   - **📂 Dynamic Filtering & Multi-View**: Switch effortlessly between visual media **Grid View** and compact administration **Table View**.
+<p align="center">
+  <a href="https://github.com/quaywin/acex/releases"><img src="https://img.shields.io/github/v/release/quaywin/acex?style=flat&color=E11D48" alt="Latest Release"></a>
+  <a href="https://github.com/quaywin/acex/pkgs/container/acex"><img src="https://img.shields.io/badge/Docker-ghcr.io%2Fquaywin%2Facex-blue?logo=docker" alt="Docker Container"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-success.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/Port-8686-orange.svg" alt="Port 8686">
+</p>
 
 ---
 
-## 🔌 API & Endpoint Reference
+Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** for AceStream. It replaces legacy proxies with a concurrent, fault-tolerant relay hub designed specifically for **Docker, Homelab, NAS, and VPS** setups—delivering instantaneous, stutter-free playback to Smart TVs and media players.
 
-| Endpoint | Protocol | Description |
-| :--- | :--- | :--- |
-| `GET /playlist.m3u` | M3U8 Playlist | Dynamic IPTV playlist for TiviMate, OTT Navigator, VLC |
-| `GET /live?id=<ID>` | HTTP Chunked | Stream by Content ID (`video/mp2t`) |
-| `GET /live?channel=<SLUG>` | HTTP Chunked | Stream by channel slug with Auto-Failover |
-| `HEAD /live?...` | HTTP Header | Probe stream Content-Type for picky players |
-| `GET /stat` | JSON | Telemetry: Bitrate, swarm peers, active clients, buffer status |
-| `GET /api/channels` | JSON | Fetch all configured channels |
-| `POST /api/channels` | JSON | Create or update a channel |
-| `PUT /api/channels/:id` | JSON | Update channel by ID |
-| `DELETE /api/channels/:id` | JSON | Remove channel from directory |
-| `OPTIONS /...` | HTTP Header | CORS preflight for web clients |
-| `GET /restart` | JSON | Reset all channels or a specific channel (`?channel=<SLUG>`) |
-| `GET /health` | Plaintext | Healthcheck (`OK`) for Docker / Kubernetes |
-| `GET /favicon.ico` | SVG Vector | Crisp vector brand favicon |
-| `GET /` | HTML | StreamFlix Mission Control Web Dashboard |
+```
+[ P2P Swarm ] ──▶ [ AceStream Engine ] ──▶ [ AcexGateway ] ──▶ [ Smart TV / TiviMate / VLC ]
+                      (20s P2P Buffer)       (4MB RingBuffer)        (Zero-Transcode Relay)
+```
 
 ---
 
-## 📱 Device Setup Guide
+## ✨ Features
 
-### 1. TiviMate / IPTV Smarters / OTT Navigator (Android TV / Fire TV)
-1. Open **TiviMate** $\to$ **Add Playlist** $\to$ Select **M3U Playlist**.
-2. Enter the URL:
-   ```text
-   http://<SERVER_IP>:8686/playlist.m3u
-   ```
-   *(Example via LAN: `http://192.168.1.100:8686/playlist.m3u` or via Tailscale: `http://100.81.62.112:8686/playlist.m3u`)*.
-3. Select **Done**. Your complete channel lineup with logos and categories is ready for remote-control channel surfing.
+- **⚡ Zero-Transcode & Fast-Start**: Relays pristine MPEG-TS packets directly without CPU transcoding. Includes an in-memory 4MB RingBuffer delivering PAT/PMT/keyframes instantly upon channel switch.
+- **📺 Xtream Codes API (`/player_api.php`)**: Native support for **TiviMate**, **IPTV Smarters**, **XCIPTV**, and other Smart TV IPTV apps with automated category and stream discovery.
+- **📋 Extended M3U8 Playlist (`/playlist.m3u8`)**: Complete IPTV standard with `tvg-id`, `tvg-chno`, logos, categories, and XMLTV EPG integration.
+- **🛡️ Multi-Source Auto-Failover**: Configure backup Content IDs per channel; automatically switches sources in the background if peers drop or stream stalls.
+- **🎛️ StreamFlix Web Dashboard (`/`)**: Dark cinematic NOC interface with real-time swarm telemetry, channel lineup manager, QR code scanner, and 1-click external player launch (**VLC**, **IINA**, **PotPlayer**).
+- **🔒 Unified Authentication & In-Browser Settings**: Optional global authentication protecting stream endpoints, M3U playlists, and Xtream API with hot-reloadable web configuration.
 
-### 2. VLC Media Player (PC, Mac, iOS, Android)
-* **Option 1 (Full Playlist):** Go to `Media` $\to$ `Open Network Stream...` $\to$ Paste:
+---
+
+## 🚀 Quick Start with Docker
+
+The easiest way to run Acex is using the pre-built all-in-one container from GitHub Container Registry:
+
+### `docker-compose.yml`
+
+```yaml
+services:
+  acex:
+    image: ghcr.io/quaywin/acex:latest
+    container_name: acex-gateway
+    restart: unless-stopped
+    ports:
+      - "8686:8686"       # Web Dashboard & Stream Relay
+      - "6878:6878"       # AceStream HTTP API
+      - "62062:62062"     # AceStream Telnet API
+      - "8621:8621/tcp"   # P2P Incoming Swarm
+      - "8621:8621/udp"
+    volumes:
+      - ./data:/app/data
+    tmpfs:
+      - /root/.ACEStream/cache:size=1024M,mode=1777
+      - /root/.ACEStream/buffer:size=512M,mode=1777
+    environment:
+      - PORT=8686
+      - ACE_LIVE_BUFFER=20
+      - ACE_MAX_PEERS=80
+      - GRACE_PERIOD_MS=15000
+```
+
+Start the container:
+```bash
+docker compose up -d
+```
+Access the Dashboard at **[http://localhost:8686](http://localhost:8686)**.
+
+> **💡 Host Network Tip:** On a dedicated Linux host or VPS, use `network_mode: host` instead of `ports:` to bypass Docker NAT and maximize P2P swarm peer discovery.
+
+---
+
+## 📱 Connect Your Devices
+
+### 1. Smart TV (TiviMate / IPTV Smarters / XCIPTV)
+
+* **Via Xtream Codes API (Recommended):**
+  - **Server URL:** `http://<SERVER_IP>:8686`
+  - **Username / Password:** Your configured credentials (or leave blank if disabled)
+* **Via M3U8 Playlist:**
+  - Enter URL: `http://<SERVER_IP>:8686/playlist.m3u8`
+  - Or scan the on-screen QR code from the Web Dashboard.
+
+### 2. Desktop & Mobile Players (VLC, IINA, PotPlayer)
+
+* Click any channel in the Web Dashboard and hit **VLC**, **IINA**, or **PotPlayer** for 1-click launch.
+* Or open Network Stream in VLC:
   ```text
-  http://<SERVER_IP>:8686/playlist.m3u
-  ```
-* **Option 2 (Direct Single Stream):**
-  ```text
-  http://<SERVER_IP>:8686/live?id=eab7aeef0218ce8b0752e596e4792b69eda4df5e
+  http://<SERVER_IP>:8686/playlist.m3u8
   ```
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## 🔌 API Endpoints
 
-| Variable | Default | Purpose |
+| Endpoint | Type | Description |
 | :--- | :--- | :--- |
-| `PORT` or `ACE_PROXY_PORT` | `8686` | HTTP Gateway port for video streaming and Web Dashboard |
-| `ACE_TELNET_HOST` | `127.0.0.1` | AceStream Engine Telnet API host address |
-| `ACE_TELNET_PORT` | `62062` | AceStream Engine Telnet API port |
-| `ACE_HTTP_PORT` | `6878` | AceStream Engine HTTP streaming port |
-| `GRACE_PERIOD_MS` | `5000` | Cooldown delay (ms) after clients disconnect before stopping the engine |
-| `CHANNELS_FILE` | `data/channels.json` | Persistent storage path for channel configurations |
-| `DEFAULT_CHANNEL_ID` | `dd8255...` | Default Content ID fallback |
+| `GET /` | Web UI | StreamFlix Management Dashboard |
+| `GET /player_api.php` | Xtream API | Xtream Codes API handshake, categories, and streams |
+| `GET /playlist.m3u8` | M3U8 | Standard IPTV playlist for TV players |
+| `GET /live/:target.ts` | MPEG-TS | Live video stream by slug or 40-char Content ID |
+| `GET /stat` | JSON | Real-time swarm peers, bitrate, and viewer telemetry |
+| `GET /api/channels` | REST | List channels (supports POST/PUT/DELETE) |
+| `GET /api/channels/export` | File | Export lineup as `.txt`, `.m3u8`, or `.json` |
+| `GET /health` | Healthcheck | Docker / Kubernetes readiness probe |
 
 ---
 
-## 🚀 Deployment
+## ⚙️ Configuration Reference
 
-### Option 1: All-in-One Docker Container (Recommended)
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PORT` | `8686` | Web Dashboard and stream relay port |
+| `ACE_LIVE_BUFFER` | `20` | P2P live buffer in seconds (sweet spot for sports) |
+| `ACE_MAX_PEERS` | `80` | Maximum P2P peers connected per stream |
+| `RING_BUFFER_BYTES` | `4194304` | Gateway in-memory buffer (4MB ~ 5-6s of 1080p stream) |
+| `GRACE_PERIOD_MS` | `15000` | Warm swarm retention delay (ms) after last viewer exits |
+| `AUTH_USERNAME` | *(empty)* | Optional authentication username |
+| `AUTH_PASSWORD` | *(empty)* | Optional authentication password |
+| `EPG_URL` | *(empty)* | Custom XMLTV EPG URL |
+| `CHANNELS_FILE` | `/app/data/channels.json` | Persistent channel directory |
 
-Acex integrates both **AceStream Engine Daemon + AcexGateway Elixir/OTP Relay** into a **single, unified Docker container** (compatible with both x86_64 and Apple Silicon M1/M2/M3/M4):
+---
+
+## 🛠️ Development & Building from Source
 
 ```bash
 # Clone the repository
-git clone git@github.com:quaywin/acex.git
+git clone https://github.com/quaywin/acex.git
 cd acex
 
-# Launch the unified All-in-One container
-docker compose up -d
-
-# Inspect live logs for both Engine and Gateway
-docker compose logs -f acex-gateway
-```
-
-Or run directly using standard `docker run`:
-```bash
-docker run -d \
-  --name acex-gateway \
-  -p 8686:8686 \
-  -p 6878:6878 \
-  -p 62062:62062 \
-  -p 8621:8621/tcp \
-  -p 8621:8621/udp \
-  -v ./data:/app/data \
-  acex_gateway-acex-gateway
-```
-
-### Option 2: Local Development
-
-Requires **Elixir >= 1.18** and **Erlang/OTP >= 27**.
-
-```bash
-cd acex
-
-# Install dependencies
+# Install dependencies & run tests
 mix deps.get
-
-# Run automated test suite
 mix test
 
-# Start the server
+# Run locally
 mix run --no-halt
 ```
-
-Once running, access the Web Dashboard at: **[http://localhost:8686/](http://localhost:8686/)**
 
 ---
 
 ## 📄 License
-This project is open-source software licensed under the [MIT License](LICENSE).
+
+This project is licensed under the [MIT License](LICENSE).

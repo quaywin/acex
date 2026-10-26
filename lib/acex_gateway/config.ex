@@ -39,9 +39,16 @@ defmodule AcexGateway.Config do
     end
   end
 
+  def ring_buffer_bytes do
+    case System.get_env("RING_BUFFER_BYTES") do
+      nil -> 4_194_304
+      val -> String.to_integer(val)
+    end
+  end
+
   def grace_period_ms do
     case System.get_env("GRACE_PERIOD_MS") do
-      nil -> 5000
+      nil -> 15_000
       val -> String.to_integer(val)
     end
   end
@@ -65,21 +72,36 @@ defmodule AcexGateway.Config do
   end
 
   def epg_url do
-    System.get_env("EPG_URL", "")
+    case AcexGateway.Settings.Store.get_setting(:epg_url) do
+      val when is_binary(val) -> val
+      _ -> System.get_env("EPG_URL", "")
+    end
   end
 
   def auth_username do
-    System.get_env("AUTH_USERNAME", "")
+    case AcexGateway.Settings.Store.get_setting(:auth_username) do
+      val when is_binary(val) -> val
+      _ -> System.get_env("AUTH_USERNAME", "")
+    end
   end
 
   def auth_password do
-    System.get_env("AUTH_PASSWORD", "")
+    case AcexGateway.Settings.Store.get_setting(:auth_password) do
+      val when is_binary(val) -> val
+      _ -> System.get_env("AUTH_PASSWORD", "")
+    end
   end
 
   def auth_enabled? do
-    user = auth_username()
-    pass = auth_password()
-    is_binary(user) and is_binary(pass) and String.trim(user) != "" and String.trim(pass) != ""
+    case AcexGateway.Settings.Store.get_setting(:auth_enabled) do
+      val when is_boolean(val) ->
+        val
+
+      _ ->
+        user = auth_username()
+        pass = auth_password()
+        is_binary(user) and is_binary(pass) and String.trim(user) != "" and String.trim(pass) != ""
+    end
   end
 
   def authenticate?(username, password) do
