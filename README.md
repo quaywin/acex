@@ -19,7 +19,7 @@
 
 ---
 
-Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** for AceStream. It replaces legacy proxies with a concurrent, fault-tolerant relay hub designed specifically for **Docker, Homelab, NAS, and VPS** setups—delivering instantaneous, stutter-free playback to Smart TVs and media players.
+Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** for AceStream. It replaces legacy proxies with a concurrent, fault-tolerant relay hub designed specifically for **Docker, Homelab, and Linux Server / VPS** setups—delivering instantaneous, stutter-free playback to Smart TVs and media players.
 
 ```
 [ P2P Swarms ] ──▶ [ AceStream Engine ] ──▶ [ AcexGateway ] ──┬──▶ Living Room TV (Channel A)
@@ -53,9 +53,7 @@ services:
     container_name: acex-gateway
     restart: unless-stopped
     ports:
-      - "8686:8686"       # Web Dashboard & Stream Relay
-      - "6878:6878"       # AceStream HTTP API
-      - "62062:62062"     # AceStream Telnet API
+      - "8686:8686"       # Web Dashboard, IPTV API & Stream Relay
       - "8621:8621/tcp"   # P2P Incoming Swarm
       - "8621:8621/udp"
     volumes:
@@ -101,18 +99,14 @@ Access the Dashboard at **[http://localhost:8686](http://localhost:8686)**.
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 Client Endpoints
 
-| Endpoint | Type | Description |
+| Endpoint | Protocol / Format | Recommended For |
 | :--- | :--- | :--- |
-| `GET /` | Web UI | StreamFlix Management Dashboard |
-| `GET /player_api.php` | Xtream API | Xtream Codes API handshake, categories, and streams |
-| `GET /playlist.m3u8` | M3U8 | Standard IPTV playlist for TV players |
-| `GET /live/:target.ts` | MPEG-TS | Live video stream by slug or 40-char Content ID |
-| `GET /stat` | JSON | Real-time swarm peers, bitrate, and viewer telemetry |
-| `GET /api/channels` | REST | List channels (supports POST/PUT/DELETE) |
-| `GET /api/channels/export` | File | Export lineup as `.txt`, `.m3u8`, or `.json` |
-| `GET /health` | Healthcheck | Docker / Kubernetes readiness probe |
+| `GET /player_api.php` | Xtream Codes API | TiviMate, IPTV Smarters, XCIPTV |
+| `GET /playlist.m3u8` | Extended M3U Playlist | Apple TV, Smart TV, OTT Navigator |
+| `GET /live/:target.ts` | Direct MPEG-TS Stream | VLC, IINA, PotPlayer, MPV |
+| `GET /` | Web Console | Browser management & 1-click launch |
 
 ---
 

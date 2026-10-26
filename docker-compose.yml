@@ -11,9 +11,7 @@ services:
     # Note: On a dedicated Linux host/VPS, you can use `network_mode: host`
     # instead of `ports:` to eliminate Docker NAT overhead and maximize P2P swarm discovery.
     ports:
-      - "8686:8686"       # AcexGateway Web Dashboard, M3U & Stream Relay
-      - "6878:6878"       # AceStream HTTP API
-      - "62062:62062"     # AceStream Telnet API
+      - "8686:8686"       # AcexGateway Web Dashboard, IPTV API & Stream Relay
       - "8621:8621/tcp"   # P2P Incoming Swarm
       - "8621:8621/udp"
     volumes:
