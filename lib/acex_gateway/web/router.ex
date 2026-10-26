@@ -17,6 +17,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Engine.TelnetClient
   alias AcexGateway.Channels.Store
   alias AcexGateway.Web.DashboardView
+  alias AcexGateway.Web.XtreamCodes
 
   plug(:match)
   plug(Plug.Parsers, parsers: [:urlencoded, :json], json_decoder: Jason)
@@ -31,14 +32,58 @@ defmodule AcexGateway.Web.Router do
   end
 
   get "/playlist.m3u" do
-    base_url = request_base_url(conn)
-    m3u_content = Store.export_m3u(base_url)
+    serve_playlist(conn)
+  end
 
-    conn
-    |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
-    |> put_resp_header("content-disposition", "inline; filename=\"acex_playlist.m3u\"")
-    |> put_resp_header("access-control-allow-origin", "*")
-    |> send_resp(200, m3u_content)
+  get "/playlist.m3u8" do
+    serve_playlist(conn)
+  end
+
+  get "/player_api.php" do
+    conn = fetch_query_params(conn)
+    base_url = request_base_url(conn)
+
+    case XtreamCodes.handle_request(conn.query_params, base_url) do
+      {:ok, data} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(data))
+
+      {:unauthorized, data} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(data))
+    end
+  end
+
+  defp serve_playlist(conn) do
+    case authenticate_request(conn) do
+      :ok ->
+        conn = fetch_query_params(conn)
+        base_url = request_base_url(conn)
+        username = conn.query_params["username"] || conn.query_params["user"]
+        password = conn.query_params["password"] || conn.query_params["pass"]
+
+        auth_opts =
+          if is_binary(username) and is_binary(password) and username != "" and password != "" do
+            %{"username" => username, "password" => password}
+          else
+            %{}
+          end
+
+        m3u_content = Store.export_m3u(base_url, auth_opts)
+
+        conn
+        |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
+        |> put_resp_header("content-disposition", "inline; filename=\"acex_playlist.m3u\"")
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_resp(200, m3u_content)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
   end
 
   get "/api/channels" do
@@ -178,6 +223,28 @@ defmodule AcexGateway.Web.Router do
   end
 
   head "/live" do
+    case authenticate_request(conn) do
+      :ok -> send_head_live(conn)
+      :unauthorized -> send_unauthorized(conn)
+    end
+  end
+
+  head "/live/:target_name" do
+    case authenticate_request(conn) do
+      :ok -> send_head_live(conn)
+      :unauthorized -> send_unauthorized(conn)
+    end
+  end
+
+  head "/live/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      send_head_live(conn)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  defp send_head_live(conn) do
     conn
     |> put_resp_header("content-type", "video/mp2t")
     |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
@@ -186,22 +253,119 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(200, "")
   end
 
-  get "/live" do
-    conn = fetch_query_params(conn)
-    query = conn.query_params
+  defp send_unauthorized(conn) do
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("www-authenticate", "Basic realm=\"AcexGateway\"")
+    |> put_resp_content_type("application/json")
+    |> send_resp(
+      401,
+      Jason.encode!(%{error: "Unauthorized", message: "Invalid or missing credentials"})
+    )
+  end
 
-    {target, source_type} =
+  defp authenticate_request(conn) do
+    if Config.auth_enabled?() do
+      conn = fetch_query_params(conn)
+      username = conn.query_params["username"] || conn.query_params["user"]
+      password = conn.query_params["password"] || conn.query_params["pass"]
+
       cond do
-        Map.has_key?(query, "channel") and query["channel"] != "" ->
-          {query["channel"], :channel}
+        is_binary(username) and is_binary(password) and Config.authenticate?(username, password) ->
+          :ok
 
-        Map.has_key?(query, "id") and query["id"] != "" ->
-          {Store.sanitize_hash(query["id"]), :content_id}
+        match_basic_auth?(conn) ->
+          :ok
 
         true ->
-          {Config.default_channel_id(), :content_id}
+          :unauthorized
       end
+    else
+      :ok
+    end
+  end
 
+  defp match_basic_auth?(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Basic " <> encoded] ->
+        case Base.decode64(encoded) do
+          {:ok, decoded} ->
+            case String.split(decoded, ":", parts: 2) do
+              [u, p] -> Config.authenticate?(u, p)
+              _ -> false
+            end
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
+  end
+
+  get "/live" do
+    case authenticate_request(conn) do
+      :ok ->
+        conn = fetch_query_params(conn)
+        query = conn.query_params
+
+        {target, source_type} =
+          cond do
+            Map.has_key?(query, "channel") and query["channel"] != "" ->
+              {query["channel"], :channel}
+
+            Map.has_key?(query, "id") and query["id"] != "" ->
+              {Store.sanitize_hash(query["id"]), :content_id}
+
+            true ->
+              {Config.default_channel_id(), :content_id}
+          end
+
+        handle_live_stream(conn, target, source_type)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  get "/live/:target_name" do
+    case authenticate_request(conn) do
+      :ok ->
+        raw = String.replace_suffix(target_name, ".ts", "")
+
+        {target, source_type} =
+          if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
+            {Store.sanitize_hash(raw), :content_id}
+          else
+            {raw, :channel}
+          end
+
+        handle_live_stream(conn, target, source_type)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  get "/live/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      raw = String.replace_suffix(target_name, ".ts", "")
+
+      {target, source_type} =
+        if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
+          {Store.sanitize_hash(raw), :content_id}
+        else
+          {raw, :channel}
+        end
+
+      handle_live_stream(conn, target, source_type)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  defp handle_live_stream(conn, target, source_type) do
     Logger.info("[Router] Client connected to /live for #{source_type}: #{target}")
 
     case Broadcaster.subscribe(target, source_type) do

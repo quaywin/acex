@@ -28,12 +28,23 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.resp_body =~ "playlist.m3u"
   end
 
-  test "GET /playlist.m3u returns valid m3u format" do
-    conn = conn(:get, "/playlist.m3u") |> Router.call(@opts)
-    assert conn.status == 200
-    assert get_resp_header(conn, "content-type") == ["application/x-mpegurl; charset=utf-8"]
-    assert conn.resp_body =~ "#EXTM3U"
-    assert conn.resp_body =~ "/live?channel="
+  test "GET /playlist.m3u and /playlist.m3u8 return valid m3u format" do
+    for path <- ["/playlist.m3u", "/playlist.m3u8"] do
+      conn = conn(:get, path) |> Router.call(@opts)
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") == ["application/x-mpegurl; charset=utf-8"]
+      assert conn.resp_body =~ "#EXTM3U"
+      assert conn.resp_body =~ "/live?channel="
+      assert conn.resp_body =~ "tvg-chno="
+    end
+  end
+
+  test "HEAD /live and /live/:target.ts return MPEG-TS headers" do
+    for path <- ["/live", "/live/test-channel.ts"] do
+      conn = conn(:head, path) |> Router.call(@opts)
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") == ["video/mp2t"]
+    end
   end
 
   test "GET /api/channels returns JSON channel list" do

@@ -63,4 +63,30 @@ defmodule AcexGateway.Config do
   def default_channel_id do
     System.get_env("DEFAULT_CHANNEL_ID", @default_test_channel)
   end
+
+  def epg_url do
+    System.get_env("EPG_URL", "")
+  end
+
+  def auth_username do
+    System.get_env("AUTH_USERNAME", "")
+  end
+
+  def auth_password do
+    System.get_env("AUTH_PASSWORD", "")
+  end
+
+  def auth_enabled? do
+    user = auth_username()
+    pass = auth_password()
+    is_binary(user) and is_binary(pass) and String.trim(user) != "" and String.trim(pass) != ""
+  end
+
+  def authenticate?(username, password) do
+    if auth_enabled?() do
+      username == auth_username() and password == auth_password()
+    else
+      true
+    end
+  end
 end

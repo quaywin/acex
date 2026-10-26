@@ -33,3 +33,6 @@ services:
       - ACE_START_TIMEOUT_MS=60000
       - CHANNELS_FILE=/app/data/channels.json
       - DEFAULT_CHANNEL_ID=dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
+      - EPG_URL=
+      - AUTH_USERNAME=
+      - AUTH_PASSWORD=

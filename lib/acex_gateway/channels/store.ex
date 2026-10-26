@@ -59,10 +59,10 @@ defmodule AcexGateway.Channels.Store do
   end
 
   @doc """
-  Generates an M3U playlist pointing to the provided base URL.
+  Generates an M3U playlist pointing to the provided base URL, optionally attaching Xtream auth credentials.
   """
-  def export_m3u(base_url) when is_binary(base_url) do
-    GenServer.call(__MODULE__, {:export_m3u, base_url})
+  def export_m3u(base_url, auth_opts \\ %{}) when is_binary(base_url) do
+    GenServer.call(__MODULE__, {:export_m3u, base_url, auth_opts})
   end
 
   @doc """
@@ -194,35 +194,62 @@ defmodule AcexGateway.Channels.Store do
     end
   end
 
-  def handle_call({:export_m3u, base_url}, _from, state) do
+  def handle_call({:export_m3u, base_url}, from, state) do
+    handle_call({:export_m3u, base_url, %{}}, from, state)
+  end
+
+  def handle_call({:export_m3u, base_url, auth_opts}, _from, state) do
     base = String.trim_trailing(base_url, "/")
-    lines = ["#EXTM3U x-tvg-url=\"\""]
+    epg = AcexGateway.Config.epg_url()
+    username = auth_opts[:username] || auth_opts["username"]
+    password = auth_opts[:password] || auth_opts["password"]
+
+    has_auth =
+      is_binary(username) and is_binary(password) and String.trim(username) != "" and
+        String.trim(password) != ""
+
+    header =
+      if is_binary(epg) and String.trim(epg) != "" do
+        clean_epg = clean_m3u_attr(epg)
+        "#EXTM3U x-tvg-url=\"#{clean_epg}\" url-tvg=\"#{clean_epg}\""
+      else
+        "#EXTM3U x-tvg-url=\"\""
+      end
 
     channel_lines =
-      Enum.flat_map(state.channels, fn c ->
-        id = c["id"]
-        name = c["name"]
-        group = c["group"]
-        logo = c["logo"]
+      state.channels
+      |> Enum.with_index(1)
+      |> Enum.flat_map(fn {c, index} ->
+        id = clean_m3u_attr(c["id"])
+        name = c["name"] || "Channel"
+        group = clean_m3u_attr(c["group"] || "General")
+        logo = clean_m3u_attr(c["logo"] || "")
         country = c["country"]
 
         display_name = format_playlist_title(name, country)
+        clean_name = clean_m3u_attr(display_name)
 
         country_attr =
           if is_binary(country) and String.trim(country) != "" do
-            " tvg-country=\"#{String.trim(country)}\""
+            " tvg-country=\"#{clean_m3u_attr(String.trim(country))}\""
           else
             ""
           end
 
         inf =
-          "#EXTINF:-1 tvg-id=\"#{id}\" tvg-name=\"#{display_name}\"#{country_attr} tvg-logo=\"#{logo}\" group-title=\"#{group}\",#{display_name}"
+          "#EXTINF:-1 tvg-id=\"#{id}\" tvg-chno=\"#{index}\" tvg-name=\"#{clean_name}\"#{country_attr} tvg-logo=\"#{logo}\" group-title=\"#{group}\",#{display_name}"
 
-        url = "#{base}/live?channel=#{id}"
+        url =
+          if has_auth do
+            "#{base}/live/#{username}/#{password}/#{id}.ts"
+          else
+            "#{base}/live?channel=#{id}"
+          end
+
         [inf, url]
       end)
 
-    m3u_content = Enum.join(lines ++ channel_lines, "\n") <> "\n"
+    m3u_content = Enum.join([header] ++ channel_lines, "\n") <> "\n"
     {:reply, m3u_content, state}
   end
 
@@ -600,4 +627,14 @@ defmodule AcexGateway.Channels.Store do
     |> String.replace(~r/[\s_-]+/, "-")
     |> String.trim("-")
   end
+
+  defp clean_m3u_attr(nil), do: ""
+  defp clean_m3u_attr(val) when is_binary(val) do
+    val
+    |> String.replace("\"", "")
+    |> String.replace("\r", "")
+    |> String.replace("\n", " ")
+    |> String.trim()
+  end
+  defp clean_m3u_attr(val), do: to_string(val)
 end

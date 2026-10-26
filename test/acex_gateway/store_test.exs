@@ -64,6 +64,7 @@ defmodule AcexGateway.Channels.StoreTest do
   test "export_m3u formats valid playlist" do
     m3u = Store.export_m3u("http://192.168.1.100:8686")
     assert String.starts_with?(m3u, "#EXTM3U")
+    assert m3u =~ "tvg-chno=\"1\""
     assert m3u =~ "http://192.168.1.100:8686/live?channel=big-buck-bunny"
   end
 

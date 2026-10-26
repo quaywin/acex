@@ -1464,6 +1464,7 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
       </style>
+      <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
     </head>
     <body>
       <div class="container">
@@ -1479,10 +1480,8 @@ defmodule AcexGateway.Web.DashboardView do
             <div>
               <div class="brand-title">
                 Acex<span class="brand-title-accent">Gateway</span>
-                <span class="brand-badge">⚡ OTP CORE</span>
-                <span class="brand-badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); border-color: var(--border-subtle);">v#{AcexGateway.version()}</span>
+                <span class="brand-badge">v#{AcexGateway.version()}</span>
               </div>
-              <div class="brand-sub">STREAMFLIX IPTV GATEWAY / ACESTREAM BROADCAST</div>
             </div>
           </a>
 
@@ -1497,16 +1496,6 @@ defmodule AcexGateway.Web.DashboardView do
                 <div class="equalizer-bar"></div>
               </div>
             </div>
-
-            <button class="btn btn-secondary btn-sm" onclick="forceResetSession()" title="Reset current broadcast session to Idle">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Reset</span>
-            </button>
-
-            <a href="/stat" target="_blank" class="btn btn-secondary btn-sm" title="View raw telemetry JSON">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span>API</span>
-            </a>
           </div>
         </header>
 
@@ -1816,15 +1805,33 @@ defmodule AcexGateway.Web.DashboardView do
         </div>
       </div>
 
-      <!-- Stream Launcher Modal (Launch with player or copy) -->
+      <!-- Stream Launcher & In-Browser Player Modal -->
       <div id="launcherModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'launcherModal')">
-        <div class="modal-window">
+        <div class="modal-window" style="max-width: 760px;">
           <div class="modal-top">
             <div>
               <h3 id="launcherModalTitle">Watch Live Stream</h3>
-              <p style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">Choose your favorite external player or copy the direct stream URL:</p>
+              <p id="launcherModalSubtitle" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Direct in-browser playback powered by MSE demuxer</p>
             </div>
             <button class="btn btn-secondary btn-xs" onclick="closeLauncherModal()">✕</button>
+          </div>
+
+          <!-- In-Browser HTML5 Live Player (mpegts.js) -->
+          <div id="videoPlayerBox" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center;">
+            <video id="liveVideoPlayer" controls autoplay style="width: 100%; height: 100%; object-fit: contain; display: block;" playsinline></video>
+
+            <!-- Loading Indicator -->
+            <div id="videoLoadingOverlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 2;">
+              <div class="pulse-dot" style="width: 16px; height: 16px; background: var(--color-primary);"></div>
+              <span id="videoLoadingText" style="font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono);">Connecting AceStream Swarm...</span>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="videoErrorOverlay" style="position: absolute; inset: 0; background: rgba(18,18,18,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 3; padding: 20px; text-align: center;">
+              <span style="font-size: 28px;">⚠️</span>
+              <span style="color: #ff5555; font-weight: 700; font-size: 14px;">Browser Playback Unavailable</span>
+              <span style="font-size: 12px; color: var(--text-secondary); max-width: 440px;">This browser may not support MSE demuxing (e.g. iOS Safari) or stream is offline. Please use VLC or external players below.</span>
+            </div>
           </div>
 
           <div style="margin-bottom: var(--space-md);">
@@ -1835,7 +1842,7 @@ defmodule AcexGateway.Web.DashboardView do
             </div>
           </div>
 
-          <label class="form-label">Quick Launch on Your Device:</label>
+          <label class="form-label">Or Launch on External Device / App:</label>
           <div class="launcher-links-grid">
             <a id="launchVlc" href="#" class="app-launch-card">
               <div style="font-size: 24px;">🟧</div>
@@ -1865,13 +1872,13 @@ defmodule AcexGateway.Web.DashboardView do
               <div style="font-size: 24px;">🌐</div>
               <div>
                 <div style="font-weight: 700; font-size: 14px; color: #FFFFFF;">Open in New Tab</div>
-                <div style="font-size: 12px; color: var(--text-tertiary);">HTTP Chunked Stream</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Raw HTTP stream</div>
               </div>
             </a>
           </div>
 
           <div style="margin-top: var(--space-lg); text-align: center;">
-            <button class="btn btn-secondary btn-sm" onclick="closeLauncherModal()">Close</button>
+            <button class="btn btn-secondary btn-sm" onclick="closeLauncherModal()">Close Player</button>
           </div>
         </div>
       </div>
@@ -2565,7 +2572,28 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        // Stream Launcher Modal
+        // Stream Launcher & In-Browser Player Modal
+        let activeMpegtsPlayer = null;
+
+        function destroyActivePlayer() {
+          if (activeMpegtsPlayer) {
+            try {
+              activeMpegtsPlayer.pause();
+              activeMpegtsPlayer.unload();
+              activeMpegtsPlayer.detachMediaElement();
+              activeMpegtsPlayer.destroy();
+            } catch (err) {
+              console.warn("[Player] Destroy error:", err);
+            }
+            activeMpegtsPlayer = null;
+          }
+          const video = document.getElementById("liveVideoPlayer");
+          if (video) {
+            video.removeAttribute("src");
+            video.load();
+          }
+        }
+
         function openLauncherModal(title, streamUrl) {
           document.getElementById("launcherModalTitle").innerText = title;
           document.getElementById("launcherStreamUrl").value = streamUrl;
@@ -2577,9 +2605,73 @@ defmodule AcexGateway.Web.DashboardView do
           document.getElementById("launchBrowser").href = streamUrl;
 
           document.getElementById("launcherModal").classList.add("active");
+
+          // Reset overlays
+          const loadingOverlay = document.getElementById("videoLoadingOverlay");
+          const errorOverlay = document.getElementById("videoErrorOverlay");
+          const loadingText = document.getElementById("videoLoadingText");
+          const videoElement = document.getElementById("liveVideoPlayer");
+
+          loadingOverlay.style.display = "flex";
+          errorOverlay.style.display = "none";
+          loadingText.innerText = "Connecting AceStream Swarm...";
+
+          destroyActivePlayer();
+
+          // Initialize mpegts.js MSE player if supported
+          if (typeof mpegts !== "undefined" && mpegts.isSupported()) {
+            try {
+              activeMpegtsPlayer = mpegts.createPlayer(
+                {
+                  type: "mse",
+                  isLive: true,
+                  url: streamUrl,
+                  hasAudio: true,
+                  hasVideo: true
+                },
+                {
+                  enableWorker: true,
+                  lazyLoad: false,
+                  liveBufferLatencyChasing: true,
+                  liveBufferLatencyMaxLatency: 3.5,
+                  liveBufferLatencyMinRemain: 1.0,
+                  autoCleanupSourceBuffer: true
+                }
+              );
+
+              activeMpegtsPlayer.attachMediaElement(videoElement);
+              activeMpegtsPlayer.load();
+
+              videoElement.onplaying = () => {
+                loadingOverlay.style.display = "none";
+              };
+
+              activeMpegtsPlayer.on(mpegts.Events.ERROR, (errType, errDetail) => {
+                console.warn("[mpegts] playback error:", errType, errDetail);
+                if (errType === mpegts.ErrorTypes.NETWORK_ERROR) {
+                  loadingText.innerText = "Waiting for stream data...";
+                }
+              });
+
+              videoElement.play().catch(e => {
+                // Autoplay with sound might be blocked, retry muted
+                console.log("[Player] Autoplay prevented, retrying muted:", e);
+                videoElement.muted = true;
+                videoElement.play().catch(err => console.warn("[Player] Play failed:", err));
+              });
+            } catch (err) {
+              console.error("[mpegts] Setup failed:", err);
+              loadingOverlay.style.display = "none";
+              errorOverlay.style.display = "flex";
+            }
+          } else {
+            loadingOverlay.style.display = "none";
+            errorOverlay.style.display = "flex";
+          }
         }
 
         function closeLauncherModal() {
+          destroyActivePlayer();
           document.getElementById("launcherModal").classList.remove("active");
         }
 
@@ -2601,6 +2693,9 @@ defmodule AcexGateway.Web.DashboardView do
 
         function closeOnBackdrop(e, modalId) {
           if (e.target.id === modalId) {
+            if (modalId === "launcherModal") {
+              destroyActivePlayer();
+            }
             document.getElementById(modalId).classList.remove("active");
           }
         }
