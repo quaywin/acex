@@ -1,0 +1,12 @@
+[
+  {
+    "group": "Benchmark & Demo",
+    "id": "big-buck-bunny",
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
+    "name": "Big Buck Bunny (Benchmark Test)",
+    "source_type": "content_id",
+    "sources": [
+      "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"
+    ]
+  }
+]
