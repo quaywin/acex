@@ -7,7 +7,7 @@
 <h1 align="center">Acex</h1>
 
 <p align="center">
-  <strong>High-Performance 0-Transcode Stream Gateway & IPTV Hub for AceStream</strong>
+  <strong>0-Transcode Stream Gateway and IPTV Hub for AceStream</strong>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** for AceStream. It replaces legacy proxies with a concurrent, fault-tolerant relay hub designed specifically for **Docker, Homelab, and Linux Server / VPS** setups—delivering instantaneous, stutter-free playback to Smart TVs and media players.
+Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts AceStream P2P swarms into standard HTTP MPEG-TS feeds for Smart TVs, IPTV apps, and media players.
 
 ```
 [ P2P Swarms ] ──▶ [ AceStream Engine ] ──▶ [ AcexGateway ] ──┬──▶ Living Room TV (Channel A)
@@ -30,19 +30,19 @@ Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** f
 
 ---
 
-## ✨ Key Features
+## Features
 
-- **⚡ Zero-Transcode & Fast-Start Engine**: Relays pristine MPEG-TS streams directly with zero CPU transcoding. An in-memory 4MB RingBuffer delivers PAT/PMT headers and video keyframes instantly upon tuning.
-- **🔀 Multi-Channel Concurrency & Smart Fan-Out**: Stream different channels across multiple rooms and devices simultaneously. When multiple clients tune into the same channel, Acex shares a single upstream P2P connection (1-to-many relay), conserving bandwidth.
-- **🛡️ Multi-Source Auto-Failover**: Configure multiple backup Content IDs per channel. If the primary stream drops peers or stalls, Acex seamlessly fails over to backup sources in the background.
-- **📺 Universal IPTV Hub (Xtream Codes & M3U8)**: Native support for **TiviMate**, **IPTV Smarters**, and **XCIPTV** via `/player_api.php`, alongside extended M3U8 playlists with categories, channel logos, and XMLTV EPG.
-- **🎛️ StreamFlix NOC Dashboard**: Sleek web console with real-time P2P swarm telemetry, lineup manager with bulk M3U import, QR code connect, and 1-click launch for **VLC**, **IINA**, and **PotPlayer**.
+- **Zero-Transcode Passthrough**: Relays MPEG-TS packets directly without CPU transcoding. An in-memory ring buffer delivers keyframes immediately on channel switch.
+- **Multi-Channel and Fan-Out Relay**: Streams multiple channels concurrently. Multiple clients watching the same channel share a single upstream connection to save bandwidth.
+- **Multi-Source Failover**: Supports fallback Content IDs per channel, automatically switching sources if the primary stream stalls or loses peers.
+- **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
+- **Web Dashboard**: Manage channels, view real-time swarm telemetry, import playlists, and launch streams directly in VLC, IINA, or PotPlayer.
 
 ---
 
-## 🚀 Quick Start with Docker
+## Quick Start
 
-The easiest way to run Acex is using the pre-built all-in-one container from GitHub Container Registry:
+Run using Docker Compose:
 
 ### `docker-compose.yml`
 
@@ -72,68 +72,68 @@ Start the container:
 ```bash
 docker compose up -d
 ```
-Access the Dashboard at **[http://localhost:8686](http://localhost:8686)**.
+Open the dashboard at **http://localhost:8686**.
 
-> **💡 Host Network Tip:** On a dedicated Linux host or VPS, use `network_mode: host` instead of `ports:` to bypass Docker NAT and maximize P2P swarm peer discovery.
+> **Tip:** On a dedicated Linux host or VPS, use `network_mode: host` instead of `ports:` to eliminate Docker NAT overhead and maximize P2P swarm discovery.
 
 ---
 
-## 📱 Connect Your Devices
+## Connect Devices
 
-### 1. Smart TV (TiviMate / IPTV Smarters / XCIPTV)
+### Smart TV (TiviMate / IPTV Smarters / XCIPTV)
 
-* **Via Xtream Codes API (Recommended):**
+* **Xtream Codes API (Recommended):**
   - **Server URL:** `http://<SERVER_IP>:8686`
-  - **Username / Password:** Your configured credentials (or leave blank if disabled)
-* **Via M3U8 Playlist:**
-  - Enter URL: `http://<SERVER_IP>:8686/playlist.m3u8`
-  - Or scan the on-screen QR code from the Web Dashboard.
+  - **Username / Password:** Configured credentials (leave empty if auth is disabled)
+* **M3U8 Playlist:**
+  - URL: `http://<SERVER_IP>:8686/playlist.m3u8`
+  - Or scan the QR code from the Web Dashboard.
 
-### 2. Desktop & Mobile Players (VLC, IINA, PotPlayer)
+### Desktop and Mobile Players (VLC, IINA, PotPlayer)
 
-* Click any channel in the Web Dashboard and hit **VLC**, **IINA**, or **PotPlayer** for 1-click launch.
-* Or open Network Stream in VLC:
+* Click any channel in the Web Dashboard to launch directly in VLC, IINA, or PotPlayer.
+* Or open network stream:
   ```text
   http://<SERVER_IP>:8686/playlist.m3u8
   ```
 
 ---
 
-## 🔌 Client Endpoints
+## Endpoints
 
 | Endpoint | Protocol / Format | Recommended For |
 | :--- | :--- | :--- |
 | `GET /player_api.php` | Xtream Codes API | TiviMate, IPTV Smarters, XCIPTV |
 | `GET /playlist.m3u8` | Extended M3U Playlist | Apple TV, Smart TV, OTT Navigator |
 | `GET /live/:target.ts` | Direct MPEG-TS Stream | VLC, IINA, PotPlayer, MPV |
-| `GET /` | Web Console | Browser management & 1-click launch |
+| `GET /` | Web Console | Channel management and player launcher |
 
 ---
 
-## ⚙️ Configuration Reference
+## Configuration
 
 | Environment Variable | Default | Description |
 | :--- | :--- | :--- |
 | `PORT` | `8686` | Web Dashboard and stream relay port |
-| `ACE_LIVE_BUFFER` | `20` | P2P live buffer in seconds (sweet spot for sports) |
+| `ACE_LIVE_BUFFER` | `20` | P2P live buffer in seconds |
 | `ACE_MAX_PEERS` | `80` | Maximum P2P peers connected per stream |
-| `RING_BUFFER_BYTES` | `4194304` | Gateway in-memory buffer (4MB ~ 5-6s of 1080p stream) |
-| `GRACE_PERIOD_MS` | `15000` | Warm swarm retention delay (ms) after last viewer exits |
+| `RING_BUFFER_BYTES` | `4194304` | In-memory buffer size in bytes (4MB) |
+| `GRACE_PERIOD_MS` | `15000` | Keep-alive delay in ms after last viewer leaves |
 | `AUTH_USERNAME` | *(empty)* | Optional authentication username |
 | `AUTH_PASSWORD` | *(empty)* | Optional authentication password |
 | `EPG_URL` | *(empty)* | Custom XMLTV EPG URL |
-| `CHANNELS_FILE` | `/app/data/channels.json` | Persistent channel directory |
+| `CHANNELS_FILE` | `/app/data/channels.json` | Path to persistent channel storage |
 
 ---
 
-## 🛠️ Development & Building from Source
+## Development
 
 ```bash
 # Clone the repository
 git clone https://github.com/quaywin/acex.git
 cd acex
 
-# Install dependencies & run tests
+# Install dependencies and run tests
 mix deps.get
 mix test
 
@@ -143,6 +143,6 @@ mix run --no-halt
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
