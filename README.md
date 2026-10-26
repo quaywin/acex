@@ -22,20 +22,21 @@
 Acex is an enterprise-grade, ultra-lightweight **Stream Gateway & IPTV Relay** for AceStream. It replaces legacy proxies with a concurrent, fault-tolerant relay hub designed specifically for **Docker, Homelab, NAS, and VPS** setups—delivering instantaneous, stutter-free playback to Smart TVs and media players.
 
 ```
-[ P2P Swarm ] ──▶ [ AceStream Engine ] ──▶ [ AcexGateway ] ──▶ [ Smart TV / TiviMate / VLC ]
-                      (20s P2P Buffer)       (4MB RingBuffer)        (Zero-Transcode Relay)
+[ P2P Swarms ] ──▶ [ AceStream Engine ] ──▶ [ AcexGateway ] ──┬──▶ Living Room TV (Channel A)
+                       (20s Live Buffer)     (4MB RingBuffers) ├──▶ Bedroom TV (Channel B)
+                                             (Multi-Channel    └──▶ Mobile / VLC (Shared A)
+                                              + Failover)
 ```
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **⚡ Zero-Transcode & Fast-Start**: Relays pristine MPEG-TS packets directly without CPU transcoding. Includes an in-memory 4MB RingBuffer delivering PAT/PMT/keyframes instantly upon channel switch.
-- **📺 Xtream Codes API (`/player_api.php`)**: Native support for **TiviMate**, **IPTV Smarters**, **XCIPTV**, and other Smart TV IPTV apps with automated category and stream discovery.
-- **📋 Extended M3U8 Playlist (`/playlist.m3u8`)**: Complete IPTV standard with `tvg-id`, `tvg-chno`, logos, categories, and XMLTV EPG integration.
-- **🛡️ Multi-Source Auto-Failover**: Configure backup Content IDs per channel; automatically switches sources in the background if peers drop or stream stalls.
-- **🎛️ StreamFlix Web Dashboard (`/`)**: Dark cinematic NOC interface with real-time swarm telemetry, channel lineup manager, QR code scanner, and 1-click external player launch (**VLC**, **IINA**, **PotPlayer**).
-- **🔒 Unified Authentication & In-Browser Settings**: Optional global authentication protecting stream endpoints, M3U playlists, and Xtream API with hot-reloadable web configuration.
+- **⚡ Zero-Transcode & Fast-Start Engine**: Relays pristine MPEG-TS streams directly with zero CPU transcoding. An in-memory 4MB RingBuffer delivers PAT/PMT headers and video keyframes instantly upon tuning.
+- **🔀 Multi-Channel Concurrency & Smart Fan-Out**: Stream different channels across multiple rooms and devices simultaneously. When multiple clients tune into the same channel, Acex shares a single upstream P2P connection (1-to-many relay), conserving bandwidth.
+- **🛡️ Multi-Source Auto-Failover**: Configure multiple backup Content IDs per channel. If the primary stream drops peers or stalls, Acex seamlessly fails over to backup sources in the background.
+- **📺 Universal IPTV Hub (Xtream Codes & M3U8)**: Native support for **TiviMate**, **IPTV Smarters**, and **XCIPTV** via `/player_api.php`, alongside extended M3U8 playlists with categories, channel logos, and XMLTV EPG.
+- **🎛️ StreamFlix NOC Dashboard**: Sleek web console with real-time P2P swarm telemetry, lineup manager with bulk M3U import, QR code connect, and 1-click launch for **VLC**, **IINA**, and **PotPlayer**.
 
 ---
 
