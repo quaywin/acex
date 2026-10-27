@@ -114,6 +114,8 @@ defmodule AcexGateway.Stream.Broadcaster do
       total_sources: if(first, do: first.total_sources, else: 0),
       peers: max_peers,
       speed_kbps: total_speed,
+      progress: if(first, do: Map.get(first, :progress, 0), else: 0),
+      engine_state: if(first, do: Map.get(first, :engine_state, :idle), else: :idle),
       active_channels_count: active_count,
       channels: channel_stats
     }
@@ -169,29 +171,79 @@ defmodule AcexGateway.Stream.Broadcaster do
         {:ok, pid}
 
       [] ->
-        spec = {
-          ChannelBroadcaster,
-          channel_key: channel_key,
-          target: target,
-          sources: sources,
-          source_type: resolved_type,
-          channel_name: channel_name
-        }
+        case ensure_channel_slot() do
+          :ok ->
+            spec = {
+              ChannelBroadcaster,
+              channel_key: channel_key,
+              target: target,
+              sources: sources,
+              source_type: resolved_type,
+              channel_name: channel_name
+            }
 
-        case DynamicSupervisor.start_child(@supervisor, spec) do
-          {:ok, pid} ->
-            {:ok, pid}
+            case DynamicSupervisor.start_child(@supervisor, spec) do
+              {:ok, pid} ->
+                {:ok, pid}
 
-          {:error, {:already_started, pid}} ->
-            {:ok, pid}
+              {:error, {:already_started, pid}} ->
+                {:ok, pid}
 
-          {:error, reason} ->
-            Logger.error(
-              "[Broadcaster] Failed to start channel #{channel_key}: #{inspect(reason)}"
-            )
+              {:error, reason} ->
+                Logger.error(
+                  "[Broadcaster] Failed to start channel #{channel_key}: #{inspect(reason)}"
+                )
 
-            {:error, reason}
+                {:error, reason}
+            end
+
+          {:error, :max_channels_reached} = err ->
+            err
         end
+    end
+  end
+
+  defp ensure_channel_slot do
+    max_limit = AcexGateway.Config.max_active_channels()
+    active_channels = list_active_channels()
+
+    if length(active_channels) < max_limit do
+      :ok
+    else
+      # Check if any active channel is idle / in cooldown (0 consumers)
+      cooldown_channel =
+        Enum.find_value(active_channels, fn {key, pid} ->
+          try do
+            info = ChannelBroadcaster.get_info(pid)
+
+            if info.client_count == 0 or info.status == :cooldown do
+              {key, pid}
+            else
+              nil
+            end
+          catch
+            :exit, _ -> {key, pid}
+          end
+        end)
+
+      case cooldown_channel do
+        {cooldown_key, cooldown_pid} ->
+          Logger.info(
+            "[Broadcaster] Evicting idle/cooldown channel #{cooldown_key} to free slot for new stream."
+          )
+
+          try do
+            ChannelBroadcaster.force_stop(cooldown_pid)
+          catch
+            :exit, _ -> :ok
+          end
+
+          DynamicSupervisor.terminate_child(@supervisor, cooldown_pid)
+          :ok
+
+        nil ->
+          {:error, :max_channels_reached}
+      end
     end
   end
 
@@ -211,7 +263,7 @@ defmodule AcexGateway.Stream.Broadcaster do
       true ->
         clean_target = Store.sanitize_hash(target)
 
-        case Enum.find(Store.list_channels(), fn c -> clean_target in (c["sources"] || []) end) do
+        case Store.find_channel_by_source(clean_target) do
           nil ->
             key = "content_id:#{clean_target}"
             name = "Direct Stream (#{String.slice(clean_target, 0, 8)}...)"

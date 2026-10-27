@@ -88,7 +88,11 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       ring_buffer: RingBuffer.new(Config.ring_buffer_bytes()),
       bytes_transferred: 0,
       peers: 0,
-      speed_kbps: 0
+      speed_kbps: 0,
+      progress: 0,
+      engine_state: :idle,
+      source_promoted: false,
+      cycle_count: 0
     }
 
     send(self(), :connect_telnet)
@@ -103,9 +107,11 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         ref = Process.monitor(client_pid)
         new_consumers = Map.put(state.consumers, client_pid, ref)
 
-        # Flush RingBuffer keyframe chunks for instant playback
-        for chunk <- RingBuffer.to_chunks(state.ring_buffer) do
-          send(client_pid, {:stream_chunk, chunk})
+        # Flush RingBuffer keyframe chunks for instant playback as a consolidated burst
+        chunks = RingBuffer.to_chunks(state.ring_buffer)
+
+        if chunks != [] do
+          send(client_pid, {:stream_burst, chunks})
         end
 
         Logger.info(
@@ -126,12 +132,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   end
 
   def handle_call(:get_info, _from, state) do
-    client_count =
-      if state.status == :starting do
-        length(state.pending_subscribers)
-      else
-        map_size(state.consumers)
-      end
+    client_count = map_size(state.consumers) + length(state.pending_subscribers)
 
     {resolved_name, resolved_logo} =
       case Store.get_channel(state.channel_key) do
@@ -160,6 +161,8 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       total_sources: length(state.sources),
       peers: state.peers,
       speed_kbps: state.speed_kbps,
+      progress: state.progress,
+      engine_state: state.engine_state,
       playback_url: state.playback_url
     }
 
@@ -175,6 +178,14 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   def handle_cast({:unsubscribe, pid}, state) do
     new_state = handle_consumer_disconnect(pid, state)
     {:noreply, new_state}
+  end
+
+  def handle_cast(
+        {:dispatch_chunk, chunk},
+        %{status: :streaming, source_promoted: false} = state
+      ) do
+    state = maybe_promote_source(state)
+    handle_cast({:dispatch_chunk, chunk}, state)
   end
 
   def handle_cast({:dispatch_chunk, chunk}, %{status: :streaming} = state) do
@@ -219,10 +230,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       "[ChannelBroadcaster:#{state.channel_key}] Stream start timed out after #{Config.start_timeout_ms()}ms"
     )
 
-    case try_next_source_or_abort(state, :start_timeout) do
-      {:stop, reason, new_state} -> {:stop, reason, new_state}
-      %{} = new_state -> {:noreply, new_state}
-    end
+    trigger_failover(state, :start_timeout)
   end
 
   def handle_info(:early_failover_check, state) do
@@ -234,10 +242,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
           "[ChannelBroadcaster:#{state.channel_key}] Fast failover: Source #{state.source_index + 1} has 0 peers after #{Config.early_failover_timeout_ms()}ms. Switching to fallback #{state.source_index + 2}/#{length(state.sources)}..."
         )
 
-        case try_next_source_or_abort(state, :zero_peers_fast_failover) do
-          {:stop, reason, new_state} -> {:stop, reason, new_state}
-          %{} = new_state -> {:noreply, new_state}
-        end
+        trigger_failover(state, :zero_peers_fast_failover)
       else
         if state.peers > 0 do
           Logger.info(
@@ -258,6 +263,9 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
     case process_telnet_line(line_clean, state) do
       {:stop, reason, new_state} ->
         {:stop, reason, new_state}
+
+      {:noreply, new_state} ->
+        {:noreply, new_state}
 
       %{} = new_state ->
         {:noreply, new_state}
@@ -313,12 +321,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       "[ChannelBroadcaster:#{state.channel_key}] Upstream stream completed: #{inspect(reason)}"
     )
 
-    for {pid, ref} <- state.consumers do
-      Process.demonitor(ref, [:flush])
-      send(pid, {:stream_closed, reason})
-    end
-
-    {:stop, :normal, %{state | consumers: %{}}}
+    trigger_failover(state, reason)
   end
 
   def handle_info(_other, state) do
@@ -345,9 +348,9 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
     abort_pending_subscribers(state.pending_subscribers, {:error, :stream_terminated})
 
     if state.socket do
-      :gen_tcp.send(state.socket, "STOP\r\n")
-      :gen_tcp.send(state.socket, "STOPDL\r\n")
-      :gen_tcp.close(state.socket)
+      safe_tcp_send(state.socket, "STOP\r\n")
+      safe_tcp_send(state.socket, "STOPDL\r\n")
+      safe_tcp_close(state.socket)
     end
 
     :ok
@@ -358,56 +361,35 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   defp process_telnet_line("HELLOTS " <> _ = line, state) do
     %{key: req_key, http_port: http_port} = Protocol.parse_hellots(line)
     ready_key = Protocol.compute_ready_key(req_key, Config.product_key())
-    :gen_tcp.send(state.socket, "READY key=#{ready_key}\r\n")
+    safe_tcp_send(state.socket, "READY key=#{ready_key}\r\n")
     %{state | http_port: http_port}
   end
 
   defp process_telnet_line("AUTH " <> _auth_info, state) do
-    :gen_tcp.send(state.socket, "SETOPTIONS use_stop_notifications=1\r\n")
+    safe_tcp_send(state.socket, "SETOPTIONS use_stop_notifications=1\r\n")
     dispatch_load_for_current_source(%{state | authenticated: true})
   end
 
   defp process_telnet_line("NOTREADY", state) do
     Logger.error("[ChannelBroadcaster:#{state.channel_key}] Engine returned NOTREADY.")
-    try_next_source_or_abort(state, :not_ready)
+    trigger_failover(state, :not_ready)
   end
 
   defp process_telnet_line("LOADRESP " <> _ = line, state) do
-    canonical_hash =
-      case Protocol.parse_infohash_from_loadresp(line) do
-        {:ok, hash} -> hash
-        :none -> state.canonical_hash
-      end
+    case Protocol.parse_loadresp(line) do
+      {:error, reason} ->
+        Logger.warning(
+          "[ChannelBroadcaster:#{state.channel_key}] Engine reported LOAD error: #{inspect(reason)}. Fast failover."
+        )
 
-    current_hash = Enum.at(state.sources, state.source_index)
+        trigger_failover(state, {:load_error, reason})
 
-    start_cmd =
-      if canonical_hash do
-        "START INFOHASH #{canonical_hash} 0 0 0 0 output_format=http\r\n"
-      else
-        "START PID #{current_hash} 0 output_format=http\r\n"
-      end
+      {:ok, canonical_hash} ->
+        dispatch_start_stream(state, canonical_hash)
 
-    Logger.info(
-      "[ChannelBroadcaster:#{state.channel_key}] Dispatching: #{String.trim(start_cmd)}"
-    )
-
-    :gen_tcp.send(state.socket, start_cmd)
-
-    if state.start_timer, do: Process.cancel_timer(state.start_timer)
-    if state.early_failover_timer, do: Process.cancel_timer(state.early_failover_timer)
-
-    new_timer = Process.send_after(self(), :start_timeout, Config.start_timeout_ms())
-
-    new_early_timer =
-      Process.send_after(self(), :early_failover_check, Config.early_failover_timeout_ms())
-
-    %{
-      state
-      | canonical_hash: canonical_hash,
-        start_timer: new_timer,
-        early_failover_timer: new_early_timer
-    }
+      :none ->
+        dispatch_start_stream(state, state.canonical_hash)
+    end
   end
 
   defp process_telnet_line("START " <> _ = line, state) do
@@ -420,9 +402,9 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
 
         current_hash = Enum.at(state.sources, state.source_index)
 
-        # Register all pending subscribers
+        # Register all pending subscribers while keeping any existing viewers
         new_consumers =
-          Enum.reduce(state.pending_subscribers, %{}, fn {pid, from}, acc ->
+          Enum.reduce(state.pending_subscribers, state.consumers, fn {pid, from}, acc ->
             ref = Process.monitor(pid)
             GenServer.reply(from, {:ok, :stream_started})
             Map.put(acc, pid, ref)
@@ -443,7 +425,28 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         }
 
       :error ->
-        try_next_source_or_abort(state, :invalid_start_url)
+        trigger_failover(state, :invalid_start_url)
+    end
+  end
+
+  defp process_telnet_line("STATE " <> _ = line, state) do
+    case Protocol.parse_state(line) do
+      {:ok, engine_state, _code} ->
+        Logger.info(
+          "[ChannelBroadcaster:#{state.channel_key}] Engine state changed: #{engine_state}"
+        )
+
+        %{state | engine_state: engine_state}
+
+      {:error, :engine_error, _code} ->
+        Logger.warning(
+          "[ChannelBroadcaster:#{state.channel_key}] Engine reported fatal error (STATE 6)."
+        )
+
+        trigger_failover(state, :engine_state_error)
+
+      _ ->
+        state
     end
   end
 
@@ -456,7 +459,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         _ -> "dialog_constraint"
       end
 
-    try_next_source_or_abort(state, reason)
+    trigger_failover(state, reason)
   end
 
   defp process_telnet_line("EVENT download_stopped" <> _, state) do
@@ -465,7 +468,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         "[ChannelBroadcaster:#{state.channel_key}] Engine stopped download prematurely during startup."
       )
 
-      try_next_source_or_abort(state, :download_stopped)
+      trigger_failover(state, :download_stopped)
     else
       state
     end
@@ -475,8 +478,26 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
     stats = Protocol.parse_status(line)
     new_peers = Map.get(stats, :peers, state.peers)
     new_speed = Map.get(stats, :speed_kbps, state.speed_kbps)
+    new_progress = Map.get(stats, :progress, state.progress)
+    new_engine_state = Map.get(stats, :engine_state, state.engine_state)
 
-    %{state | peers: new_peers, speed_kbps: new_speed}
+    updated_state = %{
+      state
+      | peers: new_peers,
+        speed_kbps: new_speed,
+        progress: new_progress,
+        engine_state: new_engine_state
+    }
+
+    if new_engine_state == :error do
+      Logger.warning(
+        "[ChannelBroadcaster:#{state.channel_key}] Engine reported error status (STATUS main:error)."
+      )
+
+      trigger_failover(updated_state, :engine_status_error)
+    else
+      updated_state
+    end
   end
 
   defp process_telnet_line(_other, state) do
@@ -484,6 +505,166 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   end
 
   # Helpers
+
+  defp dispatch_start_stream(state, canonical_hash) do
+    current_hash = Enum.at(state.sources, state.source_index)
+
+    start_cmd =
+      if canonical_hash do
+        "START INFOHASH #{canonical_hash} 0 0 0 0 output_format=http\r\n"
+      else
+        "START PID #{current_hash} 0 output_format=http\r\n"
+      end
+
+    Logger.info(
+      "[ChannelBroadcaster:#{state.channel_key}] Dispatching: #{String.trim(start_cmd)}"
+    )
+
+    safe_tcp_send(state.socket, start_cmd)
+
+    if state.start_timer, do: Process.cancel_timer(state.start_timer)
+    if state.early_failover_timer, do: Process.cancel_timer(state.early_failover_timer)
+
+    new_timer = Process.send_after(self(), :start_timeout, Config.start_timeout_ms())
+
+    new_early_timer =
+      Process.send_after(self(), :early_failover_check, Config.early_failover_timeout_ms())
+
+    %{
+      state
+      | canonical_hash: canonical_hash,
+        start_timer: new_timer,
+        early_failover_timer: new_early_timer
+    }
+  end
+
+  defp trigger_failover(state, reason) do
+    if state.start_timer, do: Process.cancel_timer(state.start_timer)
+    if state.early_failover_timer, do: Process.cancel_timer(state.early_failover_timer)
+
+    if state.socket do
+      safe_tcp_send(state.socket, "STOP\r\n")
+      safe_tcp_send(state.socket, "STOPDL\r\n")
+    end
+
+    if state.upstream_task do
+      Process.exit(state.upstream_task, :shutdown)
+    end
+
+    {state, next_index, total_sources} =
+      case reason do
+        {:load_error, err} when length(state.sources) > 1 ->
+          dead_source = Enum.at(state.sources, state.source_index)
+
+          if dead_source do
+            Logger.warning(
+              "[ChannelBroadcaster:#{state.channel_key}] Fatal LOAD error for source #{dead_source}: #{inspect(err)}. Auto-pruning dead source from Store..."
+            )
+
+            Store.prune_dead_source(state.channel_key, dead_source)
+            remaining = Enum.reject(state.sources, &(&1 == dead_source))
+            {%{state | sources: remaining}, state.source_index, length(remaining)}
+          else
+            {state, state.source_index + 1, length(state.sources)}
+          end
+
+        _ ->
+          {state, state.source_index + 1, length(state.sources)}
+      end
+
+    cond do
+      # 1. Advance to next backup source in the list
+      next_index < total_sources ->
+        Logger.warning(
+          "[ChannelBroadcaster:#{state.channel_key}] Source #{state.source_index + 1} failed (#{inspect(reason)}). Trying fallback #{next_index + 1}/#{total_sources}..."
+        )
+
+        new_state = %{
+          state
+          | status: :starting,
+            source_index: next_index,
+            source_promoted: false,
+            peers: 0,
+            speed_kbps: 0,
+            progress: 0,
+            engine_state: :idle,
+            canonical_hash: nil,
+            playback_url: nil,
+            upstream_task: nil,
+            start_timer: nil,
+            early_failover_timer: nil
+        }
+
+        {:noreply, dispatch_load_for_current_source(new_state)}
+
+      # 2. Reached end of source list, but viewers are actively watching and cycle_count < 1: wrap around ONCE
+      next_index >= total_sources and total_sources > 1 and map_size(state.consumers) > 0 and
+          state.cycle_count < 1 ->
+        Logger.warning(
+          "[ChannelBroadcaster:#{state.channel_key}] Reached end of backup sources. Active viewers: #{map_size(state.consumers)}. Attempting 1 bounded wrap-around cycle starting from primary source..."
+        )
+
+        new_state = %{
+          state
+          | status: :starting,
+            source_index: 0,
+            cycle_count: state.cycle_count + 1,
+            source_promoted: false,
+            peers: 0,
+            speed_kbps: 0,
+            progress: 0,
+            engine_state: :idle,
+            canonical_hash: nil,
+            playback_url: nil,
+            upstream_task: nil,
+            start_timer: nil,
+            early_failover_timer: nil
+        }
+
+        {:noreply, dispatch_load_for_current_source(new_state)}
+
+      # 3. Exhausted all attempts or no consumers watching: terminate cleanly
+      true ->
+        Logger.error(
+          "[ChannelBroadcaster:#{state.channel_key}] Stream ended or all #{total_sources} source(s) exhausted (cycles: #{state.cycle_count}). Final error: #{inspect(reason)}"
+        )
+
+        for {pid, ref} <- state.consumers do
+          Process.demonitor(ref, [:flush])
+          send(pid, {:stream_closed, reason})
+        end
+
+        abort_pending_subscribers(state.pending_subscribers, {:error, reason})
+
+        {:stop, :normal,
+         %{
+           state
+           | status: :stopped,
+             start_timer: nil,
+             early_failover_timer: nil,
+             consumers: %{},
+             pending_subscribers: []
+         }}
+    end
+  end
+
+  defp maybe_promote_source(%{active_hash: hash, source_index: idx} = state)
+       when is_binary(hash) and idx > 0 do
+    Store.promote_channel_source(state.channel_key, hash)
+    promoted_sources = [hash | Enum.reject(state.sources, &(&1 == hash))]
+
+    %{
+      state
+      | source_promoted: true,
+        sources: promoted_sources,
+        source_index: 0,
+        cycle_count: 0
+    }
+  end
+
+  defp maybe_promote_source(state) do
+    %{state | source_promoted: true, cycle_count: 0}
+  end
 
   defp dispatch_load_for_current_source(state) do
     current_hash = Enum.at(state.sources, state.source_index)
@@ -494,7 +675,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
     )
 
     if state.socket do
-      :gen_tcp.send(state.socket, cmd)
+      safe_tcp_send(state.socket, cmd)
     end
 
     canonical_hash = nil
@@ -510,43 +691,6 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         start_timer: new_timer,
         early_failover_timer: nil
     }
-  end
-
-  defp try_next_source_or_abort(state, reason) do
-    if state.start_timer, do: Process.cancel_timer(state.start_timer)
-    if state.early_failover_timer, do: Process.cancel_timer(state.early_failover_timer)
-
-    next_index = state.source_index + 1
-
-    if next_index < length(state.sources) do
-      Logger.warning(
-        "[ChannelBroadcaster:#{state.channel_key}] Source #{state.source_index + 1} failed (#{inspect(reason)}). Trying fallback #{next_index + 1}/#{length(state.sources)}..."
-      )
-
-      if state.socket do
-        :gen_tcp.send(state.socket, "STOP\r\n")
-        :gen_tcp.send(state.socket, "STOPDL\r\n")
-      end
-
-      new_state = %{
-        state
-        | source_index: next_index,
-          peers: 0,
-          speed_kbps: 0,
-          canonical_hash: nil,
-          start_timer: nil,
-          early_failover_timer: nil
-      }
-
-      dispatch_load_for_current_source(new_state)
-    else
-      Logger.error(
-        "[ChannelBroadcaster:#{state.channel_key}] All #{length(state.sources)} source(s) failed. Final error: #{inspect(reason)}"
-      )
-
-      abort_pending_subscribers(state.pending_subscribers, {:error, reason})
-      {:stop, :normal, %{state | start_timer: nil, early_failover_timer: nil}}
-    end
   end
 
   defp abort_pending_subscribers(pending, reason) do
@@ -630,7 +774,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
       _ ->
         clean = Store.sanitize_hash(target)
 
-        case Enum.find(Store.list_channels(), fn c -> clean in (c["sources"] || []) end) do
+        case Store.find_channel_by_source(clean) do
           %{"name" => name} when is_binary(name) and name != "" ->
             name
 
@@ -643,4 +787,24 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         end
     end
   end
+
+  defp safe_tcp_send(socket, data) when socket != nil do
+    try do
+      :gen_tcp.send(socket, data)
+    catch
+      _, _ -> :error
+    end
+  end
+
+  defp safe_tcp_send(_socket, _data), do: :ok
+
+  defp safe_tcp_close(socket) when socket != nil do
+    try do
+      :gen_tcp.close(socket)
+    catch
+      _, _ -> :error
+    end
+  end
+
+  defp safe_tcp_close(_socket), do: :ok
 end

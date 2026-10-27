@@ -1,13 +1,15 @@
 defmodule AcexGateway.Channels.Store do
   @moduledoc """
-  GenServer that stores and manages the IPTV channel lineup and multi-source fallbacks.
-  Persists channel configurations to a JSON file.
+  High-performance concurrent store that manages the IPTV channel lineup and multi-source fallbacks.
+  Uses ETS with `read_concurrency: true` for sub-millisecond, lock-free lookups.
+  Persists channel configurations to a JSON file via atomic write.
   """
 
   use GenServer
   require Logger
 
   @default_file "data/channels.json"
+  @table :acex_channels
 
   @default_channels [
     %{
@@ -31,18 +33,166 @@ defmodule AcexGateway.Channels.Store do
   end
 
   @doc """
-  Lists all configured channels.
+  Lists all configured channels. Reads lock-free from ETS.
   """
   def list_channels do
-    GenServer.call(__MODULE__, :list_channels)
+    case :ets.whereis(@table) do
+      :undefined ->
+        GenServer.call(__MODULE__, :list_channels)
+
+      _ ->
+        case :ets.lookup(@table, :all_channels) do
+          [{:all_channels, channels}] -> channels
+          [] -> GenServer.call(__MODULE__, :list_channels)
+        end
+    end
   end
 
   @doc """
-  Gets a single channel by its ID.
+  Gets a single channel by its ID. Reads lock-free O(1) from ETS.
   """
   def get_channel(id) when is_binary(id) do
-    GenServer.call(__MODULE__, {:get_channel, id})
+    case :ets.whereis(@table) do
+      :undefined ->
+        GenServer.call(__MODULE__, {:get_channel, id})
+
+      _ ->
+        case :ets.lookup(@table, id) do
+          [{^id, channel}] -> channel
+          [] -> nil
+        end
+    end
   end
+
+  @doc """
+  Finds a channel by one of its source hashes. Reads lock-free O(1) from ETS index.
+  """
+  def find_channel_by_source(hash) when is_binary(hash) do
+    clean = sanitize_hash(hash)
+
+    case :ets.whereis(@table) do
+      :undefined ->
+        Enum.find(list_channels(), fn c -> clean in (c["sources"] || []) end)
+
+      _ ->
+        case :ets.lookup(@table, {:source, clean}) do
+          [{{:source, ^clean}, channel_id}] -> get_channel(channel_id)
+          [] -> nil
+        end
+    end
+  end
+
+  def find_channel_by_source(_), do: nil
+
+  @doc """
+  Promotes a working source to the front (index 0) of the channel's source list.
+  If the source is already first or the channel does not exist, returns :noop.
+  """
+  def promote_channel_source(channel_id_or_hash, working_source)
+      when is_binary(channel_id_or_hash) and is_binary(working_source) do
+    clean_source = sanitize_hash(working_source)
+
+    channel =
+      get_channel(channel_id_or_hash) ||
+        find_channel_by_source(channel_id_or_hash) ||
+        find_channel_by_source(clean_source)
+
+    case channel do
+      %{"id" => id, "sources" => sources} = ch when is_list(sources) and length(sources) > 1 ->
+        clean_sources = Enum.map(sources, &sanitize_hash/1)
+
+        case Enum.find_index(clean_sources, &(&1 == clean_source)) do
+          nil ->
+            :noop
+
+          0 ->
+            :noop
+
+          _idx ->
+            promoted = [clean_source | Enum.reject(clean_sources, &(&1 == clean_source))]
+            updated_channel = Map.put(ch, "sources", promoted)
+            save_channel(updated_channel)
+
+            Logger.info(
+              "[Store] Promoted working source #{clean_source} to index 0 for channel '#{id}'"
+            )
+
+            {:ok, updated_channel}
+        end
+
+      _ ->
+        :noop
+    end
+  rescue
+    _ -> :noop
+  end
+
+  def promote_channel_source(_, _), do: :noop
+
+  @doc """
+  Removes a specific source hash from a channel.
+  Refuses to remove the last source (channel must keep at least 1 source).
+  """
+  def remove_channel_source(channel_id, source)
+      when is_binary(channel_id) and is_binary(source) do
+    clean_source = sanitize_hash(source)
+
+    case get_channel(channel_id) do
+      %{"sources" => sources} = ch when is_list(sources) and length(sources) > 1 ->
+        clean_sources = Enum.map(sources, &sanitize_hash/1)
+
+        if clean_source in clean_sources do
+          remaining = Enum.reject(clean_sources, &(&1 == clean_source))
+          updated_channel = Map.put(ch, "sources", remaining)
+          save_channel(updated_channel)
+
+          Logger.info(
+            "[Store] Removed source #{clean_source} from channel '#{channel_id}'. Remaining: #{length(remaining)}"
+          )
+
+          {:ok, updated_channel}
+        else
+          :noop
+        end
+
+      %{"sources" => sources} when is_list(sources) and length(sources) <= 1 ->
+        {:error, :cannot_remove_last_source}
+
+      nil ->
+        {:error, :channel_not_found}
+
+      _ ->
+        :noop
+    end
+  end
+
+  def remove_channel_source(_, _), do: {:error, :invalid_arguments}
+
+  @doc """
+  Prunes a dead source from a channel, looked up by channel ID or by source hash.
+  Safe no-op if the channel has only 1 source.
+  """
+  def prune_dead_source(channel_id_or_hash, dead_source)
+      when is_binary(channel_id_or_hash) and is_binary(dead_source) do
+    clean_dead = sanitize_hash(dead_source)
+
+    channel =
+      get_channel(channel_id_or_hash) ||
+        find_channel_by_source(channel_id_or_hash) ||
+        find_channel_by_source(clean_dead)
+
+    case channel do
+      %{"id" => id, "sources" => sources} when is_list(sources) and length(sources) > 1 ->
+        remove_channel_source(id, clean_dead)
+
+      _ ->
+        :noop
+    end
+  rescue
+    _ -> :noop
+  end
+
+  def prune_dead_source(_, _), do: :noop
 
   @doc """
   Saves (creates or updates) a channel.
@@ -60,16 +210,18 @@ defmodule AcexGateway.Channels.Store do
 
   @doc """
   Generates an M3U playlist pointing to the provided base URL, optionally attaching Xtream auth credentials.
+  Runs concurrently inside caller process without blocking GenServer.
   """
   def export_m3u(base_url, auth_opts \\ %{}) when is_binary(base_url) do
-    GenServer.call(__MODULE__, {:export_m3u, base_url, auth_opts})
+    generate_m3u(list_channels(), base_url, auth_opts)
   end
 
   @doc """
   Exports channel lineup as clean pipe-delimited text (Content ID | Name | Country | Group).
+  Runs concurrently inside caller process without blocking GenServer.
   """
   def export_txt do
-    GenServer.call(__MODULE__, :export_txt)
+    generate_txt(list_channels())
   end
 
   @doc """
@@ -87,6 +239,10 @@ defmodule AcexGateway.Channels.Store do
 
   @impl true
   def init(opts) do
+    if :ets.whereis(@table) == :undefined do
+      :ets.new(@table, [:named_table, :set, :public, read_concurrency: true])
+    end
+
     file_path =
       Keyword.get(
         opts,
@@ -96,6 +252,8 @@ defmodule AcexGateway.Channels.Store do
       )
 
     channels = load_channels(file_path)
+    sync_to_ets(channels)
+
     {:ok, %{file_path: file_path, channels: channels}}
   end
 
@@ -119,6 +277,7 @@ defmodule AcexGateway.Channels.Store do
         idx -> List.replace_at(state.channels, idx, channel)
       end
 
+    sync_to_ets(new_channels)
     new_state = %{state | channels: new_channels}
     persist_channels(new_state.file_path, new_channels)
 
@@ -127,6 +286,7 @@ defmodule AcexGateway.Channels.Store do
 
   def handle_call({:delete_channel, id}, _from, state) do
     new_channels = Enum.reject(state.channels, fn c -> c["id"] == id end)
+    sync_to_ets(new_channels)
     new_state = %{state | channels: new_channels}
     persist_channels(new_state.file_path, new_channels)
 
@@ -187,6 +347,7 @@ defmodule AcexGateway.Channels.Store do
           end)
         end
 
+      sync_to_ets(new_channels)
       new_state = %{state | channels: new_channels}
       persist_channels(new_state.file_path, new_channels)
 
@@ -195,6 +356,40 @@ defmodule AcexGateway.Channels.Store do
   end
 
   def handle_call({:export_m3u, base_url, auth_opts}, _from, state) do
+    m3u_content = generate_m3u(state.channels, base_url, auth_opts)
+    {:reply, m3u_content, state}
+  end
+
+  def handle_call(:export_txt, _from, state) do
+    txt_content = generate_txt(state.channels)
+    {:reply, txt_content, state}
+  end
+
+  # Fast ETS Synchronization
+
+  defp sync_to_ets(channels) do
+    if :ets.whereis(@table) != :undefined do
+      :ets.delete_all_objects(@table)
+      :ets.insert(@table, {:all_channels, channels})
+
+      for channel <- channels do
+        id = channel["id"]
+        :ets.insert(@table, {id, channel})
+
+        for source <- channel["sources"] || [] do
+          clean_src = sanitize_hash(source)
+          :ets.insert(@table, {{:source, clean_src}, id})
+        end
+      end
+    end
+
+    :ok
+  end
+
+  # Playlist Generation Logic (Pure Functions, executed in caller process)
+
+  @doc false
+  def generate_m3u(channels, base_url, auth_opts) do
     base = String.trim_trailing(base_url, "/")
     epg = AcexGateway.Config.epg_url()
     username = auth_opts[:username] || auth_opts["username"]
@@ -213,7 +408,7 @@ defmodule AcexGateway.Channels.Store do
       end
 
     channel_lines =
-      state.channels
+      channels
       |> Enum.with_index(1)
       |> Enum.flat_map(fn {c, index} ->
         id = clean_m3u_attr(c["id"])
@@ -245,13 +440,13 @@ defmodule AcexGateway.Channels.Store do
         [inf, url]
       end)
 
-    m3u_content = Enum.join([header] ++ channel_lines, "\n") <> "\n"
-    {:reply, m3u_content, state}
+    Enum.join([header] ++ channel_lines, "\n") <> "\n"
   end
 
-  def handle_call(:export_txt, _from, state) do
+  @doc false
+  def generate_txt(channels) do
     lines =
-      Enum.flat_map(state.channels, fn c ->
+      Enum.flat_map(channels, fn c ->
         name = c["name"] || "Channel"
         country = c["country"] || ""
         group = c["group"] || "General"
@@ -271,8 +466,7 @@ defmodule AcexGateway.Channels.Store do
         end
       end)
 
-    txt_content = Enum.join(lines, "\n") <> "\n"
-    {:reply, txt_content, state}
+    Enum.join(lines, "\n") <> "\n"
   end
 
   @doc """
@@ -338,13 +532,15 @@ defmodule AcexGateway.Channels.Store do
 
     case Jason.encode(channels, pretty: true) do
       {:ok, json} ->
-        case File.write(file_path, json) do
+        tmp_path = "#{file_path}.tmp.#{:erlang.unique_integer([:positive])}"
+
+        case File.write(tmp_path, json) do
           :ok ->
-            :ok
+            File.rename(tmp_path, file_path)
 
           {:error, reason} ->
             Logger.error(
-              "[Channels.Store] Failed to write channels file '#{file_path}': #{inspect(reason)}"
+              "[Channels.Store] Failed to write channels temp file '#{tmp_path}': #{inspect(reason)}"
             )
         end
 
@@ -667,6 +863,7 @@ defmodule AcexGateway.Channels.Store do
   end
 
   defp clean_m3u_attr(nil), do: ""
+
   defp clean_m3u_attr(val) when is_binary(val) do
     val
     |> String.replace("\"", "")
@@ -674,5 +871,6 @@ defmodule AcexGateway.Channels.Store do
     |> String.replace("\n", " ")
     |> String.trim()
   end
+
   defp clean_m3u_attr(val), do: to_string(val)
 end

@@ -106,7 +106,21 @@ defmodule AcexGateway.Settings.Store do
         normalize_string(
           Map.get(params, "epg_url", Map.get(params, :epg_url)),
           current.epg_url
-        )
+        ),
+      max_active_channels:
+        case Map.get(params, "max_active_channels", Map.get(params, :max_active_channels)) do
+          val when is_integer(val) and val > 0 ->
+            val
+
+          val when is_binary(val) ->
+            case Integer.parse(val) do
+              {num, ""} when num > 0 -> num
+              _ -> Map.get(current, :max_active_channels, 5)
+            end
+
+          _ ->
+            Map.get(current, :max_active_channels, 5)
+        end
     }
 
     sync_to_ets(updated)
@@ -152,11 +166,24 @@ defmodule AcexGateway.Settings.Store do
       is_binary(env_user) and is_binary(env_pass) and String.trim(env_user) != "" and
         String.trim(env_pass) != ""
 
+    default_max =
+      case System.get_env("MAX_ACTIVE_CHANNELS") do
+        nil ->
+          5
+
+        str ->
+          case Integer.parse(str) do
+            {n, ""} when n > 0 -> n
+            _ -> 5
+          end
+      end
+
     %{
       auth_enabled: has_env_creds,
       auth_username: if(String.trim(env_user) != "", do: String.trim(env_user), else: "admin"),
       auth_password: if(String.trim(env_pass) != "", do: String.trim(env_pass), else: "acex123"),
-      epg_url: String.trim(env_epg)
+      epg_url: String.trim(env_epg),
+      max_active_channels: default_max
     }
   end
 
@@ -167,7 +194,8 @@ defmodule AcexGateway.Settings.Store do
       auth_enabled: Map.get(json, "auth_enabled", defaults.auth_enabled),
       auth_username: Map.get(json, "auth_username", defaults.auth_username),
       auth_password: Map.get(json, "auth_password", defaults.auth_password),
-      epg_url: Map.get(json, "epg_url", defaults.epg_url)
+      epg_url: Map.get(json, "epg_url", defaults.epg_url),
+      max_active_channels: Map.get(json, "max_active_channels", defaults.max_active_channels)
     }
   end
 
@@ -177,6 +205,7 @@ defmodule AcexGateway.Settings.Store do
     :ets.insert(@table, {:auth_username, settings.auth_username})
     :ets.insert(@table, {:auth_password, settings.auth_password})
     :ets.insert(@table, {:epg_url, settings.epg_url})
+    :ets.insert(@table, {:max_active_channels, settings.max_active_channels})
   end
 
   defp persist_settings(file_path, settings) do
@@ -189,7 +218,8 @@ defmodule AcexGateway.Settings.Store do
           "auth_enabled" => settings.auth_enabled,
           "auth_username" => settings.auth_username,
           "auth_password" => settings.auth_password,
-          "epg_url" => settings.epg_url
+          "epg_url" => settings.epg_url,
+          "max_active_channels" => settings.max_active_channels
         },
         pretty: true
       )

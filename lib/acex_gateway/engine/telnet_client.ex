@@ -131,8 +131,6 @@ defmodule AcexGateway.Engine.TelnetClient do
 
   defp process_line("AUTH " <> auth_info, state) do
     Logger.info("[TelnetClient] AceStream Authenticated successfully: #{auth_info}")
-    :gen_tcp.send(state.socket, "STOP\r\n")
-    :gen_tcp.send(state.socket, "STOPDL\r\n")
     :gen_tcp.send(state.socket, "SETOPTIONS use_stop_notifications=1\r\n")
     %{state | authenticated: true}
   end

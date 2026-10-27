@@ -15,6 +15,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Config
   alias AcexGateway.Stream.Broadcaster
   alias AcexGateway.Engine.TelnetClient
+  alias AcexGateway.Engine.Validator
   alias AcexGateway.Channels.Store
   alias AcexGateway.Settings.Store, as: SettingsStore
   alias AcexGateway.Web.DashboardView
@@ -237,6 +238,112 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(200, Jason.encode!(%{status: "deleted", id: id}))
   end
 
+  post "/api/channels/validate-source" do
+    params = conn.body_params || %{}
+    source = params["source"] || params[:source] || ""
+    force = params["force"] == true or params[:force] == true
+
+    case Validator.validate_source(source, force: force) do
+      {:ok, result} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{status: "ok", result: result}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(503, Jason.encode!(%{status: "error", error: inspect(reason)}))
+    end
+  end
+
+  post "/api/channels/:id/validate" do
+    params = conn.body_params || %{}
+    force = params["force"] == true or params[:force] == true
+
+    case Validator.validate_channel(id, force: force) do
+      {:ok, report} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{status: "ok", report: report}))
+
+      {:error, :channel_not_found} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "Channel not found"}))
+    end
+  end
+
+  post "/api/channels/:id/prune-dead" do
+    params = conn.body_params || %{}
+    dead_sources = params["dead_sources"] || params[:dead_sources]
+
+    channel = Store.get_channel(id)
+
+    case channel do
+      nil ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "Channel not found"}))
+
+      %{"sources" => sources} when length(sources) <= 1 ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          400,
+          Jason.encode!(%{
+            error: "Cannot prune single-source channel",
+            reason: "channel must retain at least 1 source"
+          })
+        )
+
+      _ ->
+        to_prune =
+          if is_list(dead_sources) and dead_sources != [] do
+            dead_sources
+          else
+            case Validator.validate_channel(id, force: true) do
+              {:ok, %{results: results}} ->
+                results
+                |> Enum.filter(&(&1.valid == false))
+                |> Enum.map(& &1.source)
+
+              _ ->
+                []
+            end
+          end
+
+        pruned_list =
+          Enum.reduce(to_prune, [], fn src, acc ->
+            case Store.remove_channel_source(id, src) do
+              {:ok, _} -> [src | acc]
+              _ -> acc
+            end
+          end)
+
+        updated_channel = Store.get_channel(id)
+
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Jason.encode!(%{
+            status: "ok",
+            channel_id: id,
+            pruned_count: length(pruned_list),
+            pruned_sources: Enum.reverse(pruned_list),
+            channel: updated_channel
+          })
+        )
+    end
+  end
+
   get "/api/settings" do
     settings = SettingsStore.get_all_settings()
 
@@ -266,7 +373,10 @@ defmodule AcexGateway.Web.Router do
         conn
         |> put_resp_header("access-control-allow-origin", "*")
         |> put_resp_content_type("application/json")
-        |> send_resp(400, Jason.encode!(%{error: "Failed to update settings", reason: to_string(reason)}))
+        |> send_resp(
+          400,
+          Jason.encode!(%{error: "Failed to update settings", reason: to_string(reason)})
+        )
     end
   end
 
@@ -422,10 +532,27 @@ defmodule AcexGateway.Web.Router do
 
         stream_loop(conn, broadcaster_pid)
 
+      {:error, :max_channels_reached} ->
+        Logger.warning("[Router] Max active channels limit reached.")
+
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          503,
+          Jason.encode!(%{
+            error: "Max active channels limit reached",
+            message:
+              "Engine concurrency limit reached. All streaming slots are currently occupied.",
+            max_active_channels: Config.max_active_channels()
+          })
+        )
+
       {:error, reason} ->
         Logger.error("[Router] Stream subscription failed: #{inspect(reason)}")
 
         conn
+        |> put_resp_header("access-control-allow-origin", "*")
         |> put_resp_content_type("application/json")
         |> send_resp(
           502,
@@ -464,6 +591,8 @@ defmodule AcexGateway.Web.Router do
       total_sources: session_info.total_sources,
       peers: peers,
       speed_kbps: speed_kbps,
+      progress: session_info[:progress] || 0,
+      engine_state: session_info[:engine_state] || :idle,
       engine_connected: engine_stats.connected,
       engine_authenticated: engine_stats.authenticated,
       uptime_seconds: uptime,
@@ -533,18 +662,33 @@ defmodule AcexGateway.Web.Router do
   end
 
   defp stream_loop(conn, broadcaster_pid) do
-    # Backpressure guard: prevent slow clients from exhausting server memory
+    # Backpressure guard: prevent slow clients from exhausting server memory and corrupting MPEG-TS packets
     case :erlang.process_info(self(), :message_queue_len) do
       {:message_queue_len, len} when len > @max_backlog_chunks ->
         Logger.warning(
-          "[Router] Slow client detected (#{inspect(self())}): mailbox backlog reached #{len} chunks. Draining stale buffer."
+          "[Router] Slow client detected (#{inspect(self())}): mailbox backlog reached #{len} chunks. Closing connection cleanly."
         )
 
-        drain_stale_chunks(@max_backlog_chunks - 30)
-        stream_loop(conn, broadcaster_pid)
+        Broadcaster.unsubscribe(broadcaster_pid, self())
+        conn
 
       _ ->
         receive do
+          {:stream_burst, chunks} ->
+            case send_burst_chunks(conn, chunks) do
+              {:ok, conn} ->
+                stream_loop(conn, broadcaster_pid)
+
+              {:error, :closed} ->
+                Broadcaster.unsubscribe(broadcaster_pid, self())
+                conn
+
+              {:error, reason} ->
+                Logger.warning("[Router] Downstream write error on burst: #{inspect(reason)}")
+                Broadcaster.unsubscribe(broadcaster_pid, self())
+                conn
+            end
+
           {:stream_chunk, chunk} ->
             case chunk(conn, chunk) do
               {:ok, conn} ->
@@ -570,18 +714,12 @@ defmodule AcexGateway.Web.Router do
     end
   end
 
-  defp drain_stale_chunks(target_len) do
-    case :erlang.process_info(self(), :message_queue_len) do
-      {:message_queue_len, len} when len > target_len ->
-        receive do
-          {:stream_chunk, _chunk} ->
-            drain_stale_chunks(target_len)
-        after
-          0 -> :ok
-        end
+  defp send_burst_chunks(conn, []), do: {:ok, conn}
 
-      _ ->
-        :ok
+  defp send_burst_chunks(conn, [chunk | rest]) do
+    case chunk(conn, chunk) do
+      {:ok, conn} -> send_burst_chunks(conn, rest)
+      {:error, reason} -> {:error, reason}
     end
   end
 end

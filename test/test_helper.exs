@@ -1,5 +1,7 @@
 # Start a lightweight mock AceStream Telnet server so tests run fully self-contained
-{:ok, listen_socket} = :gen_tcp.listen(0, [:binary, packet: :line, active: false, reuseaddr: true])
+{:ok, listen_socket} =
+  :gen_tcp.listen(0, [:binary, packet: :line, active: false, reuseaddr: true])
+
 {:ok, port} = :inet.port(listen_socket)
 
 Application.put_env(:acex_gateway, :ace_telnet_port, port)

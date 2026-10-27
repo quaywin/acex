@@ -34,9 +34,9 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 
 - **Zero-Transcode Passthrough**: Relays MPEG-TS packets directly without CPU transcoding. An in-memory ring buffer delivers keyframes immediately on channel switch.
 - **Multi-Channel and Fan-Out Relay**: Streams multiple channels concurrently. Multiple clients watching the same channel share a single upstream connection to save bandwidth.
-- **Multi-Source Failover**: Supports fallback Content IDs per channel, automatically switching sources if the primary stream stalls or loses peers.
+- **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
-- **Web Dashboard**: Manage channels, view real-time swarm telemetry, import playlists, and launch streams directly in VLC, IINA, or PotPlayer.
+- **Web Dashboard & Live Telemetry**: Manage channels, view real-time prebuffering progress (`%`), swarm peers/speed telemetry, import playlists, and launch streams directly in VLC, IINA, or PotPlayer.
 
 ---
 
@@ -124,6 +124,8 @@ Open the dashboard at **http://localhost:8686**.
 | `GET /playlist.m3u8` | Extended M3U Playlist | Apple TV, Smart TV, OTT Navigator |
 | `GET /live/:target.ts` | Direct MPEG-TS Stream | VLC, IINA, PotPlayer, MPV |
 | `GET /` | Web Console | Channel management and player launcher |
+| `POST /api/channels/validate-source` | JSON API | Content ID health check (no buffering, ETS memoized) |
+| `POST /api/channels/:id/prune-dead` | JSON API | One-click dead source pruning (keeps $\ge 1$ source) |
 
 ---
 

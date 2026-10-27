@@ -1788,9 +1788,15 @@ defmodule AcexGateway.Web.DashboardView do
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">AceStream Content IDs (supports multiple hashes separated by comma or newline):</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">AceStream Content IDs (supports multiple hashes separated by comma or newline):</label>
+                <button type="button" class="btn btn-secondary btn-xs" id="btnTestModalSources" onclick="testModalSources()" style="padding: 2px 8px; font-size: 11px;">
+                  🔍 Kiểm tra nguồn
+                </button>
+              </div>
               <textarea id="inputSources" class="form-control" rows="3" placeholder="Paste 1 or more Content IDs, acestream://... Automatically sanitizes 40-char hex" required oninput="validateSourcesInput(this.value)"></textarea>
               <div id="sourcesDetectedHint" class="form-hint" style="color: var(--color-success);"></div>
+              <div id="modalValidationResults" style="margin-top: 6px; display: none;"></div>
             </div>
             <div class="form-group">
               <label class="form-label">Logo / Poster URL (Optional):</label>
@@ -2144,12 +2150,7 @@ defmodule AcexGateway.Web.DashboardView do
       <script>
         let allChannels = #{channels_json};
         const baseUrl = "#{base_url}";
-        let appSettings = #{Jason.encode!(%{
-          auth_enabled: auth_enabled,
-          auth_username: auth_user,
-          auth_password: auth_pass,
-          epg_url: epg_url
-        })};
+        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url})};
         let currentFilterGroup = "ALL";
         let currentView = "grid";
         let activeStreamUrl = "";
@@ -2242,9 +2243,10 @@ defmodule AcexGateway.Web.DashboardView do
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
 
               const sourcesListHtml = sources.map((s, idx) => `
-                <div class="source-item">
+                <div class="source-item" id="source-row-${c.id}-${idx}">
                   <span style="color: var(--color-primary); font-weight: 700;">#${idx + 1}</span>
                   <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
+                  <span id="badge-${c.id}-${idx}" style="font-size: 11px;"></span>
                   <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Source hash copied!', this)">Copy</button>
                 </div>
               `).join("");
@@ -2288,6 +2290,10 @@ defmodule AcexGateway.Web.DashboardView do
                         <span id="arrow-${c.id}">▼</span>
                       </div>
                       <div id="sources-${c.id}" class="sources-list">
+                        <div style="display: flex; justify-content: flex-end; gap: 6px; padding: 4px 6px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 4px;">
+                          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); validateChannelSources('${c.id}')" title="Kiểm tra trạng thái nguồn" style="font-size: 10px; padding: 2px 6px;">🔍 Kiểm tra</button>
+                          ${fallbackCount > 1 ? `<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); pruneDeadSources('${c.id}')" title="Dọn dẹp nguồn chết" style="font-size: 10px; padding: 2px 6px; color: var(--color-danger);">🧹 Dọn nguồn chết</button>` : ''}
+                        </div>
                         ${sourcesListHtml}
                       </div>
                     </div>
@@ -2342,7 +2348,12 @@ defmodule AcexGateway.Web.DashboardView do
                     <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${c.id}</div>
                   </td>
                   <td><span class="chip-filter">${c.group || 'General'}</span></td>
-                  <td><span class="chip-status-success">🛡️ ${(c.sources || []).length} sources</span></td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span class="chip-status-success">🛡️ ${(c.sources || []).length} sources</span>
+                      ${(c.sources || []).length > 1 ? `<button class="btn btn-ghost btn-xs" onclick="pruneDeadSources('${c.id}')" title="Dọn dẹp nguồn chết" style="padding: 1px 4px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
+                    </div>
+                  </td>
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px;">
                       <button class="btn btn-primary btn-xs" onclick="openLauncherModal('${safeName}', '${liveUrl}')">Watch</button>
@@ -2477,8 +2488,149 @@ defmodule AcexGateway.Web.DashboardView do
             document.getElementById("sourcesDetectedHint").innerText = "";
           }
 
+          const resBox = document.getElementById("modalValidationResults");
+          if (resBox) { resBox.style.display = "none"; resBox.innerHTML = ""; }
+          const testBtn = document.getElementById("btnTestModalSources");
+          if (testBtn) { testBtn.disabled = false; testBtn.innerText = "🔍 Kiểm tra nguồn"; }
+
           modal.classList.add("active");
           document.getElementById("inputName").focus();
+        }
+
+        async function testModalSources() {
+          const val = document.getElementById("inputSources").value;
+          const matches = val.match(/[a-fA-F0-9]{40}/g) || [];
+          const resBox = document.getElementById("modalValidationResults");
+          const btn = document.getElementById("btnTestModalSources");
+          if (matches.length === 0) {
+            showToast("Vui lòng nhập ít nhất 1 Content ID (40 ký tự hex)!", false);
+            return;
+          }
+          btn.disabled = true;
+          btn.innerText = "⏳ Đang kiểm tra...";
+          resBox.style.display = "block";
+          resBox.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary);"><span class="live-dot" style="animation: pulse 1s infinite;"></span> Đang kiểm tra ' + matches.length + ' nguồn qua AceStream Engine...</div>';
+
+          const results = [];
+          for (const src of matches) {
+            try {
+              const resp = await fetch("/api/channels/validate-source", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source: src, force: true })
+              });
+              const data = await resp.json();
+              if (data && data.result) {
+                results.push(data.result);
+              } else {
+                results.push({ source: src, valid: false, error: data.error || "Lỗi kết nối" });
+              }
+            } catch (err) {
+              results.push({ source: src, valid: false, error: err.message });
+            }
+          }
+
+          btn.disabled = false;
+          btn.innerText = "🔍 Kiểm tra nguồn";
+
+          const deadCount = results.filter(r => !r.valid).length;
+          let html = '<div style="background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 8px; font-size: 12px; max-height: 140px; overflow-y: auto;">';
+          results.forEach((r, idx) => {
+            const shortHash = r.source.slice(0, 8) + '...' + r.source.slice(-6);
+            if (r.valid) {
+              html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; color: var(--color-success);">' +
+                '<span>🟢 #' + (idx+1) + ' <code>' + shortHash + '</code></span>' +
+                '<span style="font-size: 11px; opacity: 0.8;">Sống (' + (r.response_time_ms || 0) + 'ms)</span></div>';
+            } else {
+              html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; color: var(--color-danger);">' +
+                '<span>🔴 #' + (idx+1) + ' <code>' + shortHash + '</code></span>' +
+                '<span style="font-size: 11px; opacity: 0.9;">' + (r.error || 'Chết') + '</span></div>';
+            }
+          });
+
+          if (deadCount > 0 && matches.length > 1) {
+            const deadHashesJson = JSON.stringify(results.filter(r => !r.valid).map(r => r.source)).replace(/"/g, '&quot;');
+            html += '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">' +
+              '<button type="button" class="btn btn-destructive btn-xs" onclick="stripDeadModalSources(' + deadHashesJson + ')" style="font-size: 11px; padding: 2px 8px;">🧹 Loại bỏ ' + deadCount + ' nguồn chết</button></div>';
+          }
+          html += '</div>';
+          resBox.innerHTML = html;
+        }
+
+        function stripDeadModalSources(deadList) {
+          if (!Array.isArray(deadList) || deadList.length === 0) return;
+          const input = document.getElementById("inputSources");
+          let val = input.value;
+          deadList.forEach(dead => {
+            val = val.replace(new RegExp(dead, 'gi'), '');
+          });
+          const cleanMatches = (val.match(/[a-fA-F0-9]{40}/g) || []);
+          input.value = cleanMatches.join("\\n");
+          validateSourcesInput(input.value);
+          const resBox = document.getElementById("modalValidationResults");
+          if (resBox) resBox.style.display = "none";
+          showToast("Đã loại bỏ " + deadList.length + " nguồn chết khỏi danh sách!", true);
+        }
+
+        async function validateChannelSources(channelId) {
+          const arrow = document.getElementById("arrow-" + channelId);
+          const list = document.getElementById("sources-" + channelId);
+          if (list && !list.classList.contains("show")) {
+            list.classList.add("show");
+            if (arrow) arrow.innerText = "▲";
+          }
+          showToast("Đang kiểm tra sức khỏe các nguồn...", true);
+
+          try {
+            const resp = await fetch("/api/channels/" + encodeURIComponent(channelId) + "/validate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ force: true })
+            });
+            const data = await resp.json();
+            if (data && data.report && data.report.results) {
+              data.report.results.forEach((r, idx) => {
+                const badge = document.getElementById("badge-" + channelId + "-" + idx);
+                if (badge) {
+                  if (r.valid) {
+                    badge.innerHTML = '<span style="color: var(--color-success); font-weight: 600;">🟢 Sống (' + (r.response_time_ms || 0) + 'ms)</span>';
+                  } else {
+                    badge.innerHTML = '<span style="color: var(--color-danger); font-weight: 600;">🔴 Chết</span>';
+                  }
+                }
+              });
+              showToast("Kiểm tra xong: " + data.report.alive_count + " sống, " + data.report.dead_count + " chết.", data.report.dead_count === 0);
+            }
+          } catch (err) {
+            showToast("Lỗi khi kiểm tra nguồn: " + err.message, false);
+          }
+        }
+
+        async function pruneDeadSources(channelId) {
+          const c = allChannels.find(x => x.id === channelId);
+          const name = c ? c.name : channelId;
+          if (!confirm("Bạn có chắc chắn muốn kiểm tra và dọn dẹp các nguồn chết của kênh '" + name + "'?")) return;
+
+          showToast("Đang kiểm tra và dọn dẹp nguồn chết...", true);
+          try {
+            const resp = await fetch("/api/channels/" + encodeURIComponent(channelId) + "/prune-dead", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" }
+            });
+            const data = await resp.json();
+            if (resp.ok && data.status === "ok") {
+              if (data.channel) {
+                const idx = allChannels.findIndex(x => x.id === channelId);
+                if (idx !== -1) allChannels[idx] = data.channel;
+                filterChannels();
+              }
+              showToast("Đã dọn dẹp " + data.pruned_count + " nguồn chết thành công!", true);
+            } else {
+              showToast(data.error || "Không thể dọn dẹp nguồn chết.", false);
+            }
+          } catch (err) {
+            showToast("Lỗi dọn dẹp: " + err.message, false);
+          }
         }
 
         function closeChannelModal() {
@@ -3008,8 +3160,14 @@ defmodule AcexGateway.Web.DashboardView do
             let badge = card.querySelector(".poster-live-overlay-badge");
             if (activeInfo) {
               card.classList.add("is-broadcasting");
-              const viewers = activeInfo.client_count || 0;
-              const text = viewers > 0 ? ("● LIVE (" + viewers + ")") : "● LIVE";
+              let text = "";
+              if (activeInfo.status === "starting") {
+                const prog = activeInfo.progress;
+                text = (prog && prog > 0) ? ("⏳ PREBUF " + prog + "%") : "⏳ CONNECTING...";
+              } else {
+                const viewers = activeInfo.client_count || 0;
+                text = viewers > 0 ? ("● LIVE (" + viewers + ")") : "● LIVE";
+              }
               if (!badge) {
                 badge = document.createElement("div");
                 badge.className = "poster-live-overlay-badge";
@@ -3017,6 +3175,11 @@ defmodule AcexGateway.Web.DashboardView do
                 if (posterBox) posterBox.appendChild(badge);
               }
               badge.innerText = text;
+              if (activeInfo.status === "starting") {
+                badge.style.background = "rgba(234, 179, 8, 0.9)";
+              } else {
+                badge.style.background = "rgba(225, 29, 72, 0.95)";
+              }
             } else {
               card.classList.remove("is-broadcasting");
               if (badge) badge.remove();
@@ -3173,7 +3336,13 @@ defmodule AcexGateway.Web.DashboardView do
                 const c = channels[0];
                 const meta = findChannelMeta(c.channel_key, c.target, c.active_channel);
                 const title = c.channel_name || meta?.name || c.channel_key;
-                text.innerText = (c.status === "streaming" ? "LIVE: " : "CONNECTING: ") + title;
+                if (c.status === "streaming") {
+                  text.innerText = "LIVE: " + title;
+                } else if (c.progress && c.progress > 0) {
+                  text.innerText = "PREBUF " + c.progress + "%: " + title;
+                } else {
+                  text.innerText = "CONNECTING: " + title;
+                }
               } else {
                 text.innerText = "LIVE: " + channels.length + " ACTIVE STREAMS";
               }

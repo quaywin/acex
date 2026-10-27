@@ -177,13 +177,21 @@ defmodule AcexGateway.Web.RouterTest do
     conn_m3u = conn(:get, "/api/channels/export?format=m3u") |> Router.call(@opts)
     assert conn_m3u.status == 200
     assert get_resp_header(conn_m3u, "content-type") == ["application/x-mpegurl; charset=utf-8"]
-    assert get_resp_header(conn_m3u, "content-disposition") == ["attachment; filename=\"acex_channels.m3u\""]
+
+    assert get_resp_header(conn_m3u, "content-disposition") == [
+             "attachment; filename=\"acex_channels.m3u\""
+           ]
+
     assert conn_m3u.resp_body =~ "#EXTM3U"
 
     conn_m3u8 = conn(:get, "/api/channels/export?format=m3u8") |> Router.call(@opts)
     assert conn_m3u8.status == 200
     assert get_resp_header(conn_m3u8, "content-type") == ["application/x-mpegurl; charset=utf-8"]
-    assert get_resp_header(conn_m3u8, "content-disposition") == ["attachment; filename=\"acex_channels.m3u8\""]
+
+    assert get_resp_header(conn_m3u8, "content-disposition") == [
+             "attachment; filename=\"acex_channels.m3u8\""
+           ]
+
     assert conn_m3u8.resp_body =~ "#EXTM3U"
 
     # 3. JSON format
@@ -238,5 +246,97 @@ defmodule AcexGateway.Web.RouterTest do
       |> Router.call(@opts)
 
     assert conn_reset.status == 200
+  end
+
+  test "POST /api/channels/validate-source validates hash format" do
+    # Invalid hash format
+    conn_invalid =
+      conn(:post, "/api/channels/validate-source", %{"source" => "invalid_short_hash"})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_invalid.status == 200
+    resp_invalid = Jason.decode!(conn_invalid.resp_body)
+    assert resp_invalid["status"] == "ok"
+    assert resp_invalid["result"]["valid"] == false
+    assert resp_invalid["result"]["error"] == "invalid_hash_format"
+  end
+
+  test "POST /api/channels/:id/validate returns report or 404" do
+    # 404 for non-existent channel
+    conn_404 =
+      conn(:post, "/api/channels/non-existent-channel/validate", %{})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_404.status == 404
+
+    # 200 for existing channel (e.g. big-buck-bunny)
+    conn_ok =
+      conn(:post, "/api/channels/big-buck-bunny/validate", %{"force" => false})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_ok.status == 200
+    resp = Jason.decode!(conn_ok.resp_body)
+    assert resp["status"] == "ok"
+    assert Map.has_key?(resp["report"], "alive_count")
+    assert Map.has_key?(resp["report"], "dead_count")
+    assert Map.has_key?(resp["report"], "results")
+  end
+
+  test "POST /api/channels/:id/prune-dead cleans up dead sources" do
+    # 1. Channel not found returns 404
+    conn_404 =
+      conn(:post, "/api/channels/non-existent/prune-dead", %{})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_404.status == 404
+
+    # 2. Channel with 1 source protects it and returns error/400
+    ch_single = %{
+      "id" => "prune-router-single",
+      "name" => "Single Channel",
+      "sources" => ["single_dead_src"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch_single)
+
+    conn_single =
+      conn(:post, "/api/channels/prune-router-single/prune-dead", %{
+        "dead_sources" => ["single_dead_src"]
+      })
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_single.status == 400
+    assert Jason.decode!(conn_single.resp_body)["error"] =~ "Cannot prune single-source channel"
+
+    # 3. Channel with multiple sources successfully prunes specified dead sources
+    ch_multi = %{
+      "id" => "prune-router-multi",
+      "name" => "Multi Channel",
+      "sources" => ["alive_src_1", "dead_src_2", "dead_src_3"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch_multi)
+
+    conn_multi =
+      conn(:post, "/api/channels/prune-router-multi/prune-dead", %{
+        "dead_sources" => ["dead_src_2", "dead_src_3"]
+      })
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_multi.status == 200
+    resp_multi = Jason.decode!(conn_multi.resp_body)
+    assert resp_multi["status"] == "ok"
+    assert resp_multi["pruned_count"] == 2
+    assert resp_multi["channel"]["sources"] == ["alive_src_1"]
+
+    # Cleanup
+    AcexGateway.Channels.Store.delete_channel("prune-router-single")
+    AcexGateway.Channels.Store.delete_channel("prune-router-multi")
   end
 end

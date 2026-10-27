@@ -144,7 +144,8 @@ defmodule AcexGateway.Channels.StoreTest do
   test "normalize_channel_param handles string with comma or newline separated hashes" do
     param = %{
       "name" => "K+ Sport 1",
-      "sources" => "1111222233334444555566667777888899990000, 2222333344445555666677778888999900001111"
+      "sources" =>
+        "1111222233334444555566667777888899990000, 2222333344445555666677778888999900001111"
     }
 
     normalized = Store.normalize_channel_param(param)
@@ -153,10 +154,104 @@ defmodule AcexGateway.Channels.StoreTest do
     assert "2222333344445555666677778888999900001111" in normalized["sources"]
   end
 
+  test "find_channel_by_source returns channel for indexed source hash via ETS" do
+    channel = Store.find_channel_by_source("dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c")
+    assert channel != nil
+    assert channel["id"] == "big-buck-bunny"
+
+    # Direct lookup with capital letters or extra spaces
+    channel_caps = Store.find_channel_by_source("  DD8255ECDC7CA55FB0BBF81323D87062DB1F6D1C  ")
+    assert channel_caps != nil
+    assert channel_caps["id"] == "big-buck-bunny"
+
+    assert Store.find_channel_by_source("non_existent_hash_000000000000000000000") == nil
+  end
+
   test "export_txt returns pipe-delimited content id list" do
     txt = Store.export_txt()
     assert is_binary(txt)
     assert txt =~ "big-buck-bunny" or txt =~ "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"
     assert txt =~ " | "
+  end
+
+  test "promote_channel_source reorders sources putting working backup at index 0" do
+    ch = %{
+      "id" => "promo-test-ch",
+      "name" => "Promo Test Channel",
+      "sources" => ["backup_hash_1", "backup_hash_2", "backup_hash_3"]
+    }
+
+    assert {:ok, _} = Store.save_channel(ch)
+
+    # Calling promote on index 0 is a no-op
+    assert :noop = Store.promote_channel_source("promo-test-ch", "backup_hash_1")
+
+    # Calling promote on backup_hash_3 moves it to index 0
+    assert {:ok, updated} = Store.promote_channel_source("promo-test-ch", "backup_hash_3")
+    assert hd(updated["sources"]) == "backup_hash_3"
+    assert updated["sources"] == ["backup_hash_3", "backup_hash_1", "backup_hash_2"]
+
+    # Verify ETS was updated
+    stored = Store.get_channel("promo-test-ch")
+    assert stored["sources"] == ["backup_hash_3", "backup_hash_1", "backup_hash_2"]
+
+    # Cleanup
+    Store.delete_channel("promo-test-ch")
+  end
+
+  test "remove_channel_source removes source but protects last remaining source" do
+    ch = %{
+      "id" => "prune-test-ch",
+      "name" => "Prune Test Channel",
+      "sources" => ["hash_a", "hash_b"]
+    }
+
+    assert {:ok, _} = Store.save_channel(ch)
+
+    # Removing hash_a leaves hash_b
+    assert {:ok, updated} = Store.remove_channel_source("prune-test-ch", "hash_a")
+    assert updated["sources"] == ["hash_b"]
+
+    # Trying to remove the last source (hash_b) is rejected
+    assert {:error, :cannot_remove_last_source} =
+             Store.remove_channel_source("prune-test-ch", "hash_b")
+
+    # Verify channel still has hash_b in ETS
+    stored = Store.get_channel("prune-test-ch")
+    assert stored["sources"] == ["hash_b"]
+
+    # Cleanup
+    Store.delete_channel("prune-test-ch")
+  end
+
+  test "prune_dead_source removes dead source from multi-source channel" do
+    ch = %{
+      "id" => "auto-prune-ch",
+      "name" => "Auto Prune Channel",
+      "sources" => ["alive_hash_1", "dead_hash_2", "alive_hash_3"]
+    }
+
+    assert {:ok, _} = Store.save_channel(ch)
+
+    # Pruning dead_hash_2 removes it
+    assert {:ok, updated} = Store.prune_dead_source("auto-prune-ch", "dead_hash_2")
+    assert updated["sources"] == ["alive_hash_1", "alive_hash_3"]
+
+    # Pruning non-existent source returns :noop
+    assert :noop = Store.prune_dead_source("auto-prune-ch", "non_existent_hash")
+
+    # Pruning on a single-source channel returns :noop
+    single_ch = %{
+      "id" => "single-src-ch",
+      "name" => "Single Source Channel",
+      "sources" => ["only_one_hash"]
+    }
+
+    Store.save_channel(single_ch)
+    assert :noop = Store.prune_dead_source("single-src-ch", "only_one_hash")
+
+    # Cleanup
+    Store.delete_channel("auto-prune-ch")
+    Store.delete_channel("single-src-ch")
   end
 end

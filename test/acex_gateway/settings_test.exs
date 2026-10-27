@@ -83,4 +83,15 @@ defmodule AcexGateway.SettingsTest do
     assert Config.auth_enabled?() == false
     assert Config.authenticate?("any_user", "any_pass") == true
   end
+
+  test "max_active_channels can be dynamically configured and read via Config" do
+    assert Config.max_active_channels() == 5
+
+    assert {:ok, updated} = SettingsStore.update_settings(%{"max_active_channels" => 3})
+    assert updated.max_active_channels == 3
+    assert Config.max_active_channels() == 3
+
+    assert {:ok, _} = SettingsStore.update_settings(%{"max_active_channels" => 5})
+    assert Config.max_active_channels() == 5
+  end
 end

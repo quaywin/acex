@@ -39,6 +39,25 @@ defmodule AcexGateway.Config do
     end
   end
 
+  def max_active_channels do
+    case AcexGateway.Settings.Store.get_setting(:max_active_channels) do
+      val when is_integer(val) and val > 0 ->
+        val
+
+      _ ->
+        case System.get_env("MAX_ACTIVE_CHANNELS") do
+          nil ->
+            5
+
+          val ->
+            case Integer.parse(val) do
+              {num, ""} when num > 0 -> num
+              _ -> 5
+            end
+        end
+    end
+  end
+
   def ring_buffer_bytes do
     case System.get_env("RING_BUFFER_BYTES") do
       nil -> 4_194_304
@@ -100,7 +119,9 @@ defmodule AcexGateway.Config do
       _ ->
         user = auth_username()
         pass = auth_password()
-        is_binary(user) and is_binary(pass) and String.trim(user) != "" and String.trim(pass) != ""
+
+        is_binary(user) and is_binary(pass) and String.trim(user) != "" and
+          String.trim(pass) != ""
     end
   end
 
