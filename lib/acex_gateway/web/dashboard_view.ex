@@ -2610,6 +2610,15 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
+        function escapeJsString(str) {
+          if (!str) return "";
+          return String(str)
+            .replace(/\\/g, "\\\\")
+            .replace(/'/g, "\\'")
+            .replace(/"/g, "&quot;")
+            .replace(/\n/g, " ");
+        }
+
         // DOM Elements
         const channelGrid = document.getElementById("channelGrid");
         const channelTableContainer = document.getElementById("channelTableContainer");
@@ -2680,6 +2689,7 @@ defmodule AcexGateway.Web.DashboardView do
               const fallbackCount = sources.length;
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
+              const safeName = escapeJsString(c.name || "Channel");
 
               const sourcesListHtml = sources.map((s, idx) => `
                 <div class="source-item" id="source-row-${c.id}-${idx}">
@@ -2710,7 +2720,7 @@ defmodule AcexGateway.Web.DashboardView do
                     </div>
 
                     <!-- Centered Hover Play CTA (Primary Red) -->
-                    <button class="poster-play-btn" onclick="openLauncherModal('${c.name}', '${liveUrl}')" title="Play">
+                    <button class="poster-play-btn" onclick="openLauncherModal('${safeName}', '${liveUrl}')" title="Play">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </button>
                   </div>
@@ -2771,7 +2781,7 @@ defmodule AcexGateway.Web.DashboardView do
             channelTableBody.innerHTML = list.map(c => {
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
-              const safeName = (c.name || "Channel").replace(/'/g, "\\'");
+              const safeName = escapeJsString(c.name || "Channel");
               return `
                 <tr data-id="${c.id}">
                   <td>
