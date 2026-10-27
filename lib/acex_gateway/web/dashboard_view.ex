@@ -3690,7 +3690,11 @@ defmodule AcexGateway.Web.DashboardView do
               }, {
                 enableWorker: true,
                 lazyLoad: false,
-                liveBufferLatencyChasing: true
+                stashInitialSize: 512 * 1024,
+                liveBufferLatencyChasing: false,
+                autoCleanupSourceBuffer: true,
+                autoCleanupMaxBackwardDuration: 60,
+                autoCleanupMinBackwardDuration: 30
               });
 
               mpegtsPlayerInstance.attachMediaElement(videoElem);
