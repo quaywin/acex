@@ -30,6 +30,9 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.resp_body =~ "filter-tab-pill"
     assert conn.resp_body =~ "webPlayerModal"
     assert conn.resp_body =~ "mpegts.min.js"
+    assert conn.resp_body =~ "updateBadgeBtn"
+    assert conn.resp_body =~ "updateModal"
+    assert conn.resp_body =~ "manualUpdateCmdInput"
   end
 
   test "GET /playlist.m3u and /playlist.m3u8 return valid m3u format" do
@@ -402,5 +405,32 @@ defmodule AcexGateway.Web.RouterTest do
     # Cleanup
     AcexGateway.Channels.Store.delete_channel("bulk-prune-test-1")
     AcexGateway.Channels.Store.delete_channel("bulk-prune-test-single")
+  end
+
+  test "GET /api/system/version returns system version and update information" do
+    # 1. Standard check (uses ETS cache or fallback gracefully)
+    conn = conn(:get, "/api/system/version") |> Router.call(@opts)
+    assert conn.status == 200
+    assert get_resp_header(conn, "content-type") == ["application/json; charset=utf-8"]
+    data = Jason.decode!(conn.resp_body)
+    assert data["current_version"] == "0.1.0"
+    assert Map.has_key?(data, "latest_version")
+    assert Map.has_key?(data, "has_update")
+    assert Map.has_key?(data, "update_method")
+    assert Map.has_key?(data, "release_notes")
+
+    # 2. Check with force=true
+    conn_force = conn(:get, "/api/system/version?force=true") |> Router.call(@opts)
+    assert conn_force.status == 200
+    data_force = Jason.decode!(conn_force.resp_body)
+    assert data_force["current_version"] == "0.1.0"
+  end
+
+  test "POST /api/system/update triggers system update workflow" do
+    conn = conn(:post, "/api/system/update", %{}) |> Router.call(@opts)
+    assert conn.status in [200, 500]
+    data = Jason.decode!(conn.resp_body)
+    assert Map.has_key?(data, "status")
+    assert Map.has_key?(data, "message")
   end
 end

@@ -38,3 +38,19 @@ services:
       - EPG_URL=
       - AUTH_USERNAME=
       - AUTH_PASSWORD=
+      - WATCHTOWER_ENDPOINT=http://acex-watchtower:8080/v1/update
+      - WATCHTOWER_HTTP_API_TOKEN=acex_update_token
+
+  # Automated 1-Click Container Updater (Internal HTTP API)
+  acex-watchtower:
+    image: containrrr/watchtower:latest
+    container_name: acex-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=acex_update_token
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400
+    # Accessible internally by acex-gateway at http://acex-watchtower:8080/v1/update

@@ -38,6 +38,7 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 - **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source), with 1-click fleet-wide cleanup (`POST /api/channels/prune-all-dead`).
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
 - **In-Dashboard Web Video Player**: Instant in-browser MPEG-TS live playback using HTML5 MSE decoding (`mpegts.js`), allowing real-time preview and health inspection with zero external app dependencies.
+- **In-Dashboard 1-Click System Updater**: Automated GitHub Releases checker with ETS caching, changelog inspector, and 1-click update trigger via internal Watchtower HTTP API with automatic polling and page reload, plus 1-line CLI script `./update.sh`.
 - **Web Dashboard & Live Telemetry**: Manage channels, inspect Fleet Health metrics (total, multi-source, single-source, active streams), smart filter chips, one-click clipboard hash extractor, priority fallback reordering (`▲/▼`), real-time prebuffering progress (`%`), and stream launchers for VLC, IINA, or PotPlayer.
 
 ---
@@ -67,7 +68,7 @@ docker run -d \
 
 ```yaml
 services:
-  acex:
+  acex-gateway:
     image: ghcr.io/quaywin/acex:latest
     container_name: acex-gateway
     restart: unless-stopped
@@ -85,6 +86,21 @@ services:
       - ACE_LIVE_BUFFER=20
       - ACE_MAX_PEERS=80
       - GRACE_PERIOD_MS=15000
+      - WATCHTOWER_ENDPOINT=http://acex-watchtower:8080/v1/update
+      - WATCHTOWER_HTTP_API_TOKEN=acex_update_token
+
+  # Automated 1-Click Container Updater (Internal HTTP API)
+  acex-watchtower:
+    image: containrrr/watchtower:latest
+    container_name: acex-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=acex_update_token
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400
 ```
 
 ```bash
@@ -94,6 +110,30 @@ docker compose up -d
 Open the dashboard at **http://localhost:8686**.
 
 > **Tip:** On a dedicated Linux host or VPS, use `--network host` (or `network_mode: host` in compose) to eliminate Docker NAT overhead and maximize P2P swarm discovery.
+
+---
+
+## Updating AcexGateway
+
+### 1. In-Dashboard 1-Click Update (Easiest)
+1. Open the Web Dashboard at `http://<SERVER_IP>:8686`.
+2. Look at the top navigation bar badge:
+   - `v0.1.0 ✓`: Your system is up-to-date.
+   - `🚀 Có bản mới: v0.1.3`: A newer release is available.
+3. Click the badge to open the **System Update Modal**:
+   - Inspect the release notes / changelog.
+   - Click **"⚡ Cập nhật ngay (1-Click)"**. AcexGateway invokes Watchtower over Docker's internal network to pull the new image, recreate the container, and automatically refresh the dashboard when back online.
+
+### 2. One-Line CLI Script
+Run the automated update script from the project root:
+```bash
+./update.sh
+```
+
+### 3. Manual Docker Compose
+```bash
+docker compose pull && docker compose up -d
+```
 
 ---
 
@@ -129,6 +169,8 @@ Open the dashboard at **http://localhost:8686**.
 | `POST /api/channels/validate-source` | JSON API | Content ID health check (no buffering, ETS memoized) |
 | `POST /api/channels/:id/prune-dead` | JSON API | One-click dead source pruning (keeps $\ge 1$ source) |
 | `POST /api/channels/prune-all-dead` | JSON API | Bulk prune dead sources across multi-source channels (keeps $\ge 1$ source) |
+| `GET /api/system/version` | JSON API | Check current vs latest GitHub release with changelog |
+| `POST /api/system/update` | JSON API | 1-Click trigger for Watchtower / background update |
 
 ---
 

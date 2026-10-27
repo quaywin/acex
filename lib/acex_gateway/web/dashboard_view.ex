@@ -1557,6 +1557,42 @@ defmodule AcexGateway.Web.DashboardView do
           border: 1px solid rgba(156, 163, 175, 0.25);
         }
 
+        /* 1-Click Update Badge & Button */
+        .update-badge-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--surface-card);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-full);
+          padding: 5px 12px;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-decoration: none;
+        }
+
+        .update-badge-btn:hover {
+          border-color: var(--color-primary);
+          color: #FFFFFF;
+          background: var(--surface-sunken);
+        }
+
+        .update-badge-btn.has-update {
+          background: rgba(225, 29, 72, 0.15);
+          border-color: var(--color-primary);
+          color: #FF5A79;
+          animation: pulse-update-btn 2.2s infinite;
+        }
+
+        @keyframes pulse-update-btn {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45); }
+          50% { box-shadow: 0 0 0 7px rgba(225, 29, 72, 0); }
+        }
+
         /* Fleet Health Summary Banner */
         .fleet-health-banner {
           background: var(--surface-card);
@@ -1785,6 +1821,10 @@ defmodule AcexGateway.Web.DashboardView do
           </a>
 
           <div class="nav-right">
+            <button id="updateBadgeBtn" class="update-badge-btn" onclick="openUpdateModal()" title="Kiểm tra & Cập nhật hệ thống">
+              <span id="updateBadgeIcon">⚡</span>
+              <span id="updateBadgeText">v#{AcexGateway.version()}</span>
+            </button>
             <div id="statusPill" class="status-pill status-idle">
               <span id="statusDot" class="pulse-dot"></span>
               <span id="statusText">SYSTEM READY</span>
@@ -2014,6 +2054,8 @@ defmodule AcexGateway.Web.DashboardView do
           </div>
           <div class="footer-right">
             <span>Stream Relay Gateway</span>
+            <span class="footer-sep">•</span>
+            <a href="javascript:void(0)" onclick="openUpdateModal()" style="color: var(--text-secondary); text-decoration: none;" title="Kiểm tra & Cập nhật hệ thống">v#{AcexGateway.version()}</a>
             <span class="footer-sep">•</span>
             <span>AceStream Protocol</span>
           </div>
@@ -2452,6 +2494,84 @@ defmodule AcexGateway.Web.DashboardView do
 
           <div style="display: flex; justify-content: flex-end; margin-top: var(--space-md);">
             <button class="btn btn-secondary" onclick="closeExportModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Update Modal (1-Click Updater) -->
+      <div id="updateModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'updateModal')">
+        <div class="modal-window" style="max-width: 580px;">
+          <div class="modal-top">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="panel-icon-wrap" style="width: 36px; height: 36px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+              </div>
+              <div>
+                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Cập Nhật Hệ Thống</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">Tự động kiểm tra và nâng cấp phiên bản mới nhất</p>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="closeUpdateModal()">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
+            <!-- Version Comparison Banner -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Phiên bản hiện tại</div>
+                <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #FFFFFF; margin-top: 2px;" id="modalCurrentVer">v#{AcexGateway.version()}</div>
+              </div>
+              <div style="font-size: 20px; color: var(--text-tertiary);">➔</div>
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Bản mới nhất</div>
+                <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--color-primary);" id="modalLatestVer">Đang kiểm tra...</div>
+              </div>
+              <div id="modalUpdateBadgeStatus" style="padding: 4px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: 600; background: var(--border-default); color: var(--text-secondary);">
+                Checking...
+              </div>
+            </div>
+
+            <!-- Release Notes View -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="font-size: 12px; margin-bottom: 0;">Ghi chú phát hành (Changelog):</label>
+                <a id="modalReleaseLink" href="https://github.com/quaywin/acex/releases" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: var(--color-primary); text-decoration: none;">Xem trên GitHub ↗</a>
+              </div>
+              <div id="modalReleaseNotes" style="background: #0A0A0A; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; line-height: 1.5; color: var(--text-secondary); max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-family: var(--font-mono);">Đang kiểm tra thông tin phiên bản từ GitHub...</div>
+            </div>
+
+            <!-- Update In-Progress Box (Hidden by default) -->
+            <div id="updateProgressBox" style="display: none; background: rgba(225, 29, 72, 0.08); border: 1px solid var(--color-primary); border-radius: var(--radius-sm); padding: 14px; text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 6px;">🔄</div>
+              <div style="font-weight: 700; color: #FFFFFF; font-size: 15px;" id="updateProgressText">Đang nâng cấp hệ thống...</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Dịch vụ đang kéo Image mới và khởi động lại. Trang sẽ tự tải lại khi hoàn tất.</div>
+              <div style="margin-top: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--color-primary);" id="updateCountdownTimer">Đang kết nối lại sau: 15s</div>
+            </div>
+
+            <!-- Fallback Terminal Command Box -->
+            <div>
+              <label class="form-label" style="font-size: 12px;">Lệnh cập nhật thủ công qua Terminal (Fallback):</label>
+              <div class="input-row">
+                <input type="text" id="manualUpdateCmdInput" class="text-input-styled" readonly value="docker compose pull && docker compose up -d">
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('manualUpdateCmdInput', 'Đã sao chép lệnh!', this)">Sao chép</button>
+              </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div style="display: flex; gap: var(--space-sm); justify-content: space-between; align-items: center; margin-top: 4px;">
+              <button class="btn btn-secondary btn-sm" onclick="checkSystemVersion(true)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Kiểm tra lại</span>
+              </button>
+              <div style="display: flex; gap: var(--space-sm);">
+                <button class="btn btn-secondary" onclick="closeUpdateModal()">Đóng</button>
+                <button class="btn btn-primary" id="btnExecuteUpdate" onclick="executeSystemUpdate()">
+                  ⚡ Cập nhật ngay (1-Click)
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -4005,6 +4125,171 @@ defmodule AcexGateway.Web.DashboardView do
           }, 3200);
         }
 
+        // System 1-Click Updater Controller
+        let currentSystemVersionInfo = null;
+        let updateRebootInterval = null;
+
+        async function checkSystemVersion(force = false) {
+          const badgeText = document.getElementById("updateBadgeText");
+          const badgeBtn = document.getElementById("updateBadgeBtn");
+          if (force && badgeText) badgeText.innerText = "Checking...";
+
+          try {
+            const url = "/api/system/version" + (force ? "?force=true" : "");
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const data = await res.json();
+            currentSystemVersionInfo = data;
+
+            // Update Header Badge
+            if (badgeBtn && badgeText) {
+              if (data.has_update) {
+                badgeBtn.classList.add("has-update");
+                badgeText.innerHTML = "🚀 Bản mới: v" + data.latest_version;
+              } else {
+                badgeBtn.classList.remove("has-update");
+                badgeText.innerHTML = "v" + data.current_version + " ✓";
+              }
+            }
+
+            // Update Modal elements if present
+            const modalCurrent = document.getElementById("modalCurrentVer");
+            const modalLatest = document.getElementById("modalLatestVer");
+            const modalBadge = document.getElementById("modalUpdateBadgeStatus");
+            const modalNotes = document.getElementById("modalReleaseNotes");
+            const modalLink = document.getElementById("modalReleaseLink");
+            const btnExec = document.getElementById("btnExecuteUpdate");
+
+            if (modalCurrent) modalCurrent.innerText = "v" + data.current_version;
+            if (modalLatest) modalLatest.innerText = "v" + data.latest_version;
+            if (modalNotes) modalNotes.innerText = data.release_notes || "Không có ghi chú phát hành.";
+            if (modalLink && data.release_url) modalLink.href = data.release_url;
+
+            if (modalBadge) {
+              if (data.has_update) {
+                modalBadge.innerText = "Có bản mới 🚀";
+                modalBadge.style.background = "rgba(225, 29, 72, 0.2)";
+                modalBadge.style.color = "#FF5A79";
+              } else {
+                modalBadge.innerText = "Đã mới nhất ✓";
+                modalBadge.style.background = "rgba(16, 185, 129, 0.15)";
+                modalBadge.style.color = "#10B981";
+              }
+            }
+
+            if (btnExec) {
+              if (data.has_update) {
+                btnExec.innerHTML = "⚡ Cập nhật lên v" + data.latest_version + " (1-Click)";
+              } else {
+                btnExec.innerHTML = "⚡ Cập nhật lại (Re-pull image)";
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to check system version:", err);
+          }
+        }
+
+        function openUpdateModal() {
+          const modal = document.getElementById("updateModal");
+          if (modal) {
+            modal.classList.add("active");
+            checkSystemVersion();
+          }
+        }
+
+        function closeUpdateModal() {
+          const modal = document.getElementById("updateModal");
+          if (modal) modal.classList.remove("active");
+        }
+
+        async function executeSystemUpdate() {
+          const targetVer = (currentSystemVersionInfo && currentSystemVersionInfo.latest_version) ? currentSystemVersionInfo.latest_version : "";
+          const confirmMsg = targetVer
+            ? "Bắt đầu cập nhật hệ thống lên phiên bản v" + targetVer + "? Containers sẽ tự tải Image mới và khởi động lại."
+            : "Bắt đầu cập nhật hệ thống? Containers sẽ tự tải Image mới và khởi động lại.";
+
+          if (!confirm(confirmMsg)) return;
+
+          const btnExec = document.getElementById("btnExecuteUpdate");
+          const progressBox = document.getElementById("updateProgressBox");
+          const progressText = document.getElementById("updateProgressText");
+          const countdown = document.getElementById("updateCountdownTimer");
+
+          if (btnExec) {
+            btnExec.disabled = true;
+            btnExec.innerText = "Đang kích hoạt cập nhật...";
+          }
+
+          if (progressBox) progressBox.style.display = "block";
+          if (progressText) progressText.innerText = "Đang gửi lệnh cập nhật đến máy chủ...";
+
+          try {
+            const resp = await fetch("/api/system/update", { method: "POST" });
+            const data = await resp.json();
+
+            if (resp.ok && (data.status === "updating" || data.status === "ok")) {
+              if (progressText) progressText.innerText = data.message || "Đã gửi lệnh cập nhật! Đang chờ khởi động lại...";
+              pollServerReboot(targetVer);
+            } else if (data.status === "manual_required" || data.command) {
+              if (progressBox) progressBox.style.display = "none";
+              if (btnExec) {
+                btnExec.disabled = false;
+                btnExec.innerText = "Cập nhật thủ công";
+              }
+              showToast("Hệ thống yêu cầu chạy lệnh thủ công qua terminal.", false);
+            } else {
+              throw new Error(data.message || data.error || "Update trigger failed");
+            }
+          } catch (err) {
+            if (progressBox) progressBox.style.display = "none";
+            if (btnExec) {
+              btnExec.disabled = false;
+              btnExec.innerText = "⚡ Thử lại";
+            }
+            showToast("Lỗi khi kích hoạt cập nhật: " + err.message, false);
+          }
+        }
+
+        function pollServerReboot(targetVer) {
+          let secondsLeft = 25;
+          let serverWentOffline = false;
+          const countdown = document.getElementById("updateCountdownTimer");
+          const progressText = document.getElementById("updateProgressText");
+
+          if (updateRebootInterval) clearInterval(updateRebootInterval);
+
+          updateRebootInterval = setInterval(async () => {
+            secondsLeft--;
+            if (countdown) {
+              countdown.innerText = "Đang kiểm tra kết nối lại sau: " + Math.max(0, secondsLeft) + "s";
+            }
+
+            try {
+              const check = await fetch("/health?t=" + Date.now(), { cache: "no-store" });
+              if (check.ok && (serverWentOffline || secondsLeft <= 19)) {
+                clearInterval(updateRebootInterval);
+                updateRebootInterval = null;
+                if (progressText) progressText.innerText = "✓ Cập nhật hoàn tất! Đang tải lại trang...";
+                showToast("Hệ thống đã nâng cấp thành công!", true);
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1200);
+              }
+            } catch (_) {
+              serverWentOffline = true;
+              if (progressText) progressText.innerText = "Dịch vụ đang khởi động lại container mới...";
+            }
+
+            if (secondsLeft <= -40) {
+              clearInterval(updateRebootInterval);
+              updateRebootInterval = null;
+              if (progressText) {
+                progressText.innerHTML = "Quá trình cập nhật mất nhiều thời gian hơn dự kiến. <br><button class='btn btn-primary btn-sm' onclick='window.location.reload()' style='margin-top:8px;'>Tải lại trang ngay</button>";
+              }
+            }
+          }, 2000);
+        }
+
         // Realtime Polling
         async function pollStats() {
           try {
@@ -4081,6 +4366,7 @@ defmodule AcexGateway.Web.DashboardView do
             closeExportModal();
             closeImportModal();
             closeXtreamModal();
+            closeUpdateModal();
           }
         });
 
@@ -4090,6 +4376,7 @@ defmodule AcexGateway.Web.DashboardView do
         renderChannels(allChannels);
         setInterval(pollStats, 2000);
         pollStats();
+        checkSystemVersion();
       </script>
     </body>
     </html>

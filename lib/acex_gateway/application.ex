@@ -9,6 +9,10 @@ defmodule AcexGateway.Application do
     port = AcexGateway.Config.proxy_port()
     Logger.info("[Application] Starting AcexGateway on port #{port}...")
 
+    # Ensure global ETS cache tables are owned by Application process
+    AcexGateway.Engine.Validator.ensure_cache()
+    AcexGateway.System.Updater.ensure_cache()
+
     children = [
       AcexGateway.Settings.Store,
       AcexGateway.Channels.Store,

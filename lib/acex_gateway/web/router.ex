@@ -18,6 +18,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Engine.Validator
   alias AcexGateway.Channels.Store
   alias AcexGateway.Settings.Store, as: SettingsStore
+  alias AcexGateway.System.Updater
   alias AcexGateway.Web.DashboardView
   alias AcexGateway.Web.XtreamCodes
 
@@ -413,6 +414,33 @@ defmodule AcexGateway.Web.Router do
 
   put "/api/settings" do
     handle_update_settings(conn)
+  end
+
+  get "/api/system/version" do
+    conn = fetch_query_params(conn)
+    force = conn.query_params["force"] in ["true", "1", true]
+    version_info = Updater.check_update(force: force)
+
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(version_info))
+  end
+
+  post "/api/system/update" do
+    case Updater.trigger_update() do
+      {:ok, resp} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(resp))
+
+      {:error, err} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Jason.encode!(err))
+    end
   end
 
   defp handle_update_settings(conn) do
