@@ -433,4 +433,17 @@ defmodule AcexGateway.Web.RouterTest do
     assert Map.has_key?(data, "status")
     assert Map.has_key?(data, "message")
   end
+
+  test "GET /cast/:target/live.m3u8 routes to CastRemuxer" do
+    conn = conn(:get, "/cast/test-cast-target/live.m3u8") |> Router.call(@opts)
+    # Without an active stream or if FFmpeg is starting/timing out, returns 503 or 200
+    assert conn.status in [200, 503]
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+  end
+
+  test "GET /cast/:target/:segment returns 404 for non-existent segment" do
+    conn = conn(:get, "/cast/test-cast-target/seg_999.ts") |> Router.call(@opts)
+    assert conn.status == 404
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+  end
 end

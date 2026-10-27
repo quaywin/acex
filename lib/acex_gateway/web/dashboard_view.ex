@@ -61,6 +61,7 @@ defmodule AcexGateway.Web.DashboardView do
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
       <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+      <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
       <style>
         :root {
           /* StreamFlix Design System Tokens */
@@ -2330,6 +2331,7 @@ defmodule AcexGateway.Web.DashboardView do
             <div class="video-player-hud">
               <span id="playerLiveBadge" class="chip-status-success" style="font-size: 11px;">● LIVE</span>
               <span id="playerStatsBadge" style="font-family: var(--font-mono); font-size: 11px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary);">MPEG-TS Engine</span>
+              <span id="playerCastBadge" style="display: none; font-family: var(--font-mono); font-size: 11px; background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(59, 130, 246, 0.6); padding: 2px 8px; border-radius: 4px; color: #93c5fd;">📺 Casting to TV</span>
             </div>
             <video id="webVideoPlayer" controls autoplay muted playsinline></video>
           </div>
@@ -2338,7 +2340,15 @@ defmodule AcexGateway.Web.DashboardView do
             <div style="font-size: 12px; color: var(--text-tertiary);">
               💡 <em>Note:</em> Unmute on the video toolbar to enable audio. If your browser does not support the audio codec, use the external Desktop App button.
             </div>
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button id="castLauncherBtn" class="btn btn-secondary btn-sm" onclick="triggerCast()" title="Stream to Chromecast / Google TV" style="display: inline-flex; align-items: center; gap: 6px; position: relative;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/>
+                  <line x1="2" y1="20" x2="2.01" y2="20"/>
+                </svg>
+                <span id="castBtnText">Cast to TV</span>
+                <google-cast-launcher id="googleCastLauncher" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.001; cursor: pointer;"></google-cast-launcher>
+              </button>
               <button class="btn btn-secondary btn-sm" onclick="openExternalFromWebPlayer()">
                 <span>Open in Desktop App</span>
               </button>
@@ -2618,6 +2628,9 @@ defmodule AcexGateway.Web.DashboardView do
         let mpegtsPlayerInstance = null;
         let activeWebPlayerUrl = "";
         let activeWebPlayerTitle = "";
+        let activeWebPlayerTarget = "";
+        let castSession = null;
+        let isCastApiAvailable = false;
         let modalSourcesArray = [];
         let isManuallyEditingGroup = false;
         let isManuallyEditingCountry = false;
@@ -2642,7 +2655,7 @@ defmodule AcexGateway.Web.DashboardView do
           const c = (allChannels || []).find(x => x.id === channelId);
           const name = c ? (c.name || "Channel") : "Channel";
           const liveUrl = getLiveStreamUrl(channelId);
-          openWebPlayerModal(name, liveUrl);
+          openWebPlayerModal(name, liveUrl, channelId);
         }
 
         function openLauncherForChannel(channelId) {
@@ -3679,9 +3692,10 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         // In-Dashboard Web Video Player Modal (MPEG-TS Live Player)
-        function openWebPlayerModal(title, streamUrl) {
+        function openWebPlayerModal(title, streamUrl, target = "") {
           activeWebPlayerTitle = title;
           activeWebPlayerUrl = streamUrl;
+          activeWebPlayerTarget = target || "";
 
           const titleEl = document.getElementById("webPlayerChannelName");
           if (titleEl) titleEl.innerText = title;
@@ -3690,6 +3704,7 @@ defmodule AcexGateway.Web.DashboardView do
 
           const videoElem = document.getElementById("webVideoPlayer");
           const statsBadge = document.getElementById("playerStatsBadge");
+          const castBadge = document.getElementById("playerCastBadge");
 
           // Reset existing player instance cleanly
           if (mpegtsPlayerInstance) {
@@ -3706,6 +3721,16 @@ defmodule AcexGateway.Web.DashboardView do
             videoElem.pause();
             videoElem.removeAttribute("src");
             videoElem.load();
+          }
+
+          // If currently connected to Chromecast, push stream directly to TV
+          if (castSession && activeWebPlayerTarget) {
+            if (castBadge) castBadge.style.display = "inline-flex";
+            if (statsBadge) statsBadge.innerText = "Casting to TV";
+            loadActiveChannelToCast();
+            return;
+          } else {
+            if (castBadge) castBadge.style.display = "none";
           }
 
           if (window.mpegts && mpegts.isSupported()) {
@@ -3786,6 +3811,157 @@ defmodule AcexGateway.Web.DashboardView do
         function openExternalFromWebPlayer() {
           closeWebPlayerModal();
           openLauncherModal(activeWebPlayerTitle, activeWebPlayerUrl);
+        }
+
+        // --- Google Cast (Chromecast / Google TV) Support ---
+        window['__onGCastApiAvailable'] = function(isAvailable) {
+          if (isAvailable && window.cast && window.cast.framework) {
+            isCastApiAvailable = true;
+            try {
+              cast.framework.CastContext.getInstance().setOptions({
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+              });
+
+              const context = cast.framework.CastContext.getInstance();
+              context.addEventListener(
+                cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+                function(event) {
+                  switch (event.sessionState) {
+                    case cast.framework.SessionState.SESSION_STARTED:
+                    case cast.framework.SessionState.SESSION_RESUMED:
+                      castSession = context.getCurrentSession();
+                      onCastSessionConnected();
+                      break;
+                    case cast.framework.SessionState.SESSION_ENDED:
+                      castSession = null;
+                      onCastSessionDisconnected();
+                      break;
+                  }
+                }
+              );
+
+              context.addEventListener(
+                cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+                function(event) {
+                  updateCastUiState(event.castState);
+                }
+              );
+            } catch (e) {
+              console.warn("Cast framework init error:", e);
+            }
+          }
+        };
+
+        function getCastStreamUrl(target) {
+          const host = window.location.hostname;
+          const port = window.location.port ? (":" + window.location.port) : "";
+          const proto = window.location.protocol;
+
+          if (host === "localhost" || host === "127.0.0.1") {
+            showToast("Notice: Chromecast requires accessing this dashboard via your server LAN IP (e.g. 192.168.x.x), not localhost.", false);
+          }
+
+          let castUrl = proto + "//" + host + port + "/cast/" + encodeURIComponent(target) + "/live.m3u8";
+          if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
+            castUrl += "?username=" + encodeURIComponent(appSettings.auth_username) + "&password=" + encodeURIComponent(appSettings.auth_password);
+          }
+          return castUrl;
+        }
+
+        function updateCastUiState(castState) {
+          const btn = document.getElementById("castLauncherBtn");
+          const btnText = document.getElementById("castBtnText");
+          if (!btn || !btnText) return;
+
+          if (castState === cast.framework.CastState.CONNECTED) {
+            const devName = (castSession && castSession.getCastDevice()) ? castSession.getCastDevice().friendlyName : "TV";
+            btnText.innerText = "Casting: " + devName;
+            btn.classList.add("btn-primary");
+            btn.classList.remove("btn-secondary");
+          } else {
+            btnText.innerText = "Cast to TV";
+            btn.classList.remove("btn-primary");
+            btn.classList.add("btn-secondary");
+          }
+        }
+
+        function triggerCast() {
+          if (!isCastApiAvailable || !window.cast || !window.cast.framework) {
+            showToast("Google Cast is supported on Google Chrome, Brave or Edge browsers on the same local Wi-Fi / LAN as your TV.", false);
+            return;
+          }
+          if (!activeWebPlayerTarget) {
+            showToast("Please select a channel to cast.", false);
+            return;
+          }
+          try {
+            cast.framework.CastContext.getInstance().requestSession();
+          } catch (err) {
+            console.log("Cast requestSession notice:", err);
+          }
+        }
+
+        function onCastSessionConnected() {
+          const badge = document.getElementById("playerCastBadge");
+          const statsBadge = document.getElementById("playerStatsBadge");
+          const videoElem = document.getElementById("webVideoPlayer");
+
+          if (badge) badge.style.display = "inline-flex";
+          if (statsBadge) statsBadge.innerText = "Casting to TV";
+
+          // Pause local browser playback when streaming to TV to reduce CPU & network usage
+          if (videoElem) {
+            try { videoElem.pause(); } catch (_) {}
+          }
+
+          loadActiveChannelToCast();
+        }
+
+        function loadActiveChannelToCast() {
+          if (!castSession || !activeWebPlayerTarget) return;
+
+          const streamUrl = getCastStreamUrl(activeWebPlayerTarget);
+          const mediaInfo = new chrome.cast.media.MediaInfo(streamUrl, "application/x-mpegURL");
+          mediaInfo.streamType = chrome.cast.media.StreamType.LIVE;
+          mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+          mediaInfo.metadata.title = activeWebPlayerTitle || "Live TV";
+          mediaInfo.metadata.subtitle = "AcexGateway ⚡ Chromecast HLS";
+
+          const request = new chrome.cast.media.LoadRequest(mediaInfo);
+          request.autoplay = true;
+
+          castSession.loadMedia(request).then(
+            function() {
+              const devName = (castSession && castSession.getCastDevice()) ? castSession.getCastDevice().friendlyName : "TV";
+              showToast("Streaming live to " + devName, true);
+              const btnText = document.getElementById("castBtnText");
+              if (btnText) btnText.innerText = "Casting: " + devName;
+            },
+            function(errorCode) {
+              console.warn("Cast media load error:", errorCode);
+              showToast("Chromecast load error (" + errorCode + "). Ensure server LAN IP is reachable from TV.", false);
+            }
+          );
+        }
+
+        function onCastSessionDisconnected() {
+          const badge = document.getElementById("playerCastBadge");
+          const btnText = document.getElementById("castBtnText");
+          const btn = document.getElementById("castLauncherBtn");
+
+          if (badge) badge.style.display = "none";
+          if (btnText) btnText.innerText = "Cast to TV";
+          if (btn) {
+            btn.classList.remove("btn-primary");
+            btn.classList.add("btn-secondary");
+          }
+
+          // Resume local playback if player modal is still open
+          const modal = document.getElementById("webPlayerModal");
+          if (modal && modal.classList.contains("active") && activeWebPlayerUrl) {
+            openWebPlayerModal(activeWebPlayerTitle, activeWebPlayerUrl, activeWebPlayerTarget);
+          }
         }
 
         // Stream Launcher Modal

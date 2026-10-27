@@ -19,6 +19,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Channels.Store
   alias AcexGateway.Settings.Store, as: SettingsStore
   alias AcexGateway.System.Updater
+  alias AcexGateway.Stream.CastRemuxer
   alias AcexGateway.Web.DashboardView
   alias AcexGateway.Web.XtreamCodes
 
@@ -586,6 +587,77 @@ defmodule AcexGateway.Web.Router do
       handle_live_stream(conn, target, source_type)
     else
       send_unauthorized(conn)
+    end
+  end
+
+  # --- Chromecast HLS Remuxer Routes ---
+
+  get "/cast/:target_name/live.m3u8" do
+    case authenticate_request(conn) do
+      :ok ->
+        handle_cast_playlist(conn, target_name)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  get "/cast/:target_name/:segment_name" do
+    handle_cast_segment(conn, target_name, segment_name)
+  end
+
+  defp handle_cast_playlist(conn, target_name) do
+    clean_target =
+      target_name
+      |> String.replace_suffix(".m3u8", "")
+      |> String.replace_suffix(".ts", "")
+
+    case CastRemuxer.get_playlist(clean_target) do
+      {:ok, m3u8_path} ->
+        case File.read(m3u8_path) do
+          {:ok, content} ->
+            conn
+            |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
+            |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+            |> put_resp_header("access-control-allow-origin", "*")
+            |> send_resp(200, content)
+
+          {:error, _} ->
+            conn
+            |> put_resp_header("access-control-allow-origin", "*")
+            |> send_resp(503, "Manifest temporarily unavailable. Retrying...")
+        end
+
+      {:error, :ffmpeg_not_found} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_resp(503, "FFmpeg is required on server for Chromecast HLS remuxing")
+
+      {:error, reason} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_resp(503, "Chromecast remuxer error: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_cast_segment(conn, target_name, segment_name) do
+    clean_target =
+      target_name
+      |> String.replace_suffix(".m3u8", "")
+      |> String.replace_suffix(".ts", "")
+
+    case CastRemuxer.get_segment(clean_target, segment_name) do
+      {:ok, segment_path} ->
+        conn
+        |> put_resp_header("content-type", "video/mp2t")
+        |> put_resp_header("cache-control", "public, max-age=10")
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_file(200, segment_path)
+
+      {:error, _} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_resp(404, "Segment not found")
     end
   end
 

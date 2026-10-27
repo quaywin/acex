@@ -19,6 +19,7 @@ defmodule AcexGateway.Application do
       AcexGateway.Engine.TelnetClient,
       {Registry, keys: :unique, name: AcexGateway.ChannelRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: AcexGateway.StreamSupervisor},
+      AcexGateway.Stream.CastRemuxer,
       {Bandit, plug: AcexGateway.Web.Router, scheme: :http, port: port}
     ]
 
