@@ -18,5 +18,12 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
     test "stop_remuxer/1 does not crash on non-existent target" do
       assert CastRemuxer.stop_remuxer("non-existent-channel-xyz") == :ok
     end
+
+    test "get_playlist/1 returns either {:ok, path} or {:error, reason}" do
+      case CastRemuxer.get_playlist("non-existent-target") do
+        {:ok, path} -> assert is_binary(path)
+        {:error, reason} -> assert is_atom(reason)
+      end
+    end
   end
 end

@@ -41,7 +41,10 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
       case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target}, 15_000) do
         {:ok, m3u8_path} ->
-          wait_for_manifest(clean_target, m3u8_path)
+          case wait_for_manifest(clean_target, m3u8_path) do
+            :ok -> {:ok, m3u8_path}
+            {:error, reason} -> {:error, reason}
+          end
 
         {:error, reason} ->
           {:error, reason}
