@@ -34,7 +34,8 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 
 - **Zero-Transcode Passthrough**: Relays MPEG-TS packets directly without CPU transcoding. An in-memory ring buffer delivers keyframes immediately on channel switch.
 - **Multi-Channel and Fan-Out Relay**: Streams multiple channels concurrently. Multiple clients watching the same channel share a single upstream connection to save bandwidth.
-- **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
+- **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`, `STATUS main:error`, fatal `LOADRESP`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
+- **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source).
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
 - **Web Dashboard & Live Telemetry**: Manage channels, view real-time prebuffering progress (`%`), swarm peers/speed telemetry, import playlists, and launch streams directly in VLC, IINA, or PotPlayer.
 
