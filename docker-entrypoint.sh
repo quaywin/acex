@@ -12,7 +12,7 @@ ACE_MAX_PEERS="${ACE_MAX_PEERS:-80}"
 ACESTREAM_EXTRA_FLAGS="${ACESTREAM_EXTRA_FLAGS:---live-cache-type memory --memory-cache-limit 1073741824 --live-buffer ${ACE_LIVE_BUFFER} --max-peers ${ACE_MAX_PEERS}}"
 
 # Ensure data and cache directories exist
-mkdir -p /app/data /root/.ACEStream/cache /root/.ACEStream/buffer /root/.ACEStream/content_cache /tmp
+mkdir -p /app/data /root/.ACEStream/cache /root/.ACEStream/buffer /root/.ACEStream/content_cache /tmp /dev/disk/by-id 2>/dev/null || true
 
 # 1. Start AceStream Engine Daemon
 echo "[All-in-One] Starting AceStream Engine on ports ${HTTP_PORT} (HTTP) / 62062 (Telnet)..."

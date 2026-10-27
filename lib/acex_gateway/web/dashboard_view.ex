@@ -2260,11 +2260,27 @@ defmodule AcexGateway.Web.DashboardView do
             <button class="btn btn-secondary btn-xs" onclick="closeLauncherModal()">✕</button>
           </div>
 
-          <div style="margin-bottom: var(--space-md);">
-            <label class="form-label">Direct MPEG-TS Stream URL:</label>
-            <div class="input-row">
-              <input type="text" id="launcherStreamUrl" class="text-input-styled" readonly>
-              <button class="btn btn-primary btn-sm" onclick="copyLauncherUrl(this)">Copy</button>
+          <div style="margin-bottom: var(--space-md); display: flex; flex-direction: column; gap: 10px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" style="margin-bottom: 0;">Direct MPEG-TS Stream URL (.ts):</label>
+                <span style="font-size: 11px; color: var(--text-tertiary);">VLC, PotPlayer, TiviMate</span>
+              </div>
+              <div class="input-row">
+                <input type="text" id="launcherStreamUrl" class="text-input-styled" readonly>
+                <button class="btn btn-primary btn-sm" onclick="copyLauncherUrl(this)">Copy</button>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" style="margin-bottom: 0;">Chromecast / Universal HLS URL (.m3u8):</label>
+                <span style="font-size: 11px; color: var(--text-tertiary);">Chromecast, Safari, Web Video Caster</span>
+              </div>
+              <div class="input-row">
+                <input type="text" id="launcherCastUrl" class="text-input-styled" readonly style="font-family: var(--font-mono); font-size: 12px;">
+                <button class="btn btn-secondary btn-sm" onclick="copyLauncherCastUrl(this)">Copy</button>
+              </div>
             </div>
           </div>
 
@@ -2348,6 +2364,10 @@ defmodule AcexGateway.Web.DashboardView do
                 </svg>
                 <span id="castBtnText">Cast to TV</span>
                 <google-cast-launcher id="googleCastLauncher" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.001; cursor: pointer;"></google-cast-launcher>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="copyWebPlayerCastUrl(this)" title="Copy Chromecast / Universal HLS (.m3u8) URL">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Copy Cast URL</span>
               </button>
               <button class="btn btn-secondary btn-sm" onclick="openExternalFromWebPlayer()">
                 <span>Open in Desktop App</span>
@@ -2662,7 +2682,7 @@ defmodule AcexGateway.Web.DashboardView do
           const c = (allChannels || []).find(x => x.id === channelId);
           const name = c ? (c.name || "Channel") : "Channel";
           const liveUrl = getLiveStreamUrl(channelId);
-          openLauncherModal(name, liveUrl);
+          openLauncherModal(name, liveUrl, channelId);
         }
 
         // DOM Elements
@@ -3016,7 +3036,7 @@ defmodule AcexGateway.Web.DashboardView do
             return;
           }
           const streamUrl = getQuickStreamUrl(clean);
-          openLauncherModal("Quick Stream (" + clean.substring(0, 8) + "...)", streamUrl);
+          openLauncherModal("Quick Stream (" + clean.substring(0, 8) + "...)", streamUrl, clean);
         }
 
         function copyQuickStreamUrl(btn = null) {
@@ -3723,12 +3743,10 @@ defmodule AcexGateway.Web.DashboardView do
             videoElem.load();
           }
 
-          // If currently connected to Chromecast, push stream directly to TV
+          // Manage Cast Badge state
           if (castSession && activeWebPlayerTarget) {
             if (castBadge) castBadge.style.display = "inline-flex";
             if (statsBadge) statsBadge.innerText = "Casting to TV";
-            loadActiveChannelToCast();
-            return;
           } else {
             if (castBadge) castBadge.style.display = "none";
           }
@@ -3777,6 +3795,12 @@ defmodule AcexGateway.Web.DashboardView do
                 videoElem.play().catch(() => {});
               }
             }
+          } else if (videoElem && videoElem.canPlayType("application/vnd.apple.mpegurl") && activeWebPlayerTarget) {
+            // Safari / iOS Native HLS playback fallback
+            if (statsBadge) statsBadge.innerText = "HLS Native";
+            const hlsUrl = getCastStreamUrl(activeWebPlayerTarget);
+            videoElem.src = hlsUrl;
+            videoElem.play().catch(() => {});
           } else {
             if (statsBadge) statsBadge.innerText = "Native Video Fallback";
             if (videoElem) {
@@ -3810,7 +3834,7 @@ defmodule AcexGateway.Web.DashboardView do
 
         function openExternalFromWebPlayer() {
           closeWebPlayerModal();
-          openLauncherModal(activeWebPlayerTitle, activeWebPlayerUrl);
+          openLauncherModal(activeWebPlayerTitle, activeWebPlayerUrl, activeWebPlayerTarget);
         }
 
         // --- Google Cast (Chromecast / Google TV) Support ---
@@ -3820,7 +3844,7 @@ defmodule AcexGateway.Web.DashboardView do
             try {
               cast.framework.CastContext.getInstance().setOptions({
                 receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED
               });
 
               const context = cast.framework.CastContext.getInstance();
@@ -3853,14 +3877,17 @@ defmodule AcexGateway.Web.DashboardView do
           }
         };
 
+        function warnIfLocalhostForCast() {
+          const host = window.location.hostname;
+          if (host === "localhost" || host === "127.0.0.1") {
+            showToast("Notice: Chromecast requires accessing this dashboard via your server LAN IP (e.g. 192.168.x.x), not localhost.", false);
+          }
+        }
+
         function getCastStreamUrl(target) {
           const host = window.location.hostname;
           const port = window.location.port ? (":" + window.location.port) : "";
           const proto = window.location.protocol;
-
-          if (host === "localhost" || host === "127.0.0.1") {
-            showToast("Notice: Chromecast requires accessing this dashboard via your server LAN IP (e.g. 192.168.x.x), not localhost.", false);
-          }
 
           let castUrl = proto + "//" + host + port + "/cast/" + encodeURIComponent(target) + "/live.m3u8";
           if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
@@ -3887,6 +3914,7 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         function triggerCast() {
+          warnIfLocalhostForCast();
           if (!isCastApiAvailable || !window.cast || !window.cast.framework) {
             showToast("Google Cast is supported on Google Chrome, Brave or Edge browsers on the same local Wi-Fi / LAN as your TV.", false);
             return;
@@ -3965,9 +3993,15 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         // Stream Launcher Modal
-        function openLauncherModal(title, streamUrl) {
+        function openLauncherModal(title, streamUrl, target = "") {
           document.getElementById("launcherModalTitle").innerText = title;
           document.getElementById("launcherStreamUrl").value = streamUrl;
+
+          const castUrl = target ? getCastStreamUrl(target) : "";
+          const castInput = document.getElementById("launcherCastUrl");
+          if (castInput) {
+            castInput.value = castUrl;
+          }
 
           // External Video Player Protocols
           document.getElementById("launchVlc").href = "vlc://" + streamUrl;
@@ -3988,7 +4022,27 @@ defmodule AcexGateway.Web.DashboardView do
             showToast("Stream URL is empty!", false);
             return;
           }
-          copyText(url, "Stream URL copied!", btn);
+          copyText(url, "Direct MPEG-TS URL copied!", btn);
+        }
+
+        function copyLauncherCastUrl(btn = null) {
+          const url = document.getElementById("launcherCastUrl").value;
+          if (!url || !url.trim()) {
+            showToast("Chromecast HLS URL is empty!", false);
+            return;
+          }
+          warnIfLocalhostForCast();
+          copyText(url, "Chromecast HLS URL copied!", btn);
+        }
+
+        function copyWebPlayerCastUrl(btn = null) {
+          if (!activeWebPlayerTarget) {
+            showToast("No active channel target selected!", false);
+            return;
+          }
+          warnIfLocalhostForCast();
+          const url = getCastStreamUrl(activeWebPlayerTarget);
+          copyText(url, "Chromecast HLS URL copied!", btn);
         }
 
         // QR Code Modal
