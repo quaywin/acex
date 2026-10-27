@@ -60,6 +60,7 @@ defmodule AcexGateway.Web.DashboardView do
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+      <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
       <style>
         :root {
           /* StreamFlix Design System Tokens */
@@ -1555,6 +1556,213 @@ defmodule AcexGateway.Web.DashboardView do
           color: #9CA3AF;
           border: 1px solid rgba(156, 163, 175, 0.25);
         }
+
+        /* Fleet Health Summary Banner */
+        .fleet-health-banner {
+          background: var(--surface-card);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: 16px 20px;
+          margin-bottom: var(--space-lg);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .fleet-metrics-group {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px 20px;
+        }
+
+        .fleet-metric-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .fleet-metric-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: var(--radius-sm);
+          background: var(--surface-sunken);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .fleet-metric-val {
+          font-family: var(--font-headline);
+          font-size: 18px;
+          font-weight: 700;
+          color: #FFFFFF;
+          line-height: 1.1;
+        }
+
+        .fleet-metric-label {
+          font-size: 11px;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        /* Fleet Filter Chips */
+        .fleet-filter-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: var(--space-md);
+          overflow-x: auto;
+          padding-bottom: 2px;
+        }
+
+        .filter-tab-pill {
+          background: var(--surface-card);
+          border: 1px solid var(--border-default);
+          color: var(--text-secondary);
+          padding: 6px 14px;
+          border-radius: var(--radius-full);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+        }
+
+        .filter-tab-pill:hover {
+          color: #FFFFFF;
+          border-color: var(--border-hover);
+        }
+
+        .filter-tab-pill.active {
+          background: var(--color-primary-dim);
+          border-color: var(--color-primary);
+          color: #FFFFFF;
+        }
+
+        /* Interactive Source Card Row */
+        .source-card-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-sm);
+          padding: 6px 10px;
+          margin-bottom: 6px;
+          transition: border-color 0.15s ease;
+        }
+
+        .source-card-item:hover {
+          border-color: var(--border-hover);
+        }
+
+        .source-card-rank {
+          font-family: var(--font-headline);
+          font-size: 12px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 4px;
+          white-space: nowrap;
+        }
+
+        .source-card-rank.rank-primary {
+          background: rgba(225, 29, 72, 0.2);
+          color: var(--color-primary);
+          border: 1px solid rgba(225, 29, 72, 0.4);
+        }
+
+        .source-card-rank.rank-backup {
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .source-card-hash {
+          flex: 1;
+          font-family: var(--font-mono);
+          font-size: 12px;
+          color: #FFFFFF;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .source-card-actions {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .source-card-btn {
+          background: transparent;
+          border: 1px solid var(--border-default);
+          color: var(--text-secondary);
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 11px;
+          transition: all 0.15s ease;
+        }
+
+        .source-card-btn:hover:not(:disabled) {
+          background: var(--surface-card-hover);
+          color: #FFFFFF;
+          border-color: var(--border-hover);
+        }
+
+        .source-card-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        .source-card-btn.btn-remove:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: var(--color-danger);
+          border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        /* Web Player Modal Video Responsive Box */
+        .video-player-box {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          background: #000000;
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          border: 1px solid var(--border-default);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        #webVideoPlayer {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          outline: none;
+        }
+
+        .video-player-hud {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          right: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          pointer-events: none;
+          z-index: 5;
+        }
       </style>
     </head>
     <body>
@@ -1668,8 +1876,56 @@ defmodule AcexGateway.Web.DashboardView do
           </div>
         </section>
 
+        <!-- Fleet Health Summary Banner -->
+        <section class="fleet-health-banner">
+          <div class="fleet-metrics-group">
+            <div class="fleet-metric-item">
+              <div class="fleet-metric-icon">📺</div>
+              <div>
+                <div class="fleet-metric-val" id="metricTotalChannels">0</div>
+                <div class="fleet-metric-label">Tổng số kênh</div>
+              </div>
+            </div>
+            <div class="fleet-metric-item">
+              <div class="fleet-metric-icon" style="color: var(--color-success);">🛡️</div>
+              <div>
+                <div class="fleet-metric-val" id="metricMultiChannels">0</div>
+                <div class="fleet-metric-label">Đa nguồn dự phòng</div>
+              </div>
+            </div>
+            <div class="fleet-metric-item">
+              <div class="fleet-metric-icon" style="color: var(--color-warning);">⚠️</div>
+              <div>
+                <div class="fleet-metric-val" id="metricSingleChannels">0</div>
+                <div class="fleet-metric-label">Đơn nguồn (1 source)</div>
+              </div>
+            </div>
+            <div class="fleet-metric-item">
+              <div class="fleet-metric-icon" style="color: var(--color-primary);">🔴</div>
+              <div>
+                <div class="fleet-metric-val" id="metricLiveChannels">0</div>
+                <div class="fleet-metric-label">Đang phát (Active)</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn btn-secondary btn-sm" onclick="pruneAllDeadSources(this)" title="Quét và tự động gỡ bỏ các Content ID chết trên các kênh đa nguồn" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.4);">
+              <span>🧹 Dọn nguồn chết toàn bộ</span>
+            </button>
+          </div>
+        </section>
+
         <!-- Channel Lineup Catalog -->
         <section class="lineup-section">
+          <!-- Fleet Filter Chips -->
+          <div class="fleet-filter-bar">
+            <button class="filter-tab-pill active" id="filterPillAll" onclick="setFleetFilter('all')">Tất cả (<span id="countPillAll">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillLive" onclick="setFleetFilter('live')">🔴 Đang phát (<span id="countPillLive">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillMulti" onclick="setFleetFilter('multi')">🛡️ Đa nguồn (<span id="countPillMulti">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillSingle" onclick="setFleetFilter('single')">⚠️ Đơn nguồn (<span id="countPillSingle">0</span>)</button>
+          </div>
+
           <div class="lineup-toolbar">
             <h2 class="toolbar-title">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -1774,8 +2030,11 @@ defmodule AcexGateway.Web.DashboardView do
           <form onsubmit="handleSaveChannel(event)">
             <input type="hidden" id="editChannelId">
             <div class="form-group">
-              <label class="form-label">Channel Name:</label>
-              <input type="text" id="inputName" class="form-control" placeholder="e.g., Sky Sports Premier League HD" required>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" style="margin-bottom: 0;">Channel Name:</label>
+                <span id="autoDetectBadge" style="font-size: 11px; color: var(--color-success); font-weight: 600; display: none;">⚡ Tự động nhận diện</span>
+              </div>
+              <input type="text" id="inputName" class="form-control" placeholder="e.g., K+ Sport 1 HD, Sky Sports Premier League" required oninput="handleChannelNameInput(this.value)">
             </div>
             <div class="modal-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
               <div class="form-group">
@@ -1787,14 +2046,27 @@ defmodule AcexGateway.Web.DashboardView do
                 <input type="text" id="inputCountry" class="form-control" placeholder="VN, UK, US, ES...">
               </div>
             </div>
+
+            <!-- Enhanced Interactive Sources Manager -->
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="form-label" style="margin-bottom: 0;">AceStream Content IDs (supports multiple hashes separated by comma or newline):</label>
-                <button type="button" class="btn btn-secondary btn-xs" id="btnTestModalSources" onclick="testModalSources()" style="padding: 2px 8px; font-size: 11px;">
-                  🔍 Kiểm tra nguồn
-                </button>
+                <label class="form-label" style="margin-bottom: 0;">AceStream Content IDs (Thứ tự ưu tiên #1 &rarr; #N):</label>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="pasteModalSourcesFromClipboard()" style="padding: 2px 8px; font-size: 11px;">
+                    📋 Dán nhanh từ Clipboard
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btnTestModalSources" onclick="testModalSources()" style="padding: 2px 8px; font-size: 11px;">
+                    🔍 Kiểm tra nguồn
+                  </button>
+                </div>
               </div>
-              <textarea id="inputSources" class="form-control" rows="3" placeholder="Paste 1 or more Content IDs, acestream://... Automatically sanitizes 40-char hex" required oninput="validateSourcesInput(this.value)"></textarea>
+
+              <!-- Interactive Reorderable Sources List -->
+              <div id="modalSourcesListContainer" style="margin-bottom: 6px; display: none; max-height: 160px; overflow-y: auto;">
+                <!-- Populated dynamically via renderModalSourcesList() -->
+              </div>
+
+              <textarea id="inputSources" class="form-control" rows="3" placeholder="Nhập hoặc dán các Content ID (40 ký tự hex), hỗ trợ phân tách bằng dấu phẩy hoặc dòng mới" required oninput="handleSourcesTextareaInput(this.value)"></textarea>
               <div id="sourcesDetectedHint" class="form-hint" style="color: var(--color-success);"></div>
               <div id="modalValidationResults" style="margin-top: 6px; display: none;"></div>
             </div>
@@ -1963,6 +2235,46 @@ defmodule AcexGateway.Web.DashboardView do
           <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
             <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
               💡 <strong>Pro Tip:</strong> Dedicated players like VLC, IINA, or PotPlayer handle P2P jitter and dropped packets natively, ensuring buttery-smooth playback with 0% CPU overhead.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- In-Dashboard Web Video Player Modal (MPEG-TS Live Player) -->
+      <div id="webPlayerModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'webPlayerModal')">
+        <div class="modal-window" style="max-width: 820px; padding: var(--space-md);">
+          <div class="modal-top" style="margin-bottom: var(--space-sm);">
+            <div>
+              <h3 id="webPlayerTitle" style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: var(--color-primary);">▶</span>
+                <span id="webPlayerChannelName">Live Stream Player</span>
+              </h3>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                Phát trực tiếp chuẩn MPEG-TS ngay trong trình duyệt (HTML5 MSE)
+              </p>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="closeWebPlayerModal()">✕</button>
+          </div>
+
+          <div class="video-player-box">
+            <div class="video-player-hud">
+              <span id="playerLiveBadge" class="chip-status-success" style="font-size: 11px;">● LIVE</span>
+              <span id="playerStatsBadge" style="font-family: var(--font-mono); font-size: 11px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary);">MPEG-TS Engine</span>
+            </div>
+            <video id="webVideoPlayer" controls autoplay muted playsinline></video>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-sm); flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 12px; color: var(--text-tertiary);">
+              💡 <em>Lưu ý:</em> Nhấn bỏ Mute trên thanh video để nghe âm thanh. Nếu trình duyệt không tương thích với audio codec, hãy sử dụng nút mở VLC/IINA ngoài.
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary btn-sm" onclick="openExternalFromWebPlayer()">
+                <span>Mở trong Desktop App</span>
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="closeWebPlayerModal()">
+                <span>Đóng Player</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2152,8 +2464,15 @@ defmodule AcexGateway.Web.DashboardView do
         const baseUrl = "#{base_url}";
         let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url})};
         let currentFilterGroup = "ALL";
+        let currentFleetFilter = "all";
         let currentView = "grid";
         let activeStreamUrl = "";
+        let mpegtsPlayerInstance = null;
+        let activeWebPlayerUrl = "";
+        let activeWebPlayerTitle = "";
+        let modalSourcesArray = [];
+        let isManuallyEditingGroup = false;
+        let isManuallyEditingCountry = false;
 
         function getLiveStreamUrl(target) {
           if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
@@ -2300,7 +2619,11 @@ defmodule AcexGateway.Web.DashboardView do
 
                     <!-- Card Actions Row -->
                     <div class="card-actions-row">
-                      <button class="btn btn-primary btn-sm" onclick="openLauncherModal('${c.name}', '${liveUrl}')">
+                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerModal('${safeName}', '${liveUrl}')" title="Xem trực tiếp trên trình duyệt">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>▶ Xem thử</span>
+                      </button>
+                      <button class="btn btn-primary btn-sm" onclick="openLauncherModal('${safeName}', '${liveUrl}')">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span>Watch</span>
                       </button>
@@ -2356,6 +2679,7 @@ defmodule AcexGateway.Web.DashboardView do
                   </td>
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px;">
+                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerModal('${safeName}', '${liveUrl}')" title="Xem trên trình duyệt">▶ Xem</button>
                       <button class="btn btn-primary btn-xs" onclick="openLauncherModal('${safeName}', '${liveUrl}')">Watch</button>
                       <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)">Link</button>
                       <button class="btn btn-secondary btn-xs" onclick="editChannel('${c.id}')">Edit</button>
@@ -2377,12 +2701,67 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
+        let activeStreamingChannelKeys = new Set();
+
+        function setFleetFilter(filter) {
+          currentFleetFilter = filter;
+          ["all", "live", "multi", "single"].forEach(f => {
+            const pill = document.getElementById("filterPill" + f.charAt(0).toUpperCase() + f.slice(1));
+            if (pill) {
+              if (f === filter) pill.classList.add("active");
+              else pill.classList.remove("active");
+            }
+          });
+          filterChannels();
+        }
+
+        function updateFleetHealthMetrics(activeKeys = null) {
+          if (activeKeys) activeStreamingChannelKeys = activeKeys;
+          const total = allChannels.length;
+          const multi = allChannels.filter(c => (c.sources || []).length > 1).length;
+          const single = allChannels.filter(c => (c.sources || []).length <= 1).length;
+
+          let liveCount = 0;
+          allChannels.forEach(c => {
+            const isLive = activeStreamingChannelKeys.has(c.id) || (c.sources || []).some(s => activeStreamingChannelKeys.has(s));
+            if (isLive) liveCount++;
+          });
+
+          const elTotal = document.getElementById("metricTotalChannels");
+          if (elTotal) elTotal.innerText = total;
+          const elMulti = document.getElementById("metricMultiSource");
+          if (elMulti) elMulti.innerText = multi;
+          const elSingle = document.getElementById("metricSingleSource");
+          if (elSingle) elSingle.innerText = single;
+          const elLive = document.getElementById("metricActiveStreams");
+          if (elLive) elLive.innerText = liveCount;
+
+          const pillAll = document.getElementById("countPillAll");
+          if (pillAll) pillAll.innerText = total;
+          const pillLive = document.getElementById("countPillLive");
+          if (pillLive) pillLive.innerText = liveCount;
+          const pillMulti = document.getElementById("countPillMulti");
+          if (pillMulti) pillMulti.innerText = multi;
+          const pillSingle = document.getElementById("countPillSingle");
+          if (pillSingle) pillSingle.innerText = single;
+        }
+
         function filterChannels() {
           const q = document.getElementById("channelSearch").value.toLowerCase().trim();
           let filtered = allChannels;
 
           if (currentFilterGroup !== "ALL") {
             filtered = filtered.filter(c => c.group === currentFilterGroup);
+          }
+
+          if (currentFleetFilter === "multi") {
+            filtered = filtered.filter(c => (c.sources || []).length > 1);
+          } else if (currentFleetFilter === "single") {
+            filtered = filtered.filter(c => (c.sources || []).length <= 1);
+          } else if (currentFleetFilter === "live") {
+            filtered = filtered.filter(c =>
+              activeStreamingChannelKeys.has(c.id) || (c.sources || []).some(s => activeStreamingChannelKeys.has(s))
+            );
           }
 
           if (q) {
@@ -2396,6 +2775,44 @@ defmodule AcexGateway.Web.DashboardView do
           }
 
           renderChannels(filtered);
+        }
+
+        async function pruneAllDeadSources(btn = null) {
+          if (!confirm("Hệ thống sẽ kiểm tra và loại bỏ các nguồn chết trên toàn bộ các kênh đa nguồn (kênh 1 nguồn luôn được bảo vệ an toàn). Tiếp tục?")) {
+            return;
+          }
+          const origText = btn ? btn.innerHTML : "";
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = "<span>⏳ Đang quét toàn bộ...</span>";
+          }
+          showToast("Đang quét và dọn nguồn chết toàn bộ hệ thống...", true);
+
+          try {
+            const resp = await fetch("/api/channels/prune-all-dead", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" }
+            });
+            const data = await resp.json();
+            if (resp.ok && data.status === "ok") {
+              if (Array.isArray(data.channels)) {
+                allChannels = data.channels;
+                renderCategoryTabs();
+                updateFleetHealthMetrics();
+                filterChannels();
+              }
+              showToast("Hoàn tất dọn dẹp: Đã loại bỏ " + (data.pruned_sources_count || 0) + " nguồn chết!", true);
+            } else {
+              showToast(data.error || "Không thể dọn dẹp nguồn chết toàn bộ.", false);
+            }
+          } catch (err) {
+            showToast("Lỗi kết nối khi dọn dẹp: " + err.message, false);
+          } finally {
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = origText;
+            }
+          }
         }
 
         // Clean dirty AceStream hash
@@ -2444,8 +2861,168 @@ defmodule AcexGateway.Web.DashboardView do
           const clean = extractCleanHash(val);
           openChannelModal();
           if (clean) {
-            document.getElementById("inputSources").value = clean;
-            validateSourcesInput(clean);
+            modalSourcesArray = [clean];
+            renderModalSourcesList(true);
+          }
+        }
+
+        function handleChannelNameInput(val) {
+          const v = (val || "").trim();
+          const badge = document.getElementById("autoDetectBadge");
+          if (!v) {
+            if (badge) badge.style.display = "none";
+            return;
+          }
+
+          let detectedCountry = null;
+          let detectedGroup = null;
+
+          // Country heuristics
+          if (/\b(vtv|htv|thvl|k\+|vtc|fpt|vieon|todaytv|truyenhinh|viet)\b/i.test(v)) {
+            detectedCountry = "VN";
+          } else if (/\b(sky|bbc|itv|tnt|channel 4|channel 5|bt sport)\b/i.test(v)) {
+            detectedCountry = "UK";
+          } else if (/\b(espn|nbc|cbs|hbo|fox|discovery|abc|cnn|paramount)\b/i.test(v)) {
+            detectedCountry = "US";
+          } else if (/\b(movistar|laliga|dazn|gol)\b/i.test(v)) {
+            detectedCountry = "ES";
+          }
+
+          // Category heuristics
+          if (/\b(sport|sports|football|bóng đá|thể thao|golf|tennis|f1|racing|nba|premier|serie|bundesliga|ufc|boxing)\b/i.test(v)) {
+            detectedGroup = "Sports";
+          } else if (/\b(movie|movies|cinema|phim|cine|hbo|cinemax|film)\b/i.test(v)) {
+            detectedGroup = "Movies";
+          } else if (/\b(news|thời sự|tin tức|cnn|bbc news)\b/i.test(v)) {
+            detectedGroup = "News";
+          } else if (/\b(music|âm nhạc|mtv|nhạc)\b/i.test(v)) {
+            detectedGroup = "Music";
+          }
+
+          const groupInput = document.getElementById("inputGroup");
+          const countryInput = document.getElementById("inputCountry");
+          let detectedNotes = [];
+
+          if (detectedCountry && !isManuallyEditingCountry) {
+            if (countryInput) countryInput.value = detectedCountry;
+            detectedNotes.push("Country: " + detectedCountry);
+          }
+          if (detectedGroup && !isManuallyEditingGroup) {
+            if (groupInput) groupInput.value = detectedGroup;
+            detectedNotes.push("Group: " + detectedGroup);
+          }
+
+          if (badge) {
+            if (detectedNotes.length > 0) {
+              badge.innerText = "⚡ " + detectedNotes.join(" | ");
+              badge.style.display = "inline";
+            } else {
+              badge.style.display = "none";
+            }
+          }
+        }
+
+        function syncModalSourcesToTextarea() {
+          const textarea = document.getElementById("inputSources");
+          if (textarea) {
+            textarea.value = modalSourcesArray.join("\n");
+            validateSourcesInput(textarea.value);
+          }
+        }
+
+        function handleSourcesTextareaInput(val) {
+          const matches = (val.match(/[a-fA-F0-9]{40}/g) || []);
+          modalSourcesArray = matches.map(s => s.toLowerCase());
+          renderModalSourcesList(false);
+          validateSourcesInput(val);
+        }
+
+        function renderModalSourcesList(syncTextarea = true) {
+          const container = document.getElementById("modalSourcesListContainer");
+          if (!container) return;
+
+          if (modalSourcesArray.length === 0) {
+            container.style.display = "none";
+            container.innerHTML = "";
+            if (syncTextarea) syncModalSourcesToTextarea();
+            return;
+          }
+
+          container.style.display = "flex";
+          container.style.flexDirection = "column";
+          container.style.gap = "4px";
+
+          container.innerHTML = modalSourcesArray.map((src, idx) => {
+            const isPrimary = idx === 0;
+            const rankLabel = isPrimary ? "#1 (Chính)" : ("#" + (idx + 1) + " (Dự phòng)");
+            const shortHash = src.slice(0, 8) + "..." + src.slice(-6);
+            const canUp = idx > 0;
+            const canDown = idx < modalSourcesArray.length - 1;
+
+            return `
+              <div class="source-card-item">
+                <span class="source-card-rank ${isPrimary ? 'rank-primary' : 'rank-backup'}">${rankLabel}</span>
+                <span class="source-card-hash" title="${src}"><code>${shortHash}</code></span>
+                <div class="source-card-actions">
+                  <button type="button" class="source-card-btn" onclick="moveModalSourceUp(${idx})" ${canUp ? '' : 'disabled'} title="Tăng mức ưu tiên">▲</button>
+                  <button type="button" class="source-card-btn" onclick="moveModalSourceDown(${idx})" ${canDown ? '' : 'disabled'} title="Giảm mức ưu tiên">▼</button>
+                  <button type="button" class="source-card-btn btn-remove" onclick="removeModalSource(${idx})" title="Xóa nguồn này">✕</button>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          if (syncTextarea) syncModalSourcesToTextarea();
+        }
+
+        function moveModalSourceUp(idx) {
+          if (idx <= 0 || idx >= modalSourcesArray.length) return;
+          const temp = modalSourcesArray[idx];
+          modalSourcesArray[idx] = modalSourcesArray[idx - 1];
+          modalSourcesArray[idx - 1] = temp;
+          renderModalSourcesList(true);
+        }
+
+        function moveModalSourceDown(idx) {
+          if (idx < 0 || idx >= modalSourcesArray.length - 1) return;
+          const temp = modalSourcesArray[idx];
+          modalSourcesArray[idx] = modalSourcesArray[idx + 1];
+          modalSourcesArray[idx + 1] = temp;
+          renderModalSourcesList(true);
+        }
+
+        function removeModalSource(idx) {
+          if (idx < 0 || idx >= modalSourcesArray.length) return;
+          modalSourcesArray.splice(idx, 1);
+          renderModalSourcesList(true);
+        }
+
+        async function pasteModalSourcesFromClipboard() {
+          try {
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+              showToast("Trình duyệt không hỗ trợ đọc clipboard tự động, vui lòng dán tay vào ô phía dưới.", false);
+              return;
+            }
+            const text = await navigator.clipboard.readText();
+            const matches = (text.match(/[a-fA-F0-9]{40}/g) || []);
+            if (matches.length === 0) {
+              showToast("Không tìm thấy Content ID (40 ký tự hex) nào trong clipboard!", false);
+              return;
+            }
+
+            let addedCount = 0;
+            matches.forEach(m => {
+              const lower = m.toLowerCase();
+              if (!modalSourcesArray.some(s => s.toLowerCase() === lower)) {
+                modalSourcesArray.push(lower);
+                addedCount++;
+              }
+            });
+
+            renderModalSourcesList(true);
+            showToast("Đã trích xuất & dán " + matches.length + " Content ID (" + addedCount + " nguồn mới) từ clipboard!", true);
+          } catch (err) {
+            showToast("Không thể đọc clipboard: " + err.message, false);
           }
         }
 
@@ -2467,6 +3044,19 @@ defmodule AcexGateway.Web.DashboardView do
         function openChannelModal(channel = null) {
           const modal = document.getElementById("channelModal");
           const title = document.getElementById("modalTitle");
+          const autoBadge = document.getElementById("autoDetectBadge");
+          if (autoBadge) autoBadge.style.display = "none";
+          isManuallyEditingGroup = false;
+          isManuallyEditingCountry = false;
+
+          const groupInput = document.getElementById("inputGroup");
+          const countryInput = document.getElementById("inputCountry");
+          if (groupInput) {
+            groupInput.oninput = () => { isManuallyEditingGroup = true; };
+          }
+          if (countryInput) {
+            countryInput.oninput = () => { isManuallyEditingCountry = true; };
+          }
 
           if (channel) {
             title.innerText = "Edit Channel: " + channel.name;
@@ -2474,19 +3064,22 @@ defmodule AcexGateway.Web.DashboardView do
             document.getElementById("inputName").value = channel.name || "";
             document.getElementById("inputCountry").value = channel.country || "";
             document.getElementById("inputGroup").value = channel.group || "";
-            document.getElementById("inputSources").value = (channel.sources || []).join("\\n");
             document.getElementById("inputLogo").value = channel.logo || "";
-            validateSourcesInput(document.getElementById("inputSources").value);
+            modalSourcesArray = Array.isArray(channel.sources) ? [...channel.sources] : [];
+            isManuallyEditingGroup = !!channel.group;
+            isManuallyEditingCountry = !!channel.country;
           } else {
             title.innerText = "Add New Channel";
             document.getElementById("editChannelId").value = "";
             document.getElementById("inputName").value = "";
             document.getElementById("inputCountry").value = "";
             document.getElementById("inputGroup").value = "";
-            document.getElementById("inputSources").value = "";
             document.getElementById("inputLogo").value = "";
-            document.getElementById("sourcesDetectedHint").innerText = "";
+            modalSourcesArray = [];
           }
+
+          renderModalSourcesList();
+          syncModalSourcesToTextarea();
 
           const resBox = document.getElementById("modalValidationResults");
           if (resBox) { resBox.style.display = "none"; resBox.innerHTML = ""; }
@@ -2559,14 +3152,9 @@ defmodule AcexGateway.Web.DashboardView do
 
         function stripDeadModalSources(deadList) {
           if (!Array.isArray(deadList) || deadList.length === 0) return;
-          const input = document.getElementById("inputSources");
-          let val = input.value;
-          deadList.forEach(dead => {
-            val = val.replace(new RegExp(dead, 'gi'), '');
-          });
-          const cleanMatches = (val.match(/[a-fA-F0-9]{40}/g) || []);
-          input.value = cleanMatches.join("\\n");
-          validateSourcesInput(input.value);
+          const deadSet = new Set(deadList.map(s => s.toLowerCase()));
+          modalSourcesArray = modalSourcesArray.filter(s => !deadSet.has(s.toLowerCase()));
+          renderModalSourcesList(true);
           const resBox = document.getElementById("modalValidationResults");
           if (resBox) resBox.style.display = "none";
           showToast("Đã loại bỏ " + deadList.length + " nguồn chết khỏi danh sách!", true);
@@ -2622,6 +3210,7 @@ defmodule AcexGateway.Web.DashboardView do
               if (data.channel) {
                 const idx = allChannels.findIndex(x => x.id === channelId);
                 if (idx !== -1) allChannels[idx] = data.channel;
+                updateFleetHealthMetrics();
                 filterChannels();
               }
               showToast("Đã dọn dẹp " + data.pruned_count + " nguồn chết thành công!", true);
@@ -2683,6 +3272,7 @@ defmodule AcexGateway.Web.DashboardView do
                 showToast("New channel created successfully!");
               }
               renderCategoryTabs();
+              updateFleetHealthMetrics();
               filterChannels();
               closeChannelModal();
             } else {
@@ -2700,6 +3290,7 @@ defmodule AcexGateway.Web.DashboardView do
             if (res.ok) {
               allChannels = allChannels.filter(c => c.id !== id);
               renderCategoryTabs();
+              updateFleetHealthMetrics();
               filterChannels();
               showToast("Channel deleted successfully!");
             }
@@ -2878,6 +3469,7 @@ defmodule AcexGateway.Web.DashboardView do
               if (chRes.ok) {
                 allChannels = await chRes.json();
                 renderCategoryTabs();
+                updateFleetHealthMetrics();
                 filterChannels();
               }
             } else {
@@ -2923,6 +3515,112 @@ defmodule AcexGateway.Web.DashboardView do
             return;
           }
           copyText(text, "All channels copied in Content ID format!", btn);
+        }
+
+        // In-Dashboard Web Video Player Modal (MPEG-TS Live Player)
+        function openWebPlayerModal(title, streamUrl) {
+          activeWebPlayerTitle = title;
+          activeWebPlayerUrl = streamUrl;
+
+          const titleEl = document.getElementById("webPlayerChannelName");
+          if (titleEl) titleEl.innerText = title;
+          const modal = document.getElementById("webPlayerModal");
+          if (modal) modal.classList.add("active");
+
+          const videoElem = document.getElementById("webVideoPlayer");
+          const statsBadge = document.getElementById("playerStatsBadge");
+
+          // Reset existing player instance cleanly
+          if (mpegtsPlayerInstance) {
+            try {
+              mpegtsPlayerInstance.pause();
+              mpegtsPlayerInstance.unload();
+              mpegtsPlayerInstance.detachMediaElement();
+              mpegtsPlayerInstance.destroy();
+            } catch (_) {}
+            mpegtsPlayerInstance = null;
+          }
+
+          if (videoElem) {
+            videoElem.pause();
+            videoElem.removeAttribute("src");
+            videoElem.load();
+          }
+
+          if (window.mpegts && mpegts.isSupported()) {
+            if (statsBadge) statsBadge.innerText = "MSE Connecting...";
+            try {
+              mpegtsPlayerInstance = mpegts.createPlayer({
+                type: "mse",
+                isLive: true,
+                url: streamUrl
+              }, {
+                enableWorker: true,
+                lazyLoad: false,
+                liveBufferLatencyChasing: true
+              });
+
+              mpegtsPlayerInstance.attachMediaElement(videoElem);
+              mpegtsPlayerInstance.load();
+              const p = mpegtsPlayerInstance.play();
+              if (p && p.catch) {
+                p.catch(err => {
+                  console.log("Autoplay blocked or waiting user gesture:", err);
+                });
+              }
+
+              mpegtsPlayerInstance.on(mpegts.Events.STATISTICS_INFO, (stat) => {
+                if (stat && stat.speed && statsBadge) {
+                  statsBadge.innerText = "MSE: " + Math.round(stat.speed) + " KB/s";
+                }
+              });
+
+              mpegtsPlayerInstance.on(mpegts.Events.ERROR, (errType, errDetail) => {
+                console.warn("MPEG-TS Error:", errType, errDetail);
+                if (statsBadge) statsBadge.innerText = "MSE: " + errType;
+              });
+            } catch (err) {
+              console.warn("mpegts.createPlayer error:", err);
+              if (statsBadge) statsBadge.innerText = "Direct Stream";
+              if (videoElem) {
+                videoElem.src = streamUrl;
+                videoElem.play().catch(() => {});
+              }
+            }
+          } else {
+            if (statsBadge) statsBadge.innerText = "Native Video Fallback";
+            if (videoElem) {
+              videoElem.src = streamUrl;
+              videoElem.play().catch(() => {});
+            }
+          }
+        }
+
+        function closeWebPlayerModal() {
+          const modal = document.getElementById("webPlayerModal");
+          if (modal) modal.classList.remove("active");
+
+          const videoElem = document.getElementById("webVideoPlayer");
+          if (mpegtsPlayerInstance) {
+            try {
+              mpegtsPlayerInstance.pause();
+              mpegtsPlayerInstance.unload();
+              mpegtsPlayerInstance.detachMediaElement();
+              mpegtsPlayerInstance.destroy();
+            } catch (_) {}
+            mpegtsPlayerInstance = null;
+          }
+
+          if (videoElem) {
+            videoElem.pause();
+            videoElem.removeAttribute("src");
+            videoElem.load();
+          }
+        }
+
+        function openExternalFromWebPlayer() {
+          closeWebPlayerModal();
+          openLauncherModal(activeWebPlayerTitle, activeWebPlayerUrl);
         }
 
         // Stream Launcher Modal
@@ -3093,7 +3791,11 @@ defmodule AcexGateway.Web.DashboardView do
 
         function closeOnBackdrop(e, modalId) {
           if (e.target.id === modalId) {
-            document.getElementById(modalId).classList.remove("active");
+            if (modalId === "webPlayerModal") {
+              closeWebPlayerModal();
+            } else {
+              document.getElementById(modalId).classList.remove("active");
+            }
           }
         }
 
@@ -3352,6 +4054,15 @@ defmodule AcexGateway.Web.DashboardView do
               text.innerText = "SYSTEM READY";
             }
 
+            // Extract active channel keys and update fleet health metrics
+            const activeKeys = new Set();
+            channels.forEach(c => {
+              if (c.channel_key) activeKeys.add(c.channel_key);
+              if (c.target) activeKeys.add(c.target);
+              if (c.active_channel) activeKeys.add(c.active_channel);
+            });
+            updateFleetHealthMetrics(activeKeys);
+
             // Update live indicators on catalog cards and table rows
             updateCatalogLiveBadges(channels);
           } catch (_) {}
@@ -3363,14 +4074,19 @@ defmodule AcexGateway.Web.DashboardView do
             e.preventDefault();
             document.getElementById("channelSearch").focus();
           } else if (e.key === "Escape") {
+            closeWebPlayerModal();
             closeChannelModal();
             closeLauncherModal();
             closeQrModal();
+            closeExportModal();
+            closeImportModal();
+            closeXtreamModal();
           }
         });
 
         // Initialize
         renderCategoryTabs();
+        updateFleetHealthMetrics();
         renderChannels(allChannels);
         setInterval(pollStats, 2000);
         pollStats();

@@ -344,6 +344,60 @@ defmodule AcexGateway.Web.Router do
     end
   end
 
+  post "/api/channels/prune-all-dead" do
+    channels = Store.list_channels()
+    multi_source_channels = Enum.filter(channels, fn c -> length(c["sources"] || []) > 1 end)
+
+    results_acc =
+      Enum.reduce(multi_source_channels, %{pruned_sources_count: 0, affected_channels: 0}, fn ch,
+                                                                                              acc ->
+        ch_id = ch["id"]
+
+        case Validator.validate_channel(ch_id, force: true) do
+          {:ok, %{results: results}} ->
+            dead_sources =
+              results
+              |> Enum.filter(&(&1.valid == false))
+              |> Enum.map(& &1.source)
+
+            # Re-fetch channel to get fresh sources count before pruning each
+            pruned =
+              Enum.reduce(dead_sources, 0, fn src, p_acc ->
+                case Store.remove_channel_source(ch_id, src) do
+                  {:ok, _} -> p_acc + 1
+                  _ -> p_acc
+                end
+              end)
+
+            if pruned > 0 do
+              %{
+                pruned_sources_count: acc.pruned_sources_count + pruned,
+                affected_channels: acc.affected_channels + 1
+              }
+            else
+              acc
+            end
+
+          _ ->
+            acc
+        end
+      end)
+
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_content_type("application/json")
+    |> send_resp(
+      200,
+      Jason.encode!(%{
+        status: "ok",
+        total_checked_channels: length(multi_source_channels),
+        affected_channels: results_acc.affected_channels,
+        pruned_sources_count: results_acc.pruned_sources_count,
+        channels: Store.list_channels()
+      })
+    )
+  end
+
   get "/api/settings" do
     settings = SettingsStore.get_all_settings()
 

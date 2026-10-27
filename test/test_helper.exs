@@ -36,6 +36,26 @@ defmodule AcexGateway.Test.FakeTelnet do
 
   defp client_loop(client) do
     case :gen_tcp.recv(client, 0) do
+      {:ok, "READY " <> _} ->
+        :gen_tcp.send(client, "AUTH 1 user_level=2\r\n")
+        client_loop(client)
+
+      {:ok, "LOADASYNC 1 PID " <> rest} ->
+        hash = String.trim(rest)
+
+        if String.starts_with?(hash, "11112222") do
+          clean_infohash = "aa" <> String.slice(hash, 2..-1//1)
+
+          :gen_tcp.send(
+            client,
+            ~s(LOADRESP 1 {"status": 1, "infohash": "#{clean_infohash}", "checksum": "mock"}\r\n)
+          )
+        else
+          :gen_tcp.send(client, ~s(LOADRESP 1 {"status": 0, "error": "Cannot load torrent"}\r\n))
+        end
+
+        client_loop(client)
+
       {:ok, _line} ->
         client_loop(client)
 

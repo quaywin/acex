@@ -21,11 +21,15 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.resp_body =~ "viewBox=\"0 0 64 64\""
   end
 
-  test "GET / returns landing HTML dashboard" do
+  test "GET / returns landing HTML dashboard with player, fleet banner, and filters" do
     conn = conn(:get, "/") |> Router.call(@opts)
     assert conn.status == 200
     assert conn.resp_body =~ "AcexGateway"
     assert conn.resp_body =~ "playlist.m3u"
+    assert conn.resp_body =~ "fleet-health-banner"
+    assert conn.resp_body =~ "filter-tab-pill"
+    assert conn.resp_body =~ "webPlayerModal"
+    assert conn.resp_body =~ "mpegts.min.js"
   end
 
   test "GET /playlist.m3u and /playlist.m3u8 return valid m3u format" do
@@ -338,5 +342,65 @@ defmodule AcexGateway.Web.RouterTest do
     # Cleanup
     AcexGateway.Channels.Store.delete_channel("prune-router-single")
     AcexGateway.Channels.Store.delete_channel("prune-router-multi")
+  end
+
+  test "POST /api/channels/prune-all-dead cleans dead sources across all multi-source channels" do
+    # Pre-cache valid_hash as alive
+    valid_hash = "1111222233334444555566667777888899990000"
+    AcexGateway.Engine.Validator.ensure_cache()
+    now = System.monotonic_time(:second) + 60
+
+    :ets.insert(
+      :acex_validator_cache,
+      {valid_hash,
+       %{
+         source: valid_hash,
+         clean_source: valid_hash,
+         valid: true,
+         infohash: "ok",
+         response_time_ms: 5,
+         error: nil
+       }, now}
+    )
+
+    # Multi-source channel with 1 alive and 2 invalid dead sources
+    ch_multi = %{
+      "id" => "bulk-prune-test-1",
+      "name" => "Bulk Prune Test",
+      "sources" => [valid_hash, "dead_short_1", "dead_short_2"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch_multi)
+
+    # Single-source channel (must be protected)
+    ch_single = %{
+      "id" => "bulk-prune-test-single",
+      "name" => "Bulk Prune Single",
+      "sources" => ["dead_short_single"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch_single)
+
+    conn =
+      conn(:post, "/api/channels/prune-all-dead", %{})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn.status == 200
+    resp = Jason.decode!(conn.resp_body)
+    assert resp["status"] == "ok"
+    assert resp["pruned_sources_count"] >= 2
+
+    # Verify single source is untouched
+    stored_single = AcexGateway.Channels.Store.get_channel("bulk-prune-test-single")
+    assert stored_single["sources"] == ["dead_short_single"]
+
+    # Verify multi channel had invalid sources pruned
+    stored_multi = AcexGateway.Channels.Store.get_channel("bulk-prune-test-1")
+    assert stored_multi["sources"] == [valid_hash]
+
+    # Cleanup
+    AcexGateway.Channels.Store.delete_channel("bulk-prune-test-1")
+    AcexGateway.Channels.Store.delete_channel("bulk-prune-test-single")
   end
 end

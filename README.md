@@ -35,9 +35,10 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 - **Zero-Transcode Passthrough**: Relays MPEG-TS packets directly without CPU transcoding. An in-memory ring buffer delivers keyframes immediately on channel switch.
 - **Multi-Channel and Fan-Out Relay**: Streams multiple channels concurrently. Multiple clients watching the same channel share a single upstream connection to save bandwidth.
 - **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`, `STATUS main:error`, fatal `LOADRESP`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
-- **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source).
+- **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source), with 1-click fleet-wide cleanup (`POST /api/channels/prune-all-dead`).
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
-- **Web Dashboard & Live Telemetry**: Manage channels, view real-time prebuffering progress (`%`), swarm peers/speed telemetry, import playlists, and launch streams directly in VLC, IINA, or PotPlayer.
+- **In-Dashboard Web Video Player**: Instant in-browser MPEG-TS live playback using HTML5 MSE decoding (`mpegts.js`), allowing real-time preview and health inspection with zero external app dependencies.
+- **Web Dashboard & Live Telemetry**: Manage channels, inspect Fleet Health metrics (total, multi-source, single-source, active streams), smart filter chips, one-click clipboard hash extractor, priority fallback reordering (`▲/▼`), real-time prebuffering progress (`%`), and stream launchers for VLC, IINA, or PotPlayer.
 
 ---
 
@@ -127,6 +128,7 @@ Open the dashboard at **http://localhost:8686**.
 | `GET /` | Web Console | Channel management and player launcher |
 | `POST /api/channels/validate-source` | JSON API | Content ID health check (no buffering, ETS memoized) |
 | `POST /api/channels/:id/prune-dead` | JSON API | One-click dead source pruning (keeps $\ge 1$ source) |
+| `POST /api/channels/prune-all-dead` | JSON API | Bulk prune dead sources across multi-source channels (keeps $\ge 1$ source) |
 
 ---
 
