@@ -16,7 +16,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @sweep_interval_ms 10_000
   @inactivity_timeout_s 30
-  @max_startup_wait_ms 4_000
+  @max_startup_wait_ms 10_000
 
   # --- Client API ---
 
@@ -37,7 +37,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
   """
   def get_playlist(target) do
     if ffmpeg_available?() do
-      GenServer.call(__MODULE__, {:get_playlist, target}, 10_000)
+      GenServer.call(__MODULE__, {:get_playlist, target}, 15_000)
     else
       {:error, :ffmpeg_not_found}
     end

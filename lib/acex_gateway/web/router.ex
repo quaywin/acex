@@ -806,13 +806,19 @@ defmodule AcexGateway.Web.Router do
   @max_backlog_chunks 120
 
   defp request_base_url(conn) do
+    proto =
+      case Plug.Conn.get_req_header(conn, "x-forwarded-proto") do
+        [p | _] when p in ["http", "https"] -> p
+        _ -> to_string(conn.scheme)
+      end
+
     host =
       case Plug.Conn.get_req_header(conn, "host") do
         [h | _] -> h
         [] -> "#{conn.host}:#{conn.port}"
       end
 
-    "http://#{host}"
+    "#{proto}://#{host}"
   end
 
   defp stream_loop(conn, broadcaster_pid) do

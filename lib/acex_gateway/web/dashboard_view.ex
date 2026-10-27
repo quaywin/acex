@@ -2639,7 +2639,7 @@ defmodule AcexGateway.Web.DashboardView do
 
       <script>
         let allChannels = #{channels_json};
-        const baseUrl = "#{base_url}";
+        const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
         let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url})};
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
