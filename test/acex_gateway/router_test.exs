@@ -118,7 +118,7 @@ defmodule AcexGateway.Web.RouterTest do
     conn = conn(:get, "/stat") |> Router.call(@opts)
     assert conn.status == 200
     data = Jason.decode!(conn.resp_body)
-    assert data["version"] == "0.1.0"
+    assert data["version"] == AcexGateway.version()
     assert data["engine"] =~ "AcexGateway"
     assert Map.has_key?(data, "buffered_bytes")
     assert Map.has_key?(data, "channels")
@@ -413,7 +413,7 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.status == 200
     assert get_resp_header(conn, "content-type") == ["application/json; charset=utf-8"]
     data = Jason.decode!(conn.resp_body)
-    assert data["current_version"] == "0.1.0"
+    assert data["current_version"] == AcexGateway.version()
     assert Map.has_key?(data, "latest_version")
     assert Map.has_key?(data, "has_update")
     assert Map.has_key?(data, "update_method")
@@ -423,7 +423,7 @@ defmodule AcexGateway.Web.RouterTest do
     conn_force = conn(:get, "/api/system/version?force=true") |> Router.call(@opts)
     assert conn_force.status == 200
     data_force = Jason.decode!(conn_force.resp_body)
-    assert data_force["current_version"] == "0.1.0"
+    assert data_force["current_version"] == AcexGateway.version()
   end
 
   test "POST /api/system/update triggers system update workflow" do

@@ -2755,7 +2755,7 @@ defmodule AcexGateway.Web.DashboardView do
                     <div class="card-actions-row">
                       <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForChannel('${c.id}')" title="Xem trực tiếp trên trình duyệt">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>▶ Xem thử</span>
+                        <span>Xem thử</span>
                       </button>
                       <button class="btn btn-primary btn-sm" onclick="openLauncherForChannel('${c.id}')">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -4210,7 +4210,7 @@ defmodule AcexGateway.Web.DashboardView do
           const modal = document.getElementById("updateModal");
           if (modal) {
             modal.classList.add("active");
-            checkSystemVersion();
+            checkSystemVersion(true);
           }
         }
 
