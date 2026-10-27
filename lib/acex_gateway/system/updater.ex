@@ -198,7 +198,7 @@ defmodule AcexGateway.System.Updater do
       {"content-type", "application/json"}
     ]
 
-    case Req.post(endpoint, headers: headers, receive_timeout: 10_000, retry: false) do
+    case Req.post(endpoint, headers: headers, receive_timeout: 45_000, retry: false) do
       {:ok, %{status: status, body: body}} when status in 200..299 ->
         Logger.info("[Updater] Watchtower update accepted: #{inspect(body)}")
 
@@ -220,14 +220,37 @@ defmodule AcexGateway.System.Updater do
          }}
 
       {:error, reason} ->
-        Logger.warning("[Updater] Cannot reach Watchtower at #{endpoint}: #{inspect(reason)}")
+        # When Watchtower stops and recreates acex-gateway, or takes time pulling images,
+        # the HTTP connection may close or timeout while the update is actively proceeding.
+        is_in_progress =
+          case reason do
+            %{reason: r} when r in [:timeout, :econnreset, :closed] -> true
+            :timeout -> true
+            :closed -> true
+            _ -> false
+          end
 
-        {:error,
-         %{
-           status: "error",
-           message: "Cannot connect to Watchtower service. Please run update command manually.",
-           command: "docker compose pull && docker compose up -d"
-         }}
+        if is_in_progress do
+          Logger.info(
+            "[Updater] Watchtower request ended with #{inspect(reason)} (update in progress)."
+          )
+
+          {:ok,
+           %{
+             status: "updating",
+             method: "watchtower",
+             message: "Watchtower update dispatched. Containers will be recreated shortly."
+           }}
+        else
+          Logger.warning("[Updater] Cannot reach Watchtower at #{endpoint}: #{inspect(reason)}")
+
+          {:error,
+           %{
+             status: "error",
+             message: "Cannot connect to Watchtower service. Please run update command manually.",
+             command: "docker compose pull && docker compose up -d"
+           }}
+        end
     end
   end
 

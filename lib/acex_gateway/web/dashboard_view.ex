@@ -61,6 +61,16 @@ defmodule AcexGateway.Web.DashboardView do
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
       <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+      <script>
+        window['__onGCastApiAvailable'] = function(isAvailable) {
+          if (isAvailable) {
+            window.isCastApiAvailable = true;
+            if (typeof initGoogleCastFramework === "function") {
+              initGoogleCastFramework();
+            }
+          }
+        };
+      </script>
       <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
       <style>
         :root {
@@ -3838,44 +3848,47 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         // --- Google Cast (Chromecast / Google TV) Support ---
-        window['__onGCastApiAvailable'] = function(isAvailable) {
-          if (isAvailable && window.cast && window.cast.framework) {
+        function initGoogleCastFramework() {
+          if (!window.cast || !window.cast.framework || !cast.framework.CastContext) return;
+          try {
+            cast.framework.CastContext.getInstance().setOptions({
+              receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+              autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED
+            });
+
+            const context = cast.framework.CastContext.getInstance();
+            context.addEventListener(
+              cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+              function(event) {
+                switch (event.sessionState) {
+                  case cast.framework.SessionState.SESSION_STARTED:
+                  case cast.framework.SessionState.SESSION_RESUMED:
+                    castSession = context.getCurrentSession();
+                    onCastSessionConnected();
+                    break;
+                  case cast.framework.SessionState.SESSION_ENDED:
+                    castSession = null;
+                    onCastSessionDisconnected();
+                    break;
+                }
+              }
+            );
+
+            context.addEventListener(
+              cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+              function(event) {
+                updateCastUiState(event.castState);
+              }
+            );
             isCastApiAvailable = true;
-            try {
-              cast.framework.CastContext.getInstance().setOptions({
-                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED
-              });
-
-              const context = cast.framework.CastContext.getInstance();
-              context.addEventListener(
-                cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-                function(event) {
-                  switch (event.sessionState) {
-                    case cast.framework.SessionState.SESSION_STARTED:
-                    case cast.framework.SessionState.SESSION_RESUMED:
-                      castSession = context.getCurrentSession();
-                      onCastSessionConnected();
-                      break;
-                    case cast.framework.SessionState.SESSION_ENDED:
-                      castSession = null;
-                      onCastSessionDisconnected();
-                      break;
-                  }
-                }
-              );
-
-              context.addEventListener(
-                cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-                function(event) {
-                  updateCastUiState(event.castState);
-                }
-              );
-            } catch (e) {
-              console.warn("Cast framework init error:", e);
-            }
+          } catch (e) {
+            console.warn("Cast framework init error:", e);
           }
-        };
+        }
+
+        if (window.isCastApiAvailable || (window.cast && window.cast.framework)) {
+          initGoogleCastFramework();
+        }
 
         function warnIfLocalhostForCast() {
           const host = window.location.hostname;
@@ -3915,8 +3928,13 @@ defmodule AcexGateway.Web.DashboardView do
 
         function triggerCast() {
           warnIfLocalhostForCast();
-          if (!isCastApiAvailable || !window.cast || !window.cast.framework) {
-            showToast("Google Cast is supported on Google Chrome, Brave or Edge browsers on the same local Wi-Fi / LAN as your TV.", false);
+
+          if (!isCastApiAvailable && window.cast && window.cast.framework) {
+            initGoogleCastFramework();
+          }
+
+          if (!isCastApiAvailable && !window.isCastApiAvailable && (!window.cast || !window.cast.framework)) {
+            showToast("Google Cast requires Google Chrome or Edge on the same local Wi-Fi / LAN. Or use 'Copy Cast URL' with any player.", false);
             return;
           }
           if (!activeWebPlayerTarget) {
