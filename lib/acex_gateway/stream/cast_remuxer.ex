@@ -37,7 +37,15 @@ defmodule AcexGateway.Stream.CastRemuxer do
   """
   def get_playlist(target) do
     if ffmpeg_available?() do
-      GenServer.call(__MODULE__, {:get_playlist, target}, 15_000)
+      clean_target = sanitize_target(target)
+
+      case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target}, 15_000) do
+        {:ok, m3u8_path} ->
+          wait_for_manifest(clean_target, m3u8_path)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     else
       {:error, :ffmpeg_not_found}
     end
@@ -49,6 +57,16 @@ defmodule AcexGateway.Stream.CastRemuxer do
   """
   def get_segment(target, segment_name) do
     GenServer.call(__MODULE__, {:get_segment, target, segment_name})
+  end
+
+  @doc """
+  Checks if a remuxer job is currently running for the target.
+  """
+  def running?(target) do
+    clean_target = sanitize_target(target)
+    GenServer.call(__MODULE__, {:is_running?, clean_target}, 3_000)
+  catch
+    :exit, _ -> false
   end
 
   @doc """
@@ -64,12 +82,13 @@ defmodule AcexGateway.Stream.CastRemuxer do
   def init(_opts) do
     Process.flag(:trap_exit, true)
     schedule_sweep()
+    # Clean up stale temp directories from previous runs on boot
+    cleanup_dir(Path.join(System.tmp_dir!(), "acex_cast"))
     {:ok, %{jobs: %{}}}
   end
 
   @impl true
-  def handle_call({:get_playlist, target}, _from, state) do
-    clean_target = sanitize_target(target)
+  def handle_call({:ensure_remuxer, clean_target}, _from, state) do
     now = System.monotonic_time(:second)
 
     case Map.get(state.jobs, clean_target) do
@@ -77,33 +96,24 @@ defmodule AcexGateway.Stream.CastRemuxer do
         updated_job = %{job | last_accessed: now}
         new_jobs = Map.put(state.jobs, clean_target, updated_job)
         m3u8_path = Path.join(dir, "live.m3u8")
-
-        case wait_for_manifest(m3u8_path) do
-          :ok ->
-            {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
-
-          {:error, reason} ->
-            {:reply, {:error, reason}, %{state | jobs: new_jobs}}
-        end
+        {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
 
       nil ->
         case start_ffmpeg_job(clean_target) do
           {:ok, job} ->
             new_jobs = Map.put(state.jobs, clean_target, job)
             m3u8_path = Path.join(job.dir, "live.m3u8")
-
-            case wait_for_manifest(m3u8_path) do
-              :ok ->
-                {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
-
-              {:error, reason} ->
-                {:reply, {:error, reason}, %{state | jobs: new_jobs}}
-            end
+            {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
 
           {:error, reason} ->
             {:reply, {:error, reason}, state}
         end
     end
+  end
+
+  @impl true
+  def handle_call({:is_running?, clean_target}, _from, state) do
+    {:reply, Map.has_key?(state.jobs, clean_target), state}
   end
 
   @impl true
@@ -244,7 +254,16 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hide_banner",
         "-loglevel",
         "warning",
-        "-re",
+        "-fflags",
+        "+genpts+discardcorrupt",
+        "-reconnect",
+        "1",
+        "-reconnect_at_eof",
+        "1",
+        "-reconnect_streamed",
+        "1",
+        "-reconnect_delay_max",
+        "2",
         "-i",
         input_url,
         "-c:v",
@@ -253,14 +272,16 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "aac",
         "-b:a",
         "128k",
+        "-af",
+        "aresample=async=1000",
         "-f",
         "hls",
         "-hls_time",
-        "2",
+        "3",
         "-hls_list_size",
-        "4",
+        "6",
         "-hls_flags",
-        "delete_segments+temp_file",
+        "delete_segments+temp_file+independent_segments",
         "-hls_segment_type",
         "mpegts",
         "-hls_segment_filename",
@@ -299,12 +320,19 @@ defmodule AcexGateway.Stream.CastRemuxer do
     end
   end
 
-  defp wait_for_manifest(m3u8_path, start_time \\ System.monotonic_time(:millisecond)) do
+  defp wait_for_manifest(target, m3u8_path, start_time \\ System.monotonic_time(:millisecond)) do
     elapsed = System.monotonic_time(:millisecond) - start_time
 
     cond do
       manifest_ready?(m3u8_path) ->
         :ok
+
+      not running?(target) ->
+        if File.exists?(m3u8_path) do
+          :ok
+        else
+          {:error, :remuxer_exited}
+        end
 
       elapsed > @max_startup_wait_ms ->
         # If manifest exists even partially, allow it; else timeout
@@ -316,7 +344,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
       true ->
         Process.sleep(150)
-        wait_for_manifest(m3u8_path, start_time)
+        wait_for_manifest(target, m3u8_path, start_time)
     end
   end
 
@@ -373,6 +401,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
   defp sanitize_target(target) when is_binary(target) do
     target
     |> String.trim()
+    |> String.replace("..", "")
     |> String.replace(~r/[^a-zA-Z0-9_\-\.]/, "_")
   end
 
