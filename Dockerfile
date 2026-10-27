@@ -3,14 +3,12 @@
 # ============================================================
 FROM --platform=linux/amd64 hexpm/elixir:1.18.3-erlang-27.3-ubuntu-jammy-20250126 AS builder
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git build-essential && \
-    rm -rf /var/lib/apt/lists/*
+ARG APP_VERSION=0.6.4
+ENV MIX_ENV=prod \
+    APP_VERSION=$APP_VERSION \
+    ERL_FLAGS="+JMsingle true"
 
 WORKDIR /app
-
-ENV MIX_ENV=prod \
-    ERL_FLAGS="+JMsingle true"
 
 # Install Hex & Rebar
 RUN mix local.hex --force && \
@@ -47,7 +45,7 @@ RUN chmod +x /docker-entrypoint.sh && mkdir -p /app/data
 
 EXPOSE 8686 6878 62062 8621/tcp 8621/udp
 
-ARG APP_VERSION=0.1.0
+ARG APP_VERSION=0.6.4
 
 ENV PORT=8686 \
     APP_VERSION=$APP_VERSION \

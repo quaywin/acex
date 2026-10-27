@@ -2610,13 +2610,18 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        function escapeJsString(str) {
-          if (!str) return "";
-          return String(str)
-            .replace(/\\/g, "\\\\")
-            .replace(/'/g, "\\'")
-            .replace(/"/g, "&quot;")
-            .replace(/\n/g, " ");
+        function openWebPlayerForChannel(channelId) {
+          const c = (allChannels || []).find(x => x.id === channelId);
+          const name = c ? (c.name || "Channel") : "Channel";
+          const liveUrl = getLiveStreamUrl(channelId);
+          openWebPlayerModal(name, liveUrl);
+        }
+
+        function openLauncherForChannel(channelId) {
+          const c = (allChannels || []).find(x => x.id === channelId);
+          const name = c ? (c.name || "Channel") : "Channel";
+          const liveUrl = getLiveStreamUrl(channelId);
+          openLauncherModal(name, liveUrl);
         }
 
         // DOM Elements
@@ -2689,7 +2694,6 @@ defmodule AcexGateway.Web.DashboardView do
               const fallbackCount = sources.length;
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
-              const safeName = escapeJsString(c.name || "Channel");
 
               const sourcesListHtml = sources.map((s, idx) => `
                 <div class="source-item" id="source-row-${c.id}-${idx}">
@@ -2720,7 +2724,7 @@ defmodule AcexGateway.Web.DashboardView do
                     </div>
 
                     <!-- Centered Hover Play CTA (Primary Red) -->
-                    <button class="poster-play-btn" onclick="openLauncherModal('${safeName}', '${liveUrl}')" title="Play">
+                    <button class="poster-play-btn" onclick="openLauncherForChannel('${c.id}')" title="Play">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </button>
                   </div>
@@ -2749,11 +2753,11 @@ defmodule AcexGateway.Web.DashboardView do
 
                     <!-- Card Actions Row -->
                     <div class="card-actions-row">
-                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerModal('${safeName}', '${liveUrl}')" title="Xem trực tiếp trên trình duyệt">
+                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForChannel('${c.id}')" title="Xem trực tiếp trên trình duyệt">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>▶ Xem thử</span>
+                        <span>Xem thử</span>
                       </button>
-                      <button class="btn btn-primary btn-sm" onclick="openLauncherModal('${safeName}', '${liveUrl}')">
+                      <button class="btn btn-primary btn-sm" onclick="openLauncherForChannel('${c.id}')">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span>Watch</span>
                       </button>
@@ -2781,7 +2785,6 @@ defmodule AcexGateway.Web.DashboardView do
             channelTableBody.innerHTML = list.map(c => {
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
-              const safeName = escapeJsString(c.name || "Channel");
               return `
                 <tr data-id="${c.id}">
                   <td>
@@ -2809,8 +2812,8 @@ defmodule AcexGateway.Web.DashboardView do
                   </td>
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerModal('${safeName}', '${liveUrl}')" title="Xem trên trình duyệt">▶ Xem</button>
-                      <button class="btn btn-primary btn-xs" onclick="openLauncherModal('${safeName}', '${liveUrl}')">Watch</button>
+                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Xem trên trình duyệt">▶ Xem</button>
+                      <button class="btn btn-primary btn-xs" onclick="openLauncherForChannel('${c.id}')">Watch</button>
                       <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)">Link</button>
                       <button class="btn btn-secondary btn-xs" onclick="editChannel('${c.id}')">Edit</button>
                       <button class="btn btn-destructive btn-xs" onclick="deleteChannel('${c.id}')">Delete</button>
@@ -3055,7 +3058,7 @@ defmodule AcexGateway.Web.DashboardView do
         function syncModalSourcesToTextarea() {
           const textarea = document.getElementById("inputSources");
           if (textarea) {
-            textarea.value = modalSourcesArray.join("\n");
+            textarea.value = modalSourcesArray.join("\\n");
             validateSourcesInput(textarea.value);
           }
         }
@@ -3687,7 +3690,11 @@ defmodule AcexGateway.Web.DashboardView do
               }, {
                 enableWorker: true,
                 lazyLoad: false,
-                liveBufferLatencyChasing: true
+                stashInitialSize: 512 * 1024,
+                liveBufferLatencyChasing: false,
+                autoCleanupSourceBuffer: true,
+                autoCleanupMaxBackwardDuration: 60,
+                autoCleanupMinBackwardDuration: 30
               });
 
               mpegtsPlayerInstance.attachMediaElement(videoElem);
@@ -4203,7 +4210,7 @@ defmodule AcexGateway.Web.DashboardView do
           const modal = document.getElementById("updateModal");
           if (modal) {
             modal.classList.add("active");
-            checkSystemVersion();
+            checkSystemVersion(true);
           }
         }
 
