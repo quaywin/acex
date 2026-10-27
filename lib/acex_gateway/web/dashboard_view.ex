@@ -795,38 +795,38 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         /* -------------------------------------------------------------
-           Channel Card: 16:9 Cinematic Thumbnail / Poster (DESIGN.md)
+           Channel Card: Compact & Streamlined Modern Poster
            ------------------------------------------------------------- */
         .channel-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-          gap: var(--space-md);
+          grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+          gap: 12px;
         }
 
         .channel-card-sf {
           background: var(--surface-card);
           border: 1px solid var(--border-default);
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-sm);
           overflow: hidden;
           box-shadow: var(--shadow-sm);
           display: flex;
           flex-direction: column;
           position: relative;
-          transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+          transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
         }
 
-        /* Rule 1 & 6: Scale 1.04 + Red Glow shadow-hover on Card Hover */
         .channel-card-sf:hover {
-          transform: scale(1.04);
+          transform: translateY(-2px);
           box-shadow: var(--shadow-hover);
-          border-color: rgba(225, 29, 72, 0.4);
+          border-color: rgba(225, 29, 72, 0.45);
           z-index: 2;
         }
 
         .poster-box {
           position: relative;
           width: 100%;
-          aspect-ratio: 16 / 9;
+          aspect-ratio: 2.2 / 1;
+          max-height: 96px;
           background: #121212;
           overflow: hidden;
           display: flex;
@@ -842,7 +842,7 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         .channel-card-sf:hover .poster-img {
-          transform: scale(1.06);
+          transform: scale(1.05);
         }
 
         .poster-fallback {
@@ -853,7 +853,7 @@ defmodule AcexGateway.Web.DashboardView do
           align-items: center;
           justify-content: center;
           font-family: var(--font-headline);
-          font-size: 42px;
+          font-size: 24px;
           font-weight: 700;
           color: rgba(255, 255, 255, 0.25);
           letter-spacing: 0.05em;
@@ -862,27 +862,37 @@ defmodule AcexGateway.Web.DashboardView do
         .poster-scrim {
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, rgba(15,15,15,0.2) 0%, rgba(26,26,26,0.95) 100%);
+          background: linear-gradient(180deg, rgba(15,15,15,0.15) 0%, rgba(20,20,20,0.9) 100%);
           pointer-events: none;
         }
 
         .poster-badges-top {
           position: absolute;
-          top: 10px;
-          left: 10px;
-          right: 10px;
+          top: 6px;
+          left: 6px;
+          right: 6px;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 4px;
           pointer-events: none;
           z-index: 1;
+        }
+
+        .poster-badges-top span {
+          font-size: 10px !important;
+          padding: 2px 6px !important;
+          line-height: 1.2 !important;
+          border-radius: var(--radius-sm);
+          backdrop-filter: blur(4px);
+          white-space: nowrap;
         }
 
         /* Center Red Play Button on Poster Hover */
         .poster-play-btn {
           position: absolute;
-          width: 52px;
-          height: 52px;
+          width: 36px;
+          height: 36px;
           border-radius: var(--radius-full);
           background: var(--color-primary);
           color: #FFFFFF;
@@ -894,12 +904,14 @@ defmodule AcexGateway.Web.DashboardView do
           opacity: 0;
           transform: scale(0.85);
           box-shadow: var(--shadow-red);
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 2;
         }
 
         .poster-play-btn svg {
-          margin-left: 3px;
+          width: 16px;
+          height: 16px;
+          margin-left: 2px;
         }
 
         .channel-card-sf:hover .poster-play-btn {
@@ -909,32 +921,32 @@ defmodule AcexGateway.Web.DashboardView do
 
         .poster-play-btn:hover {
           background: var(--color-primary-hover);
-          transform: scale(1.1) !important;
+          transform: scale(1.08) !important;
         }
 
-        /* Card Content Area */
+        /* Card Content Area - Compact & Space-Efficient */
         .card-content {
-          padding: var(--space-md);
+          padding: 8px 10px 10px;
           display: flex;
           flex-direction: column;
           flex: 1;
-          gap: var(--space-sm);
+          gap: 4px;
         }
 
         .card-head {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: var(--space-sm);
+          align-items: center;
+          gap: 6px;
         }
 
         .card-title {
           font-family: var(--font-headline);
-          font-size: 19px;
+          font-size: 14px;
           font-weight: 600;
-          letter-spacing: 0.02em;
+          letter-spacing: 0.01em;
           color: #FFFFFF;
-          line-height: 1.25;
+          line-height: 1.2;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -943,40 +955,41 @@ defmodule AcexGateway.Web.DashboardView do
 
         .card-type-tag {
           font-family: var(--font-mono);
-          font-size: 11px;
+          font-size: 10px;
           color: var(--text-tertiary);
           background: var(--border-default);
-          padding: 2px 6px;
+          padding: 1px 5px;
           border-radius: var(--radius-sm);
           text-transform: uppercase;
         }
 
         .card-slug {
           font-family: var(--font-mono);
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text-tertiary);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          opacity: 0.75;
         }
 
-        /* Sources Accordion */
+        /* Sources Accordion - Compact */
         .sources-accordion {
-          border-top: 1px solid var(--border-default);
-          padding-top: var(--space-sm);
-          margin-top: auto;
+          border-top: 1px solid var(--border-subtle);
+          padding-top: 4px;
+          margin-top: 2px;
         }
 
         .sources-toggle {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-size: 13px;
-          font-weight: 600;
+          font-size: 11px;
+          font-weight: 500;
           color: var(--text-secondary);
           cursor: pointer;
           user-select: none;
-          padding: 4px 0;
+          padding: 2px 0;
           transition: color 0.2s;
         }
 
@@ -987,9 +1000,9 @@ defmodule AcexGateway.Web.DashboardView do
         .sources-list {
           display: none;
           flex-direction: column;
-          gap: 4px;
-          margin-top: 6px;
-          max-height: 140px;
+          gap: 3px;
+          margin-top: 4px;
+          max-height: 120px;
           overflow-y: auto;
         }
 
@@ -1000,12 +1013,12 @@ defmodule AcexGateway.Web.DashboardView do
         .source-item {
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 5px 8px;
+          gap: 5px;
+          padding: 3px 6px;
           background: #111111;
           border-radius: var(--radius-sm);
           font-family: var(--font-mono);
-          font-size: 12px;
+          font-size: 11px;
           color: var(--text-secondary);
         }
 
@@ -1013,17 +1026,32 @@ defmodule AcexGateway.Web.DashboardView do
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: var(--space-sm);
-          margin-top: var(--space-sm);
-          padding-top: var(--space-sm);
-          border-top: 1px solid var(--border-default);
-          flex-wrap: wrap;
+          gap: 4px;
+          margin-top: 4px;
+          padding-top: 6px;
+          border-top: 1px solid var(--border-subtle);
+        }
+
+        .card-actions-row .btn-sm {
+          padding: 3px 8px;
+          height: 26px;
+          font-size: 11px;
+          gap: 4px;
         }
 
         .card-icon-actions {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 2px;
+        }
+
+        .card-icon-actions .btn-icon {
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
         /* -------------------------------------------------------------
@@ -1446,18 +1474,18 @@ defmodule AcexGateway.Web.DashboardView do
             padding-bottom: 8px;
           }
           .channel-grid {
-            grid-template-columns: 1fr;
-            gap: var(--space-md);
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
           }
           .card-content {
-            padding: 12px;
-            gap: 6px;
+            padding: 8px 10px;
+            gap: 4px;
           }
           .card-title {
-            font-size: 17px;
+            font-size: 13px;
           }
           .card-actions-row {
-            gap: 6px;
+            gap: 4px;
           }
           .modal-overlay {
             padding: 10px;
@@ -1821,7 +1849,7 @@ defmodule AcexGateway.Web.DashboardView do
           </a>
 
           <div class="nav-right">
-            <button id="updateBadgeBtn" class="update-badge-btn" onclick="openUpdateModal()" title="Kiểm tra & Cập nhật hệ thống">
+            <button id="updateBadgeBtn" class="update-badge-btn" onclick="openUpdateModal()" title="Check & Update System">
               <span id="updateBadgeIcon">⚡</span>
               <span id="updateBadgeText">v#{AcexGateway.version()}</span>
             </button>
@@ -1923,35 +1951,35 @@ defmodule AcexGateway.Web.DashboardView do
               <div class="fleet-metric-icon">📺</div>
               <div>
                 <div class="fleet-metric-val" id="metricTotalChannels">0</div>
-                <div class="fleet-metric-label">Tổng số kênh</div>
+                <div class="fleet-metric-label">Total Channels</div>
               </div>
             </div>
             <div class="fleet-metric-item">
               <div class="fleet-metric-icon" style="color: var(--color-success);">🛡️</div>
               <div>
                 <div class="fleet-metric-val" id="metricMultiChannels">0</div>
-                <div class="fleet-metric-label">Đa nguồn dự phòng</div>
+                <div class="fleet-metric-label">Redundant Sources</div>
               </div>
             </div>
             <div class="fleet-metric-item">
               <div class="fleet-metric-icon" style="color: var(--color-warning);">⚠️</div>
               <div>
                 <div class="fleet-metric-val" id="metricSingleChannels">0</div>
-                <div class="fleet-metric-label">Đơn nguồn (1 source)</div>
+                <div class="fleet-metric-label">Single Source</div>
               </div>
             </div>
             <div class="fleet-metric-item">
               <div class="fleet-metric-icon" style="color: var(--color-primary);">🔴</div>
               <div>
                 <div class="fleet-metric-val" id="metricLiveChannels">0</div>
-                <div class="fleet-metric-label">Đang phát (Active)</div>
+                <div class="fleet-metric-label">Active Streaming</div>
               </div>
             </div>
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="btn btn-secondary btn-sm" onclick="pruneAllDeadSources(this)" title="Quét và tự động gỡ bỏ các Content ID chết trên các kênh đa nguồn" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.4);">
-              <span>🧹 Dọn nguồn chết toàn bộ</span>
+            <button class="btn btn-secondary btn-sm" onclick="pruneAllDeadSources(this)" title="Scan and automatically prune dead Content IDs across multi-source channels" style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.4);">
+              <span>🧹 Prune All Dead Sources</span>
             </button>
           </div>
         </section>
@@ -1960,10 +1988,10 @@ defmodule AcexGateway.Web.DashboardView do
         <section class="lineup-section">
           <!-- Fleet Filter Chips -->
           <div class="fleet-filter-bar">
-            <button class="filter-tab-pill active" id="filterPillAll" onclick="setFleetFilter('all')">Tất cả (<span id="countPillAll">0</span>)</button>
-            <button class="filter-tab-pill" id="filterPillLive" onclick="setFleetFilter('live')">🔴 Đang phát (<span id="countPillLive">0</span>)</button>
-            <button class="filter-tab-pill" id="filterPillMulti" onclick="setFleetFilter('multi')">🛡️ Đa nguồn (<span id="countPillMulti">0</span>)</button>
-            <button class="filter-tab-pill" id="filterPillSingle" onclick="setFleetFilter('single')">⚠️ Đơn nguồn (<span id="countPillSingle">0</span>)</button>
+            <button class="filter-tab-pill active" id="filterPillAll" onclick="setFleetFilter('all')">All (<span id="countPillAll">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillLive" onclick="setFleetFilter('live')">🔴 Active (<span id="countPillLive">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillMulti" onclick="setFleetFilter('multi')">🛡️ Redundant (<span id="countPillMulti">0</span>)</button>
+            <button class="filter-tab-pill" id="filterPillSingle" onclick="setFleetFilter('single')">⚠️ Single Source (<span id="countPillSingle">0</span>)</button>
           </div>
 
           <div class="lineup-toolbar">
@@ -2055,7 +2083,7 @@ defmodule AcexGateway.Web.DashboardView do
           <div class="footer-right">
             <span>Stream Relay Gateway</span>
             <span class="footer-sep">•</span>
-            <a href="javascript:void(0)" onclick="openUpdateModal()" style="color: var(--text-secondary); text-decoration: none;" title="Kiểm tra & Cập nhật hệ thống">v#{AcexGateway.version()}</a>
+            <a href="javascript:void(0)" onclick="openUpdateModal()" style="color: var(--text-secondary); text-decoration: none;" title="Check & Update System">v#{AcexGateway.version()}</a>
             <span class="footer-sep">•</span>
             <span>AceStream Protocol</span>
           </div>
@@ -2074,7 +2102,7 @@ defmodule AcexGateway.Web.DashboardView do
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <label class="form-label" style="margin-bottom: 0;">Channel Name:</label>
-                <span id="autoDetectBadge" style="font-size: 11px; color: var(--color-success); font-weight: 600; display: none;">⚡ Tự động nhận diện</span>
+                <span id="autoDetectBadge" style="font-size: 11px; color: var(--color-success); font-weight: 600; display: none;">⚡ Auto-detected</span>
               </div>
               <input type="text" id="inputName" class="form-control" placeholder="e.g., K+ Sport 1 HD, Sky Sports Premier League" required oninput="handleChannelNameInput(this.value)">
             </div>
@@ -2092,13 +2120,13 @@ defmodule AcexGateway.Web.DashboardView do
             <!-- Enhanced Interactive Sources Manager -->
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="form-label" style="margin-bottom: 0;">AceStream Content IDs (Thứ tự ưu tiên #1 &rarr; #N):</label>
+                <label class="form-label" style="margin-bottom: 0;">AceStream Content IDs (Priority Order #1 &rarr; #N):</label>
                 <div style="display: flex; gap: 6px;">
                   <button type="button" class="btn btn-secondary btn-xs" onclick="pasteModalSourcesFromClipboard()" style="padding: 2px 8px; font-size: 11px;">
-                    📋 Dán nhanh từ Clipboard
+                    📋 Paste from Clipboard
                   </button>
                   <button type="button" class="btn btn-secondary btn-xs" id="btnTestModalSources" onclick="testModalSources()" style="padding: 2px 8px; font-size: 11px;">
-                    🔍 Kiểm tra nguồn
+                    🔍 Test Sources
                   </button>
                 </div>
               </div>
@@ -2108,7 +2136,7 @@ defmodule AcexGateway.Web.DashboardView do
                 <!-- Populated dynamically via renderModalSourcesList() -->
               </div>
 
-              <textarea id="inputSources" class="form-control" rows="3" placeholder="Nhập hoặc dán các Content ID (40 ký tự hex), hỗ trợ phân tách bằng dấu phẩy hoặc dòng mới" required oninput="handleSourcesTextareaInput(this.value)"></textarea>
+              <textarea id="inputSources" class="form-control" rows="3" placeholder="Enter or paste Content IDs (40-char hex), comma or newline separated" required oninput="handleSourcesTextareaInput(this.value)"></textarea>
               <div id="sourcesDetectedHint" class="form-hint" style="color: var(--color-success);"></div>
               <div id="modalValidationResults" style="margin-top: 6px; display: none;"></div>
             </div>
@@ -2292,7 +2320,7 @@ defmodule AcexGateway.Web.DashboardView do
                 <span id="webPlayerChannelName">Live Stream Player</span>
               </h3>
               <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
-                Phát trực tiếp chuẩn MPEG-TS ngay trong trình duyệt (HTML5 MSE)
+                Direct MPEG-TS live playback in browser (HTML5 MSE)
               </p>
             </div>
             <button class="btn btn-secondary btn-xs" onclick="closeWebPlayerModal()">✕</button>
@@ -2308,14 +2336,14 @@ defmodule AcexGateway.Web.DashboardView do
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-sm); flex-wrap: wrap; gap: 8px;">
             <div style="font-size: 12px; color: var(--text-tertiary);">
-              💡 <em>Lưu ý:</em> Nhấn bỏ Mute trên thanh video để nghe âm thanh. Nếu trình duyệt không tương thích với audio codec, hãy sử dụng nút mở VLC/IINA ngoài.
+              💡 <em>Note:</em> Unmute on the video toolbar to enable audio. If your browser does not support the audio codec, use the external Desktop App button.
             </div>
             <div style="display: flex; gap: 6px;">
               <button class="btn btn-secondary btn-sm" onclick="openExternalFromWebPlayer()">
-                <span>Mở trong Desktop App</span>
+                <span>Open in Desktop App</span>
               </button>
               <button class="btn btn-primary btn-sm" onclick="closeWebPlayerModal()">
-                <span>Đóng Player</span>
+                <span>Close Player</span>
               </button>
             </div>
           </div>
@@ -2509,8 +2537,8 @@ defmodule AcexGateway.Web.DashboardView do
                 </svg>
               </div>
               <div>
-                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Cập Nhật Hệ Thống</h3>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">Tự động kiểm tra và nâng cấp phiên bản mới nhất</p>
+                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">System Update</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">Check and upgrade to the latest release</p>
               </div>
             </div>
             <button class="btn btn-secondary btn-xs" onclick="closeUpdateModal()">✕</button>
@@ -2520,13 +2548,13 @@ defmodule AcexGateway.Web.DashboardView do
             <!-- Version Comparison Banner -->
             <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 14px; display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Phiên bản hiện tại</div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Current Version</div>
                 <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #FFFFFF; margin-top: 2px;" id="modalCurrentVer">v#{AcexGateway.version()}</div>
               </div>
               <div style="font-size: 20px; color: var(--text-tertiary);">➔</div>
               <div>
-                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Bản mới nhất</div>
-                <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--color-primary);" id="modalLatestVer">Đang kiểm tra...</div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Latest Release</div>
+                <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--color-primary);" id="modalLatestVer">Checking...</div>
               </div>
               <div id="modalUpdateBadgeStatus" style="padding: 4px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: 600; background: var(--border-default); color: var(--text-secondary);">
                 Checking...
@@ -2536,26 +2564,26 @@ defmodule AcexGateway.Web.DashboardView do
             <!-- Release Notes View -->
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="form-label" style="font-size: 12px; margin-bottom: 0;">Ghi chú phát hành (Changelog):</label>
-                <a id="modalReleaseLink" href="https://github.com/quaywin/acex/releases" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: var(--color-primary); text-decoration: none;">Xem trên GitHub ↗</a>
+                <label class="form-label" style="font-size: 12px; margin-bottom: 0;">Release Notes (Changelog):</label>
+                <a id="modalReleaseLink" href="https://github.com/quaywin/acex/releases" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: var(--color-primary); text-decoration: none;">View on GitHub ↗</a>
               </div>
-              <div id="modalReleaseNotes" style="background: #0A0A0A; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; line-height: 1.5; color: var(--text-secondary); max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-family: var(--font-mono);">Đang kiểm tra thông tin phiên bản từ GitHub...</div>
+              <div id="modalReleaseNotes" style="background: #0A0A0A; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; line-height: 1.5; color: var(--text-secondary); max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-family: var(--font-mono);">Checking latest release from GitHub...</div>
             </div>
 
             <!-- Update In-Progress Box (Hidden by default) -->
             <div id="updateProgressBox" style="display: none; background: rgba(225, 29, 72, 0.08); border: 1px solid var(--color-primary); border-radius: var(--radius-sm); padding: 14px; text-align: center;">
               <div style="font-size: 24px; margin-bottom: 6px;">🔄</div>
-              <div style="font-weight: 700; color: #FFFFFF; font-size: 15px;" id="updateProgressText">Đang nâng cấp hệ thống...</div>
-              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Dịch vụ đang kéo Image mới và khởi động lại. Trang sẽ tự tải lại khi hoàn tất.</div>
-              <div style="margin-top: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--color-primary);" id="updateCountdownTimer">Đang kết nối lại sau: 15s</div>
+              <div style="font-weight: 700; color: #FFFFFF; font-size: 15px;" id="updateProgressText">Upgrading system...</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Pulling new container image and restarting services. Page will reload automatically.</div>
+              <div style="margin-top: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--color-primary);" id="updateCountdownTimer">Reconnecting in: 15s</div>
             </div>
 
             <!-- Fallback Terminal Command Box -->
             <div>
-              <label class="form-label" style="font-size: 12px;">Lệnh cập nhật thủ công qua Terminal (Fallback):</label>
+              <label class="form-label" style="font-size: 12px;">Manual Terminal Update Command (Fallback):</label>
               <div class="input-row">
                 <input type="text" id="manualUpdateCmdInput" class="text-input-styled" readonly value="docker compose pull && docker compose up -d">
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('manualUpdateCmdInput', 'Đã sao chép lệnh!', this)">Sao chép</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('manualUpdateCmdInput', 'Command copied!', this)">Copy</button>
               </div>
             </div>
 
@@ -2563,12 +2591,12 @@ defmodule AcexGateway.Web.DashboardView do
             <div style="display: flex; gap: var(--space-sm); justify-content: space-between; align-items: center; margin-top: 4px;">
               <button class="btn btn-secondary btn-sm" onclick="checkSystemVersion(true)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <span>Kiểm tra lại</span>
+                <span>Re-check</span>
               </button>
               <div style="display: flex; gap: var(--space-sm);">
-                <button class="btn btn-secondary" onclick="closeUpdateModal()">Đóng</button>
+                <button class="btn btn-secondary" onclick="closeUpdateModal()">Close</button>
                 <button class="btn btn-primary" id="btnExecuteUpdate" onclick="executeSystemUpdate()">
-                  ⚡ Cập nhật ngay (1-Click)
+                  ⚡ Update Now (1-Click)
                 </button>
               </div>
             </div>
@@ -2725,7 +2753,7 @@ defmodule AcexGateway.Web.DashboardView do
 
                     <!-- Centered Hover Play CTA (Primary Red) -->
                     <button class="poster-play-btn" onclick="openLauncherForChannel('${c.id}')" title="Play">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </button>
                   </div>
 
@@ -2744,8 +2772,8 @@ defmodule AcexGateway.Web.DashboardView do
                       </div>
                       <div id="sources-${c.id}" class="sources-list">
                         <div style="display: flex; justify-content: flex-end; gap: 6px; padding: 4px 6px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 4px;">
-                          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); validateChannelSources('${c.id}')" title="Kiểm tra trạng thái nguồn" style="font-size: 10px; padding: 2px 6px;">🔍 Kiểm tra</button>
-                          ${fallbackCount > 1 ? `<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); pruneDeadSources('${c.id}')" title="Dọn dẹp nguồn chết" style="font-size: 10px; padding: 2px 6px; color: var(--color-danger);">🧹 Dọn nguồn chết</button>` : ''}
+                          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); validateChannelSources('${c.id}')" title="Test source health" style="font-size: 10px; padding: 2px 6px;">🔍 Test</button>
+                          ${fallbackCount > 1 ? `<button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); pruneDeadSources('${c.id}')" title="Prune dead sources" style="font-size: 10px; padding: 2px 6px; color: var(--color-danger);">🧹 Prune Dead</button>` : ''}
                         </div>
                         ${sourcesListHtml}
                       </div>
@@ -2753,24 +2781,24 @@ defmodule AcexGateway.Web.DashboardView do
 
                     <!-- Card Actions Row -->
                     <div class="card-actions-row">
-                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForChannel('${c.id}')" title="Xem trực tiếp trên trình duyệt">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>Xem thử</span>
+                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForChannel('${c.id}')" title="Watch live in browser">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>Preview</span>
                       </button>
                       <button class="btn btn-primary btn-sm" onclick="openLauncherForChannel('${c.id}')">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span>Watch</span>
                       </button>
 
                       <div class="card-icon-actions">
                         <button class="btn btn-ghost btn-icon btn-sm" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy stream link">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         </button>
                         <button class="btn btn-ghost btn-icon btn-sm" onclick="editChannel('${c.id}')" title="Edit channel">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                         </button>
                         <button class="btn btn-destructive btn-icon btn-sm" onclick="deleteChannel('${c.id}')" title="Delete channel">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                       </div>
                     </div>
@@ -2807,12 +2835,12 @@ defmodule AcexGateway.Web.DashboardView do
                   <td>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <span class="chip-status-success">🛡️ ${(c.sources || []).length} sources</span>
-                      ${(c.sources || []).length > 1 ? `<button class="btn btn-ghost btn-xs" onclick="pruneDeadSources('${c.id}')" title="Dọn dẹp nguồn chết" style="padding: 1px 4px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
+                      ${(c.sources || []).length > 1 ? `<button class="btn btn-ghost btn-xs" onclick="pruneDeadSources('${c.id}')" title="Prune dead sources" style="padding: 1px 4px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
                     </div>
                   </td>
                   <td style="text-align: right;">
                     <div style="display: inline-flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Xem trên trình duyệt">▶ Xem</button>
+                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Watch in browser">▶ Preview</button>
                       <button class="btn btn-primary btn-xs" onclick="openLauncherForChannel('${c.id}')">Watch</button>
                       <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)">Link</button>
                       <button class="btn btn-secondary btn-xs" onclick="editChannel('${c.id}')">Edit</button>
@@ -2911,15 +2939,15 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         async function pruneAllDeadSources(btn = null) {
-          if (!confirm("Hệ thống sẽ kiểm tra và loại bỏ các nguồn chết trên toàn bộ các kênh đa nguồn (kênh 1 nguồn luôn được bảo vệ an toàn). Tiếp tục?")) {
+          if (!confirm("This will scan and prune dead Content IDs across all multi-source channels (single-source channels remain safe). Continue?")) {
             return;
           }
           const origText = btn ? btn.innerHTML : "";
           if (btn) {
             btn.disabled = true;
-            btn.innerHTML = "<span>⏳ Đang quét toàn bộ...</span>";
+            btn.innerHTML = "<span>⏳ Scanning all channels...</span>";
           }
-          showToast("Đang quét và dọn nguồn chết toàn bộ hệ thống...", true);
+          showToast("Scanning and pruning dead sources across all channels...", true);
 
           try {
             const resp = await fetch("/api/channels/prune-all-dead", {
@@ -2934,12 +2962,12 @@ defmodule AcexGateway.Web.DashboardView do
                 updateFleetHealthMetrics();
                 filterChannels();
               }
-              showToast("Hoàn tất dọn dẹp: Đã loại bỏ " + (data.pruned_sources_count || 0) + " nguồn chết!", true);
+              showToast("Pruning completed: Removed " + (data.pruned_sources_count || 0) + " dead sources!", true);
             } else {
-              showToast(data.error || "Không thể dọn dẹp nguồn chết toàn bộ.", false);
+              showToast(data.error || "Failed to prune dead sources across all channels.", false);
             }
           } catch (err) {
-            showToast("Lỗi kết nối khi dọn dẹp: " + err.message, false);
+            showToast("Connection error while pruning: " + err.message, false);
           } finally {
             if (btn) {
               btn.disabled = false;
@@ -3022,13 +3050,13 @@ defmodule AcexGateway.Web.DashboardView do
           }
 
           // Category heuristics
-          if (/\b(sport|sports|football|bóng đá|thể thao|golf|tennis|f1|racing|nba|premier|serie|bundesliga|ufc|boxing)\b/i.test(v)) {
+          if (/\b(sport|sports|football|soccer|golf|tennis|f1|racing|nba|premier|serie|bundesliga|ufc|boxing)\b/i.test(v)) {
             detectedGroup = "Sports";
-          } else if (/\b(movie|movies|cinema|phim|cine|hbo|cinemax|film)\b/i.test(v)) {
+          } else if (/\b(movie|movies|cinema|cine|hbo|cinemax|film)\b/i.test(v)) {
             detectedGroup = "Movies";
-          } else if (/\b(news|thời sự|tin tức|cnn|bbc news)\b/i.test(v)) {
+          } else if (/\b(news|cnn|bbc news)\b/i.test(v)) {
             detectedGroup = "News";
-          } else if (/\b(music|âm nhạc|mtv|nhạc)\b/i.test(v)) {
+          } else if (/\b(music|mtv)\b/i.test(v)) {
             detectedGroup = "Music";
           }
 
@@ -3087,7 +3115,7 @@ defmodule AcexGateway.Web.DashboardView do
 
           container.innerHTML = modalSourcesArray.map((src, idx) => {
             const isPrimary = idx === 0;
-            const rankLabel = isPrimary ? "#1 (Chính)" : ("#" + (idx + 1) + " (Dự phòng)");
+            const rankLabel = isPrimary ? "#1 (Primary)" : ("#" + (idx + 1) + " (Backup)");
             const shortHash = src.slice(0, 8) + "..." + src.slice(-6);
             const canUp = idx > 0;
             const canDown = idx < modalSourcesArray.length - 1;
@@ -3097,9 +3125,9 @@ defmodule AcexGateway.Web.DashboardView do
                 <span class="source-card-rank ${isPrimary ? 'rank-primary' : 'rank-backup'}">${rankLabel}</span>
                 <span class="source-card-hash" title="${src}"><code>${shortHash}</code></span>
                 <div class="source-card-actions">
-                  <button type="button" class="source-card-btn" onclick="moveModalSourceUp(${idx})" ${canUp ? '' : 'disabled'} title="Tăng mức ưu tiên">▲</button>
-                  <button type="button" class="source-card-btn" onclick="moveModalSourceDown(${idx})" ${canDown ? '' : 'disabled'} title="Giảm mức ưu tiên">▼</button>
-                  <button type="button" class="source-card-btn btn-remove" onclick="removeModalSource(${idx})" title="Xóa nguồn này">✕</button>
+                  <button type="button" class="source-card-btn" onclick="moveModalSourceUp(${idx})" ${canUp ? '' : 'disabled'} title="Increase priority">▲</button>
+                  <button type="button" class="source-card-btn" onclick="moveModalSourceDown(${idx})" ${canDown ? '' : 'disabled'} title="Decrease priority">▼</button>
+                  <button type="button" class="source-card-btn btn-remove" onclick="removeModalSource(${idx})" title="Remove source">✕</button>
                 </div>
               </div>
             `;
@@ -3133,13 +3161,13 @@ defmodule AcexGateway.Web.DashboardView do
         async function pasteModalSourcesFromClipboard() {
           try {
             if (!navigator.clipboard || !navigator.clipboard.readText) {
-              showToast("Trình duyệt không hỗ trợ đọc clipboard tự động, vui lòng dán tay vào ô phía dưới.", false);
+              showToast("Clipboard reading not supported by your browser. Please paste manually into the textarea below.", false);
               return;
             }
             const text = await navigator.clipboard.readText();
             const matches = (text.match(/[a-fA-F0-9]{40}/g) || []);
             if (matches.length === 0) {
-              showToast("Không tìm thấy Content ID (40 ký tự hex) nào trong clipboard!", false);
+              showToast("No valid 40-character hex Content IDs found in clipboard!", false);
               return;
             }
 
@@ -3153,9 +3181,9 @@ defmodule AcexGateway.Web.DashboardView do
             });
 
             renderModalSourcesList(true);
-            showToast("Đã trích xuất & dán " + matches.length + " Content ID (" + addedCount + " nguồn mới) từ clipboard!", true);
+            showToast("Extracted & pasted " + matches.length + " Content IDs (" + addedCount + " new sources) from clipboard!", true);
           } catch (err) {
-            showToast("Không thể đọc clipboard: " + err.message, false);
+            showToast("Failed to read clipboard: " + err.message, false);
           }
         }
 
@@ -3217,7 +3245,7 @@ defmodule AcexGateway.Web.DashboardView do
           const resBox = document.getElementById("modalValidationResults");
           if (resBox) { resBox.style.display = "none"; resBox.innerHTML = ""; }
           const testBtn = document.getElementById("btnTestModalSources");
-          if (testBtn) { testBtn.disabled = false; testBtn.innerText = "🔍 Kiểm tra nguồn"; }
+          if (testBtn) { testBtn.disabled = false; testBtn.innerText = "🔍 Test Sources"; }
 
           modal.classList.add("active");
           document.getElementById("inputName").focus();
@@ -3229,13 +3257,13 @@ defmodule AcexGateway.Web.DashboardView do
           const resBox = document.getElementById("modalValidationResults");
           const btn = document.getElementById("btnTestModalSources");
           if (matches.length === 0) {
-            showToast("Vui lòng nhập ít nhất 1 Content ID (40 ký tự hex)!", false);
+            showToast("Please enter at least 1 Content ID (40 hex characters)!", false);
             return;
           }
           btn.disabled = true;
-          btn.innerText = "⏳ Đang kiểm tra...";
+          btn.innerText = "⏳ Testing...";
           resBox.style.display = "block";
-          resBox.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary);"><span class="live-dot" style="animation: pulse 1s infinite;"></span> Đang kiểm tra ' + matches.length + ' nguồn qua AceStream Engine...</div>';
+          resBox.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary);"><span class="live-dot" style="animation: pulse 1s infinite;"></span> Testing ' + matches.length + ' sources via AceStream Engine...</div>';
 
           const results = [];
           for (const src of matches) {
@@ -3249,7 +3277,7 @@ defmodule AcexGateway.Web.DashboardView do
               if (data && data.result) {
                 results.push(data.result);
               } else {
-                results.push({ source: src, valid: false, error: data.error || "Lỗi kết nối" });
+                results.push({ source: src, valid: false, error: data.error || "Connection error" });
               }
             } catch (err) {
               results.push({ source: src, valid: false, error: err.message });
@@ -3257,7 +3285,7 @@ defmodule AcexGateway.Web.DashboardView do
           }
 
           btn.disabled = false;
-          btn.innerText = "🔍 Kiểm tra nguồn";
+          btn.innerText = "🔍 Test Sources";
 
           const deadCount = results.filter(r => !r.valid).length;
           let html = '<div style="background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 8px; font-size: 12px; max-height: 140px; overflow-y: auto;">';
@@ -3266,18 +3294,18 @@ defmodule AcexGateway.Web.DashboardView do
             if (r.valid) {
               html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; color: var(--color-success);">' +
                 '<span>🟢 #' + (idx+1) + ' <code>' + shortHash + '</code></span>' +
-                '<span style="font-size: 11px; opacity: 0.8;">Sống (' + (r.response_time_ms || 0) + 'ms)</span></div>';
+                '<span style="font-size: 11px; opacity: 0.8;">Alive (' + (r.response_time_ms || 0) + 'ms)</span></div>';
             } else {
               html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; color: var(--color-danger);">' +
                 '<span>🔴 #' + (idx+1) + ' <code>' + shortHash + '</code></span>' +
-                '<span style="font-size: 11px; opacity: 0.9;">' + (r.error || 'Chết') + '</span></div>';
+                '<span style="font-size: 11px; opacity: 0.9;">' + (r.error || 'Dead') + '</span></div>';
             }
           });
 
           if (deadCount > 0 && matches.length > 1) {
             const deadHashesJson = JSON.stringify(results.filter(r => !r.valid).map(r => r.source)).replace(/"/g, '&quot;');
             html += '<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">' +
-              '<button type="button" class="btn btn-destructive btn-xs" onclick="stripDeadModalSources(' + deadHashesJson + ')" style="font-size: 11px; padding: 2px 8px;">🧹 Loại bỏ ' + deadCount + ' nguồn chết</button></div>';
+              '<button type="button" class="btn btn-destructive btn-xs" onclick="stripDeadModalSources(' + deadHashesJson + ')" style="font-size: 11px; padding: 2px 8px;">🧹 Remove ' + deadCount + ' dead sources</button></div>';
           }
           html += '</div>';
           resBox.innerHTML = html;
@@ -3290,7 +3318,7 @@ defmodule AcexGateway.Web.DashboardView do
           renderModalSourcesList(true);
           const resBox = document.getElementById("modalValidationResults");
           if (resBox) resBox.style.display = "none";
-          showToast("Đã loại bỏ " + deadList.length + " nguồn chết khỏi danh sách!", true);
+          showToast("Removed " + deadList.length + " dead sources from list!", true);
         }
 
         async function validateChannelSources(channelId) {
@@ -3300,7 +3328,7 @@ defmodule AcexGateway.Web.DashboardView do
             list.classList.add("show");
             if (arrow) arrow.innerText = "▲";
           }
-          showToast("Đang kiểm tra sức khỏe các nguồn...", true);
+          showToast("Testing sources health...", true);
 
           try {
             const resp = await fetch("/api/channels/" + encodeURIComponent(channelId) + "/validate", {
@@ -3314,25 +3342,25 @@ defmodule AcexGateway.Web.DashboardView do
                 const badge = document.getElementById("badge-" + channelId + "-" + idx);
                 if (badge) {
                   if (r.valid) {
-                    badge.innerHTML = '<span style="color: var(--color-success); font-weight: 600;">🟢 Sống (' + (r.response_time_ms || 0) + 'ms)</span>';
+                    badge.innerHTML = '<span style="color: var(--color-success); font-weight: 600;">🟢 Alive (' + (r.response_time_ms || 0) + 'ms)</span>';
                   } else {
-                    badge.innerHTML = '<span style="color: var(--color-danger); font-weight: 600;">🔴 Chết</span>';
+                    badge.innerHTML = '<span style="color: var(--color-danger); font-weight: 600;">🔴 Dead</span>';
                   }
                 }
               });
-              showToast("Kiểm tra xong: " + data.report.alive_count + " sống, " + data.report.dead_count + " chết.", data.report.dead_count === 0);
+              showToast("Validation complete: " + data.report.alive_count + " alive, " + data.report.dead_count + " dead.", data.report.dead_count === 0);
             }
           } catch (err) {
-            showToast("Lỗi khi kiểm tra nguồn: " + err.message, false);
+            showToast("Error testing sources: " + err.message, false);
           }
         }
 
         async function pruneDeadSources(channelId) {
           const c = allChannels.find(x => x.id === channelId);
           const name = c ? c.name : channelId;
-          if (!confirm("Bạn có chắc chắn muốn kiểm tra và dọn dẹp các nguồn chết của kênh '" + name + "'?")) return;
+          if (!confirm("Are you sure you want to test and prune dead sources for channel '" + name + "'?")) return;
 
-          showToast("Đang kiểm tra và dọn dẹp nguồn chết...", true);
+          showToast("Testing and pruning dead sources...", true);
           try {
             const resp = await fetch("/api/channels/" + encodeURIComponent(channelId) + "/prune-dead", {
               method: "POST",
@@ -3346,12 +3374,12 @@ defmodule AcexGateway.Web.DashboardView do
                 updateFleetHealthMetrics();
                 filterChannels();
               }
-              showToast("Đã dọn dẹp " + data.pruned_count + " nguồn chết thành công!", true);
+              showToast("Successfully pruned " + data.pruned_count + " dead sources!", true);
             } else {
-              showToast(data.error || "Không thể dọn dẹp nguồn chết.", false);
+              showToast(data.error || "Failed to prune dead sources.", false);
             }
           } catch (err) {
-            showToast("Lỗi dọn dẹp: " + err.message, false);
+            showToast("Pruning error: " + err.message, false);
           }
         }
 
@@ -4162,7 +4190,7 @@ defmodule AcexGateway.Web.DashboardView do
             if (badgeBtn && badgeText) {
               if (data.has_update) {
                 badgeBtn.classList.add("has-update");
-                badgeText.innerHTML = "🚀 Bản mới: v" + data.latest_version;
+                badgeText.innerHTML = "🚀 New version: v" + data.latest_version;
               } else {
                 badgeBtn.classList.remove("has-update");
                 badgeText.innerHTML = "v" + data.current_version + " ✓";
@@ -4179,16 +4207,16 @@ defmodule AcexGateway.Web.DashboardView do
 
             if (modalCurrent) modalCurrent.innerText = "v" + data.current_version;
             if (modalLatest) modalLatest.innerText = "v" + data.latest_version;
-            if (modalNotes) modalNotes.innerText = data.release_notes || "Không có ghi chú phát hành.";
+            if (modalNotes) modalNotes.innerText = data.release_notes || "No release notes available.";
             if (modalLink && data.release_url) modalLink.href = data.release_url;
 
             if (modalBadge) {
               if (data.has_update) {
-                modalBadge.innerText = "Có bản mới 🚀";
+                modalBadge.innerText = "Update available 🚀";
                 modalBadge.style.background = "rgba(225, 29, 72, 0.2)";
                 modalBadge.style.color = "#FF5A79";
               } else {
-                modalBadge.innerText = "Đã mới nhất ✓";
+                modalBadge.innerText = "Up to date ✓";
                 modalBadge.style.background = "rgba(16, 185, 129, 0.15)";
                 modalBadge.style.color = "#10B981";
               }
@@ -4196,9 +4224,9 @@ defmodule AcexGateway.Web.DashboardView do
 
             if (btnExec) {
               if (data.has_update) {
-                btnExec.innerHTML = "⚡ Cập nhật lên v" + data.latest_version + " (1-Click)";
+                btnExec.innerHTML = "⚡ Update to v" + data.latest_version + " (1-Click)";
               } else {
-                btnExec.innerHTML = "⚡ Cập nhật lại (Re-pull image)";
+                btnExec.innerHTML = "⚡ Re-pull & Recreate Containers";
               }
             }
           } catch (err) {
@@ -4222,8 +4250,8 @@ defmodule AcexGateway.Web.DashboardView do
         async function executeSystemUpdate() {
           const targetVer = (currentSystemVersionInfo && currentSystemVersionInfo.latest_version) ? currentSystemVersionInfo.latest_version : "";
           const confirmMsg = targetVer
-            ? "Bắt đầu cập nhật hệ thống lên phiên bản v" + targetVer + "? Containers sẽ tự tải Image mới và khởi động lại."
-            : "Bắt đầu cập nhật hệ thống? Containers sẽ tự tải Image mới và khởi động lại.";
+            ? "Start updating system to version v" + targetVer + "? Containers will pull new images and restart."
+            : "Start updating system? Containers will pull new images and restart.";
 
           if (!confirm(confirmMsg)) return;
 
@@ -4234,26 +4262,26 @@ defmodule AcexGateway.Web.DashboardView do
 
           if (btnExec) {
             btnExec.disabled = true;
-            btnExec.innerText = "Đang kích hoạt cập nhật...";
+            btnExec.innerText = "Triggering update...";
           }
 
           if (progressBox) progressBox.style.display = "block";
-          if (progressText) progressText.innerText = "Đang gửi lệnh cập nhật đến máy chủ...";
+          if (progressText) progressText.innerText = "Sending update command to server...";
 
           try {
             const resp = await fetch("/api/system/update", { method: "POST" });
             const data = await resp.json();
 
             if (resp.ok && (data.status === "updating" || data.status === "ok")) {
-              if (progressText) progressText.innerText = data.message || "Đã gửi lệnh cập nhật! Đang chờ khởi động lại...";
+              if (progressText) progressText.innerText = data.message || "Update command dispatched! Waiting for containers to recreate...";
               pollServerReboot(targetVer);
             } else if (data.status === "manual_required" || data.command) {
               if (progressBox) progressBox.style.display = "none";
               if (btnExec) {
                 btnExec.disabled = false;
-                btnExec.innerText = "Cập nhật thủ công";
+                btnExec.innerText = "Manual Update";
               }
-              showToast("Hệ thống yêu cầu chạy lệnh thủ công qua terminal.", false);
+              showToast("System requires manual command execution via terminal.", false);
             } else {
               throw new Error(data.message || data.error || "Update trigger failed");
             }
@@ -4261,9 +4289,9 @@ defmodule AcexGateway.Web.DashboardView do
             if (progressBox) progressBox.style.display = "none";
             if (btnExec) {
               btnExec.disabled = false;
-              btnExec.innerText = "⚡ Thử lại";
+              btnExec.innerText = "⚡ Retry";
             }
-            showToast("Lỗi khi kích hoạt cập nhật: " + err.message, false);
+            showToast("Failed to trigger update: " + err.message, false);
           }
         }
 
@@ -4278,7 +4306,7 @@ defmodule AcexGateway.Web.DashboardView do
           updateRebootInterval = setInterval(async () => {
             secondsLeft--;
             if (countdown) {
-              countdown.innerText = "Đang kiểm tra kết nối lại sau: " + Math.max(0, secondsLeft) + "s";
+              countdown.innerText = "Reconnecting in: " + Math.max(0, secondsLeft) + "s";
             }
 
             try {
@@ -4286,22 +4314,22 @@ defmodule AcexGateway.Web.DashboardView do
               if (check.ok && (serverWentOffline || secondsLeft <= 19)) {
                 clearInterval(updateRebootInterval);
                 updateRebootInterval = null;
-                if (progressText) progressText.innerText = "✓ Cập nhật hoàn tất! Đang tải lại trang...";
-                showToast("Hệ thống đã nâng cấp thành công!", true);
+                if (progressText) progressText.innerText = "✓ Update completed! Reloading page...";
+                showToast("System successfully updated!", true);
                 setTimeout(() => {
                   window.location.reload();
                 }, 1200);
               }
             } catch (_) {
               serverWentOffline = true;
-              if (progressText) progressText.innerText = "Dịch vụ đang khởi động lại container mới...";
+              if (progressText) progressText.innerText = "Service restarting new containers...";
             }
 
             if (secondsLeft <= -40) {
               clearInterval(updateRebootInterval);
               updateRebootInterval = null;
               if (progressText) {
-                progressText.innerHTML = "Quá trình cập nhật mất nhiều thời gian hơn dự kiến. <br><button class='btn btn-primary btn-sm' onclick='window.location.reload()' style='margin-top:8px;'>Tải lại trang ngay</button>";
+                progressText.innerHTML = "Update is taking longer than expected. <br><button class='btn btn-primary btn-sm' onclick='window.location.reload()' style='margin-top:8px;'>Reload Page Now</button>";
               }
             }
           }, 2000);

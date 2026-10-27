@@ -119,11 +119,11 @@ Open the dashboard at **http://localhost:8686**.
 ### 1. In-Dashboard 1-Click Update (Easiest)
 1. Open the Web Dashboard at `http://<SERVER_IP>:8686`.
 2. Look at the top navigation bar badge:
-   - `v0.1.0 ✓`: Your system is up-to-date.
-   - `🚀 Có bản mới: v0.1.3`: A newer release is available.
+   - `v0.6.4 ✓`: Your system is up-to-date.
+   - `🚀 New version: vX.Y.Z`: A newer release is available.
 3. Click the badge to open the **System Update Modal**:
    - Inspect the release notes / changelog.
-   - Click **"⚡ Cập nhật ngay (1-Click)"**. AcexGateway invokes Watchtower over Docker's internal network to pull the new image, recreate the container, and automatically refresh the dashboard when back online.
+   - Click **"⚡ Update Now (1-Click)"**. AcexGateway invokes Watchtower over Docker's internal network to pull the new image, recreate the container, and automatically refresh the dashboard when back online.
 
 ### 2. One-Line CLI Script
 Run the automated update script from the project root:

@@ -65,7 +65,7 @@ defmodule AcexGateway.System.Updater do
          %{
            status: "manual_required",
            method: "manual",
-           message: "Vui lòng chạy lệnh sau trên terminal của máy chủ:",
+           message: "Please run the following command on your server terminal:",
            command: "docker compose pull && docker compose up -d"
          }}
     end
@@ -156,7 +156,7 @@ defmodule AcexGateway.System.Updater do
       has_update: false,
       release_name: "v" <> current_ver,
       release_url: "https://github.com/#{repo}/releases",
-      release_notes: "Không thể tải ghi chú phát hành từ GitHub (#{error_msg}).",
+      release_notes: "Unable to load release notes from GitHub (#{error_msg}).",
       published_at: nil,
       update_method: to_string(method),
       checked_at: System.system_time(:second),
@@ -206,8 +206,7 @@ defmodule AcexGateway.System.Updater do
          %{
            status: "updating",
            method: "watchtower",
-           message:
-             "Đã kích hoạt Watchtower cập nhật container. Hệ thống sẽ khởi động lại trong giây lát."
+           message: "Watchtower update triggered. Containers will be recreated shortly."
          }}
 
       {:ok, %{status: status, body: body}} ->
@@ -216,7 +215,7 @@ defmodule AcexGateway.System.Updater do
         {:error,
          %{
            status: "error",
-           message: "Watchtower báo lỗi (HTTP #{status}). Vui lòng cập nhật thủ công.",
+           message: "Watchtower error (HTTP #{status}). Please update manually.",
            command: "docker compose pull && docker compose up -d"
          }}
 
@@ -226,8 +225,7 @@ defmodule AcexGateway.System.Updater do
         {:error,
          %{
            status: "error",
-           message:
-             "Không kết nối được tới dịch vụ Watchtower. Vui lòng chạy lệnh cập nhật thủ công.",
+           message: "Cannot connect to Watchtower service. Please run update command manually.",
            command: "docker compose pull && docker compose up -d"
          }}
     end
@@ -251,7 +249,7 @@ defmodule AcexGateway.System.Updater do
      %{
        status: "updating",
        method: "script",
-       message: "Đang chạy script cập nhật trên máy chủ. Vui lòng chờ..."
+       message: "Running update script on server. Please wait..."
      }}
   end
 end
