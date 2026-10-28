@@ -191,67 +191,38 @@ defmodule AcexGateway.System.Updater do
         System.get_env("WATCHTOWER_TOKEN") ||
         "acex_update_token"
 
-    Logger.info("[Updater] Triggering Watchtower update via #{endpoint}...")
+    Logger.info("[Updater] Dispatching Watchtower update to #{endpoint} in background...")
 
-    headers = [
-      {"authorization", "Bearer #{token}"},
-      {"content-type", "application/json"}
-    ]
+    # Spawn background task with a small delay to ensure the HTTP 200 response
+    # flushes completely to the browser before Watchtower pulls and restarts containers.
+    Task.start(fn ->
+      Process.sleep(250)
 
-    case Req.post(endpoint, headers: headers, receive_timeout: 45_000, retry: false) do
-      {:ok, %{status: status, body: body}} when status in 200..299 ->
-        Logger.info("[Updater] Watchtower update accepted: #{inspect(body)}")
+      headers = [
+        {"authorization", "Bearer #{token}"},
+        {"content-type", "application/json"}
+      ]
 
-        {:ok,
-         %{
-           status: "updating",
-           method: "watchtower",
-           message: "Watchtower update triggered. Containers will be recreated shortly."
-         }}
+      case Req.post(endpoint, headers: headers, receive_timeout: 120_000, retry: false) do
+        {:ok, %{status: status, body: body}} when status in 200..299 ->
+          Logger.info("[Updater] Watchtower update completed: #{inspect(body)}")
 
-      {:ok, %{status: status, body: body}} ->
-        Logger.error("[Updater] Watchtower returned HTTP #{status}: #{inspect(body)}")
+        {:ok, %{status: status, body: body}} ->
+          Logger.warning("[Updater] Watchtower returned HTTP #{status}: #{inspect(body)}")
 
-        {:error,
-         %{
-           status: "error",
-           message: "Watchtower error (HTTP #{status}). Please update manually.",
-           command: "docker compose pull && docker compose up -d"
-         }}
-
-      {:error, reason} ->
-        # When Watchtower stops and recreates acex-gateway, or takes time pulling images,
-        # the HTTP connection may close or timeout while the update is actively proceeding.
-        is_in_progress =
-          case reason do
-            %{reason: r} when r in [:timeout, :econnreset, :closed] -> true
-            :timeout -> true
-            :closed -> true
-            _ -> false
-          end
-
-        if is_in_progress do
+        {:error, reason} ->
           Logger.info(
-            "[Updater] Watchtower request ended with #{inspect(reason)} (update in progress)."
+            "[Updater] Watchtower request ended: #{inspect(reason)} (container may be recreating)."
           )
+      end
+    end)
 
-          {:ok,
-           %{
-             status: "updating",
-             method: "watchtower",
-             message: "Watchtower update dispatched. Containers will be recreated shortly."
-           }}
-        else
-          Logger.warning("[Updater] Cannot reach Watchtower at #{endpoint}: #{inspect(reason)}")
-
-          {:error,
-           %{
-             status: "error",
-             message: "Cannot connect to Watchtower service. Please run update command manually.",
-             command: "docker compose pull && docker compose up -d"
-           }}
-        end
-    end
+    {:ok,
+     %{
+       status: "updating",
+       method: "watchtower",
+       message: "Watchtower update dispatched! Pulling new image and recreating containers..."
+     }}
   end
 
   defp trigger_script do

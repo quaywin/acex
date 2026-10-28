@@ -4534,17 +4534,23 @@ defmodule AcexGateway.Web.DashboardView do
               throw new Error(data.message || data.error || "Update trigger failed");
             }
           } catch (err) {
-            if (progressBox) progressBox.style.display = "none";
-            if (btnExec) {
-              btnExec.disabled = false;
-              btnExec.innerText = "⚡ Retry";
+            const isNetworkDrop = err && (err.name === "TypeError" || String(err.message).includes("Failed to fetch") || String(err.message).includes("NetworkError"));
+            if (isNetworkDrop) {
+              if (progressText) progressText.innerText = "Server restarted for container recreation. Reconnecting...";
+              pollServerReboot(targetVer);
+            } else {
+              if (progressBox) progressBox.style.display = "none";
+              if (btnExec) {
+                btnExec.disabled = false;
+                btnExec.innerText = "⚡ Retry";
+              }
+              showToast("Failed to trigger update: " + err.message, false);
             }
-            showToast("Failed to trigger update: " + err.message, false);
           }
         }
 
         function pollServerReboot(targetVer) {
-          let secondsLeft = 25;
+          let elapsedSeconds = 0;
           let serverWentOffline = false;
           const countdown = document.getElementById("updateCountdownTimer");
           const progressText = document.getElementById("updateProgressText");
@@ -4552,28 +4558,40 @@ defmodule AcexGateway.Web.DashboardView do
           if (updateRebootInterval) clearInterval(updateRebootInterval);
 
           updateRebootInterval = setInterval(async () => {
-            secondsLeft--;
+            elapsedSeconds += 2;
             if (countdown) {
-              countdown.innerText = "Reconnecting in: " + Math.max(0, secondsLeft) + "s";
+              countdown.innerText = "Elapsed: " + elapsedSeconds + "s (pulling image & recreating)";
             }
 
             try {
               const check = await fetch("/health?t=" + Date.now(), { cache: "no-store" });
-              if (check.ok && (serverWentOffline || secondsLeft <= 19)) {
-                clearInterval(updateRebootInterval);
-                updateRebootInterval = null;
-                if (progressText) progressText.innerText = "✓ Update completed! Reloading page...";
-                showToast("System successfully updated!", true);
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1200);
+              if (check.ok) {
+                // If the container went offline and is now back up, or if sufficient time has elapsed
+                if (serverWentOffline || elapsedSeconds >= 20) {
+                  try {
+                    const verRes = await fetch("/api/system/version?t=" + Date.now(), { cache: "no-store" });
+                    if (verRes.ok) {
+                      const verData = await verRes.json();
+                      if (!targetVer || verData.current_version === targetVer || serverWentOffline) {
+                        clearInterval(updateRebootInterval);
+                        updateRebootInterval = null;
+                        if (progressText) progressText.innerText = "✓ Update completed (v" + verData.current_version + ")! Reloading...";
+                        showToast("System successfully updated to v" + verData.current_version + "!", true);
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 1200);
+                        return;
+                      }
+                    }
+                  } catch (_) {}
+                }
               }
             } catch (_) {
               serverWentOffline = true;
-              if (progressText) progressText.innerText = "Service restarting new containers...";
+              if (progressText) progressText.innerText = "Container restarting with new image...";
             }
 
-            if (secondsLeft <= -40) {
+            if (elapsedSeconds >= 120) {
               clearInterval(updateRebootInterval);
               updateRebootInterval = null;
               if (progressText) {
