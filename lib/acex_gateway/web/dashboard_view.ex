@@ -3588,7 +3588,7 @@ defmodule AcexGateway.Web.DashboardView do
           const channel = allChannels.find(c => c.id === channelId);
           const channelName = channel ? channel.name : channelId;
           const groupNames = (allGroups || []).map(g => g.name);
-          const promptMsg = "Move '" + channelName + "' to group:\nAvailable groups: " + groupNames.join(", ") + "\n(or type a new group name)";
+          const promptMsg = "Move '" + channelName + "' to group:\\nAvailable groups: " + groupNames.join(", ") + "\\n(or type a new group name)";
           const newGroup = prompt(promptMsg, currentGroup || "General");
 
           if (!newGroup || !newGroup.trim() || newGroup.trim() === currentGroup) {
