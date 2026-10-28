@@ -30,7 +30,10 @@ defmodule AcexGateway.Web.Router do
   options _ do
     conn
     |> put_resp_header("access-control-allow-origin", "*")
-    |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
+    |> put_resp_header(
+      "access-control-allow-methods",
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+    )
     |> put_resp_header("access-control-allow-headers", "content-type, authorization")
     |> send_resp(204, "")
   end
@@ -238,6 +241,160 @@ defmodule AcexGateway.Web.Router do
     |> put_resp_header("access-control-allow-origin", "*")
     |> put_resp_content_type("application/json")
     |> send_resp(200, Jason.encode!(%{status: "deleted", id: id}))
+  end
+
+  patch "/api/channels/:id/group" do
+    params = conn.body_params || %{}
+    target_group = params["group"] || params[:group] || "General"
+
+    case Store.get_channel(id) do
+      nil ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "Channel not found"}))
+
+      _channel ->
+        {:ok, result} = Store.set_channel_group(id, target_group)
+        updated_channel = Store.get_channel(id)
+
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Jason.encode!(Map.merge(result, %{status: "ok", channel: updated_channel}))
+        )
+    end
+  end
+
+  post "/api/channels/bulk-move" do
+    params = conn.body_params || %{}
+    channel_ids = params["channel_ids"] || params[:channel_ids] || []
+    target_group = params["group"] || params[:group] || "General"
+
+    if is_list(channel_ids) and channel_ids != [] do
+      {:ok, result} = Store.move_channels_group(channel_ids, target_group)
+
+      conn
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> put_resp_content_type("application/json")
+      |> send_resp(200, Jason.encode!(Map.put(result, :status, "ok")))
+    else
+      conn
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "channel_ids must be a non-empty list"}))
+    end
+  end
+
+  post "/api/channels/bulk-delete" do
+    params = conn.body_params || %{}
+    channel_ids = params["channel_ids"] || params[:channel_ids] || []
+
+    if is_list(channel_ids) and channel_ids != [] do
+      Enum.each(channel_ids, &Store.delete_channel/1)
+
+      conn
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> put_resp_content_type("application/json")
+      |> send_resp(200, Jason.encode!(%{status: "ok", deleted_count: length(channel_ids)}))
+    else
+      conn
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{error: "channel_ids must be a non-empty list"}))
+    end
+  end
+
+  get "/api/groups" do
+    groups = Store.list_groups()
+
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(groups))
+  end
+
+  post "/api/groups" do
+    params = conn.body_params || %{}
+    name = params["name"] || params[:name] || ""
+
+    case Store.create_group(name) do
+      {:ok, group} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(201, Jason.encode!(%{status: "created", group: group}))
+
+      {:error, :already_exists} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(409, Jason.encode!(%{error: "Group already exists"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "Invalid group", reason: inspect(reason)}))
+    end
+  end
+
+  put "/api/groups/:id" do
+    params = conn.body_params || %{}
+    name = params["name"] || params[:name] || ""
+
+    case Store.rename_group(id, name) do
+      {:ok, group} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{status: "updated", group: group}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "Group not found"}))
+
+      {:error, :already_exists} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(409, Jason.encode!(%{error: "Group name already taken"}))
+
+      {:error, reason} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "Invalid update", reason: inspect(reason)}))
+    end
+  end
+
+  delete "/api/groups/:id" do
+    conn = fetch_query_params(conn)
+    fallback = conn.query_params["fallback_group"] || "General"
+
+    case Store.delete_group(id, fallback) do
+      {:ok, result} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(Map.put(result, :status, "deleted")))
+
+      {:error, :cannot_delete_last_group} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{error: "Cannot delete the only remaining group"}))
+
+      {:error, :not_found} ->
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{error: "Group not found"}))
+    end
   end
 
   post "/api/channels/validate-source" do
@@ -607,7 +764,9 @@ defmodule AcexGateway.Web.Router do
 
     Logger.debug("[Router] Cast playlist requested for '#{clean_target}'")
 
-    case CastRemuxer.get_playlist(clean_target) do
+    base_url = request_base_url(conn)
+
+    case CastRemuxer.get_playlist(clean_target, base_url) do
       {:ok, m3u8_path} ->
         case File.read(m3u8_path) do
           {:ok, content} ->
@@ -652,7 +811,7 @@ defmodule AcexGateway.Web.Router do
       {:ok, segment_path} ->
         conn
         |> put_resp_header("content-type", "video/mp2t")
-        |> put_resp_header("cache-control", "public, max-age=10")
+        |> put_resp_header("cache-control", "public, max-age=600, s-maxage=600, immutable")
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_file(200, segment_path)
 
@@ -794,7 +953,8 @@ defmodule AcexGateway.Web.Router do
   get "/" do
     base_url = request_base_url(conn)
     channels = Store.list_channels()
-    html = DashboardView.render(base_url, channels)
+    groups = Store.list_groups()
+    html = DashboardView.render(base_url, channels, groups)
 
     conn
     |> put_resp_content_type("text/html; charset=utf-8")

@@ -32,8 +32,10 @@ defmodule AcexGateway.Web.DashboardView do
   @doc """
   Renders the complete HTML document for the dashboard.
   """
-  def render(base_url, channels) do
+  def render(base_url, channels, groups \\ nil) do
+    groups_list = groups || AcexGateway.Channels.Store.list_groups()
     channels_json = Jason.encode!(channels)
+    groups_json = Jason.encode!(groups_list)
     auth_enabled = AcexGateway.Config.auth_enabled?()
     auth_user = AcexGateway.Config.auth_username()
     auth_pass = AcexGateway.Config.auth_password()
@@ -1033,36 +1035,91 @@ defmodule AcexGateway.Web.DashboardView do
           color: var(--text-secondary);
         }
 
-        .card-actions-row {
+        /* Channel Card Actions (Optimized 2-Row Layout, Never Overflows) */
+        .card-action-bar {
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 4px;
+          flex-direction: column;
+          gap: 5px;
           margin-top: 4px;
           padding-top: 6px;
           border-top: 1px solid var(--border-subtle);
         }
 
-        .card-actions-row .btn-sm {
-          padding: 3px 8px;
+        .card-play-btns {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+          width: 100%;
+        }
+
+        .card-play-btns .btn {
           height: 26px;
+          min-height: 26px;
+          padding: 2px 6px;
           font-size: 11px;
+          font-weight: 600;
+          justify-content: center;
           gap: 4px;
+          white-space: nowrap;
+          border-radius: var(--radius-xs);
         }
 
-        .card-icon-actions {
+        .card-tools-row {
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          gap: 2px;
+          gap: 4px;
+          width: 100%;
         }
 
-        .card-icon-actions .btn-icon {
-          width: 24px;
-          height: 24px;
-          padding: 0;
+        .card-tool-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: transparent;
+          border: 1px solid transparent;
+          color: var(--text-tertiary);
+          font-size: 11px;
+          font-family: inherit;
+          padding: 2px 5px;
+          border-radius: var(--radius-xs);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+        .card-tool-btn:hover {
+          color: #FFFFFF;
+          background: rgba(255, 255, 255, 0.05);
+          border-color: var(--border-subtle);
+        }
+
+        .card-tool-icons {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .card-icon-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: var(--radius-xs);
+          background: transparent;
+          border: none;
+          color: var(--text-tertiary);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          padding: 0;
+        }
+        .card-icon-btn:hover {
+          color: #FFFFFF;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .card-icon-btn-danger:hover {
+          color: var(--color-danger);
+          background: rgba(239, 68, 68, 0.15);
         }
 
         /* -------------------------------------------------------------
@@ -1128,6 +1185,33 @@ defmodule AcexGateway.Web.DashboardView do
           font-size: 12px;
           font-weight: 700;
           color: var(--text-secondary);
+        }
+
+        .table-actions-group {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          justify-content: flex-end;
+        }
+
+        .table-actions-group .btn-xs {
+          height: 26px;
+          min-height: 26px;
+          padding: 2px 8px;
+          font-size: 11px;
+          font-weight: 600;
+          gap: 4px;
+          white-space: nowrap;
+        }
+
+        .table-actions-group .btn-icon.btn-xs {
+          width: 26px;
+          height: 26px;
+          min-width: 26px;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
         /* -------------------------------------------------------------
@@ -1495,9 +1579,6 @@ defmodule AcexGateway.Web.DashboardView do
           .card-title {
             font-size: 13px;
           }
-          .card-actions-row {
-            gap: 4px;
-          }
           .modal-overlay {
             padding: 10px;
           }
@@ -1566,13 +1647,22 @@ defmodule AcexGateway.Web.DashboardView do
             padding: 6px 8px;
             font-size: 12px;
           }
-          .card-actions-row {
-            flex-wrap: wrap;
+          .card-play-btns {
             gap: 4px;
           }
-          .card-actions-row .btn-sm {
-            flex: 1;
-            justify-content: center;
+          .card-play-btns .btn {
+            height: 24px;
+            min-height: 24px;
+            font-size: 10px;
+            padding: 2px 4px;
+          }
+          .card-tool-btn {
+            font-size: 10px;
+            padding: 1px 3px;
+          }
+          .card-icon-btn {
+            width: 22px;
+            height: 22px;
           }
           .source-card-item {
             flex-direction: column;
@@ -1928,6 +2018,154 @@ defmodule AcexGateway.Web.DashboardView do
           pointer-events: none;
           z-index: 5;
         }
+
+        /* Selection Checkbox for Bulk Actions */
+        .card-select-wrap {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          z-index: 4;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .channel-checkbox {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+          accent-color: var(--color-primary);
+          border-radius: 4px;
+          opacity: 0.6;
+          transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .channel-card-sf:hover .channel-checkbox,
+        .channel-checkbox:checked {
+          opacity: 1;
+          transform: scale(1.08);
+        }
+
+        .channel-card-sf.selected {
+          border-color: var(--color-primary) !important;
+          box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.45), var(--shadow-md);
+        }
+
+        .channel-table tr.selected td {
+          background: rgba(225, 29, 72, 0.08);
+        }
+
+        /* Floating Bulk Action Bar */
+        .floating-bulk-bar {
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%) translateY(120px);
+          z-index: 999;
+          background: rgba(18, 18, 18, 0.94);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid var(--border-hover);
+          border-radius: var(--radius-full);
+          padding: 8px 18px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+          opacity: 0;
+          pointer-events: none;
+          max-width: 90vw;
+        }
+
+        .floating-bulk-bar.show {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .bulk-count-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--color-primary);
+          color: #FFFFFF;
+          font-family: var(--font-headline);
+          font-size: 13px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: var(--radius-full);
+          letter-spacing: 0.03em;
+          white-space: nowrap;
+        }
+
+        .bulk-select-group {
+          background: var(--surface-input);
+          color: var(--text-primary);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 5px 10px;
+          font-size: 13px;
+          outline: none;
+          cursor: pointer;
+        }
+        .bulk-select-group:focus {
+          border-color: var(--color-primary);
+        }
+
+        /* Group Modal Items */
+        .group-manager-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          max-height: 280px;
+          overflow-y: auto;
+          margin-bottom: var(--space-md);
+        }
+
+        .group-manager-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+          background: var(--surface-card);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          transition: border-color 0.2s;
+        }
+
+        .group-manager-item:hover {
+          border-color: var(--border-hover);
+        }
+
+        .group-item-name {
+          font-weight: 600;
+          color: #FFFFFF;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .group-channel-count {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          padding: 2px 7px;
+          border-radius: var(--radius-sm);
+          background: var(--surface-sunken);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .chip-filter-interactive {
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .chip-filter-interactive:hover {
+          border-color: var(--color-primary);
+          color: #FFFFFF;
+          transform: scale(1.05);
+        }
       </style>
     </head>
     <body>
@@ -2154,6 +2392,7 @@ defmodule AcexGateway.Web.DashboardView do
             <table id="channelTable" class="channel-table">
               <thead>
                 <tr>
+                  <th style="width: 36px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" class="channel-checkbox" onchange="toggleSelectAll(this)" title="Select all channels"></th>
                   <th style="width: 60px;">Poster</th>
                   <th>Channel Name & Slug</th>
                   <th>Category</th>
@@ -2210,7 +2449,7 @@ defmodule AcexGateway.Web.DashboardView do
             <div class="modal-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
               <div class="form-group">
                 <label class="form-label">Category / Group:</label>
-                <input type="text" id="inputGroup" class="form-control" placeholder="Sports, News, Movies...">
+                <input type="text" id="inputGroup" class="form-control" placeholder="Sports, News, Movies..." list="groupSuggestions">
               </div>
               <div class="form-group">
                 <label class="form-label">Country (e.g. VN, UK, US):</label>
@@ -2312,7 +2551,7 @@ defmodule AcexGateway.Web.DashboardView do
           <div class="modal-grid-3col" style="margin-bottom: var(--space-md);">
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label" style="font-size: 12px;">Default Category:</label>
-              <input type="text" id="importDefaultGroup" class="form-control" style="padding: 6px 10px; font-size: 13px;" placeholder="Sports, Live TV..." value="Sports" oninput="debouncedImportPreview()">
+              <input type="text" id="importDefaultGroup" class="form-control" style="padding: 6px 10px; font-size: 13px;" placeholder="Sports, Live TV..." value="Sports" list="groupSuggestions" oninput="debouncedImportPreview()">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label" style="font-size: 12px;">Default Country:</label>
@@ -2734,11 +2973,75 @@ defmodule AcexGateway.Web.DashboardView do
         </div>
       </div>
 
+      <!-- Datalist for Group Suggestions -->
+      <datalist id="groupSuggestions"></datalist>
+
+      <!-- Group Management Modal -->
+      <div id="groupModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'groupModal')">
+        <div class="modal-window" style="max-width: 560px;">
+          <div class="modal-top">
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 8px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>Manage Playlist Groups</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                Create, rename, or delete category groups. Renaming cascades to member channels automatically.
+              </p>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="closeGroupModal()">✕</button>
+          </div>
+
+          <!-- Add Group Form -->
+          <div style="display: flex; gap: 8px; margin-bottom: var(--space-md);">
+            <input type="text" id="newGroupNameInput" class="form-control" placeholder="New group name (e.g. Documentaries, Sports 4K)" onkeydown="if(event.key==='Enter'){event.preventDefault(); createNewGroup();}">
+            <button class="btn btn-primary btn-sm" onclick="createNewGroup()" style="white-space: nowrap;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Add Group</span>
+            </button>
+          </div>
+
+          <!-- Existing Groups List -->
+          <div id="groupManagerList" class="group-manager-list">
+            <!-- Populated dynamically via renderGroupModalList() -->
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: var(--space-sm);">
+            <button class="btn btn-secondary" onclick="closeGroupModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Bulk Action Bar -->
+      <div id="bulkActionBar" class="floating-bulk-bar">
+        <span class="bulk-count-badge">
+          <span id="bulkSelectedCount">0</span> selected
+        </span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <label style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">Move to:</label>
+          <select id="bulkGroupSelect" class="bulk-select-group">
+            <!-- Options populated dynamically -->
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="executeBulkMove()">
+            <span>Move</span>
+          </button>
+        </div>
+        <button class="btn btn-destructive btn-sm" onclick="executeBulkDelete()" title="Delete selected channels">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Delete</span>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelection()" title="Clear selection">
+          ✕
+        </button>
+      </div>
+
       <!-- Toast Shelf -->
       <div id="toastShelf" class="toast-shelf"></div>
 
       <script>
         let allChannels = #{channels_json};
+        let allGroups = #{groups_json};
+        let selectedChannelIds = new Set();
         const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
         let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url})};
         let currentFilterGroup = "ALL";
@@ -2785,25 +3088,97 @@ defmodule AcexGateway.Web.DashboardView do
         const categoryTabs = document.getElementById("categoryTabs");
         const channelCountBadge = document.getElementById("channelCountBadge");
 
-        // Render Category Tabs (StreamFlix Filter Chips)
-        function renderCategoryTabs() {
-          const groups = new Set();
-          allChannels.forEach(c => {
-            if (c.group && c.group.trim()) groups.add(c.group.trim());
+        // Utility String Escapers for Safe Dynamic HTML/Attribute Generation
+        function escapeHtml(str) {
+          if (!str && str !== 0) return "";
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        }
+
+        function escapeAttr(str) {
+          if (!str && str !== 0) return "";
+          return String(str)
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "\\'");
+        }
+
+        // Populate Group Datalist for Autocomplete & Bulk Select Dropdown
+        function populateGroupDatalist() {
+          const datalist = document.getElementById("groupSuggestions");
+          const bulkSelect = document.getElementById("bulkGroupSelect");
+          const groupMap = new Map();
+
+          (allGroups || []).forEach(g => {
+            groupMap.set(g.name, g);
+          });
+          (allChannels || []).forEach(c => {
+            const name = (c.group && c.group.trim()) ? c.group.trim() : "General";
+            if (!groupMap.has(name)) groupMap.set(name, { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: name, order: 999 });
           });
 
-          const groupList = ["ALL", ...Array.from(groups).sort()];
-          categoryTabs.innerHTML = groupList.map(g => {
-            const count = g === "ALL" ? allChannels.length : allChannels.filter(c => c.group === g).length;
-            const label = g === "ALL" ? "All" : g;
-            const activeClass = currentFilterGroup === g ? "active" : "";
-            return `
-              <button class="tab-btn ${activeClass}" onclick="selectCategory('${g}')">
-                <span>${label}</span>
+          const sortedGroups = Array.from(groupMap.values()).sort((a, b) => {
+            if ((a.order || 999) !== (b.order || 999)) return (a.order || 999) - (b.order || 999);
+            return (a.name || "").localeCompare(b.name || "");
+          });
+
+          if (datalist) {
+            datalist.innerHTML = sortedGroups.map(g => `<option value="${escapeAttr(g.name)}"></option>`).join("");
+          }
+
+          if (bulkSelect) {
+            bulkSelect.innerHTML = sortedGroups.map(g => `<option value="${escapeAttr(g.name)}">${escapeHtml(g.name)}</option>`).join("") + '<option value="__new__">+ New Group...</option>';
+          }
+        }
+
+        // Render Category Tabs (StreamFlix Filter Chips with Manage Groups CTA)
+        function renderCategoryTabs() {
+          const groupMap = new Map();
+          (allGroups || []).forEach(g => {
+            groupMap.set(g.name, { id: g.id, name: g.name, order: g.order || 999 });
+          });
+
+          (allChannels || []).forEach(c => {
+            const name = (c.group && c.group.trim()) ? c.group.trim() : "General";
+            if (!groupMap.has(name)) {
+              groupMap.set(name, { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: name, order: 999 });
+            }
+          });
+
+          const sortedGroups = Array.from(groupMap.values()).sort((a, b) => {
+            if ((a.order || 999) !== (b.order || 999)) return (a.order || 999) - (b.order || 999);
+            return (a.name || "").localeCompare(b.name || "");
+          });
+
+          let html = `
+            <button class="tab-btn ${currentFilterGroup === "ALL" ? "active" : ""}" onclick="selectCategory('ALL')">
+              <span>All</span>
+              <span style="opacity: 0.7; font-size: 12px;">(${(allChannels || []).length})</span>
+            </button>
+          `;
+
+          sortedGroups.forEach(g => {
+            const count = (allChannels || []).filter(c => (c.group || "General") === g.name).length;
+            const activeClass = currentFilterGroup === g.name ? "active" : "";
+            html += `
+              <button class="tab-btn ${activeClass}" onclick="selectCategory('${escapeAttr(g.name)}')">
+                <span>${escapeHtml(g.name)}</span>
                 <span style="opacity: 0.7; font-size: 12px;">(${count})</span>
               </button>
             `;
-          }).join("");
+          });
+
+          html += `
+            <button class="tab-btn" onclick="openGroupModal()" title="Manage Playlist Groups" style="border-style: dashed; margin-left: auto;">
+              <span>📁 Manage Groups</span>
+            </button>
+          `;
+
+          categoryTabs.innerHTML = html;
+          populateGroupDatalist();
         }
 
         function selectCategory(group) {
@@ -2819,7 +3194,7 @@ defmodule AcexGateway.Web.DashboardView do
           filterChannels();
         }
 
-        // Render Channel Catalog
+        // Render Channel Catalog (with Checkbox Selection & Interactive Quick Move Group Badges)
         function renderChannels(channels = null) {
           const list = Array.isArray(channels) ? channels : (allChannels || []);
           channelCountBadge.innerText = list.length + " channels";
@@ -2835,6 +3210,7 @@ defmodule AcexGateway.Web.DashboardView do
             channelGrid.innerHTML = emptyHtml;
             channelGrid.style.display = "grid";
             if (channelTableContainer) channelTableContainer.classList.remove("show");
+            updateBulkActionBar();
             return;
           }
 
@@ -2847,18 +3223,24 @@ defmodule AcexGateway.Web.DashboardView do
               const fallbackCount = sources.length;
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
+              const isSelected = selectedChannelIds.has(c.id);
 
               const sourcesListHtml = sources.map((s, idx) => `
                 <div class="source-item" id="source-row-${c.id}-${idx}">
                   <span style="color: var(--color-primary); font-weight: 700;">#${idx + 1}</span>
-                  <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
+                  <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
                   <span id="badge-${c.id}-${idx}" style="font-size: 11px;"></span>
                   <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Source hash copied!', this)">Copy</button>
                 </div>
               `).join("");
 
               return `
-                <div class="channel-card-sf" data-id="${c.id}">
+                <div class="channel-card-sf ${isSelected ? 'selected' : ''}" data-id="${c.id}">
+                  <!-- Multi-Select Checkbox -->
+                  <div class="card-select-wrap" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="channel-checkbox" value="${c.id}" ${isSelected ? 'checked' : ''} onchange="toggleChannelSelection('${c.id}', this.checked)">
+                  </div>
+
                   <!-- 16:9 Cinematic Poster Header -->
                   <div class="poster-box">
                     ${c.logo ? `
@@ -2872,7 +3254,7 @@ defmodule AcexGateway.Web.DashboardView do
                     <!-- Overlay Badges -->
                     <div class="poster-badges-top">
                       ${c.country ? `<span class="chip-filter" style="background: rgba(225, 29, 72, 0.25); border-color: rgba(225, 29, 72, 0.5); color: #FFF; font-weight: 700;">🌐 ${c.country}</span>` : ''}
-                      <span class="chip-filter">${c.group || 'General'}</span>
+                      <span class="chip-filter chip-filter-interactive" onclick="event.stopPropagation(); quickChangeGroup('${c.id}', '${escapeAttr(c.group || 'General')}')" title="Click to move group">📁 ${escapeHtml(c.group || 'General')} ▾</span>
                       <span class="chip-status-success">🛡️ ${fallbackCount} sources</span>
                     </div>
 
@@ -2904,27 +3286,34 @@ defmodule AcexGateway.Web.DashboardView do
                       </div>
                     </div>
 
-                    <!-- Card Actions Row -->
-                    <div class="card-actions-row">
-                      <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForChannel('${c.id}')" title="Watch live in browser">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>Preview</span>
-                      </button>
-                      <button class="btn btn-primary btn-sm" onclick="openLauncherForChannel('${c.id}')">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>Watch</span>
-                      </button>
+                    <!-- Card Action Bar (Dual Row Layout, Space-Optimized) -->
+                    <div class="card-action-bar">
+                      <!-- Row 1: Dual Primary Playback Actions (50/50 Grid) -->
+                      <div class="card-play-btns">
+                        <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Preview live in browser">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                          <span>Preview</span>
+                        </button>
+                        <button class="btn btn-primary btn-xs" onclick="openLauncherForChannel('${c.id}')" title="Launch stream in VLC / IINA / PotPlayer">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                          <span>Watch</span>
+                        </button>
+                      </div>
 
-                      <div class="card-icon-actions">
-                        <button class="btn btn-ghost btn-icon btn-sm" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy stream link">
+                      <!-- Row 2: Secondary Utility Actions (Link, Edit, Delete) -->
+                      <div class="card-tools-row">
+                        <button class="card-tool-btn" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy stream URL">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          <span>Copy Link</span>
                         </button>
-                        <button class="btn btn-ghost btn-icon btn-sm" onclick="editChannel('${c.id}')" title="Edit channel">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        </button>
-                        <button class="btn btn-destructive btn-icon btn-sm" onclick="deleteChannel('${c.id}')" title="Delete channel">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        </button>
+                        <div class="card-tool-icons">
+                          <button class="card-icon-btn" onclick="editChannel('${c.id}')" title="Edit channel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          </button>
+                          <button class="card-icon-btn card-icon-btn-danger" onclick="deleteChannel('${c.id}')" title="Delete channel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2938,8 +3327,12 @@ defmodule AcexGateway.Web.DashboardView do
             channelTableBody.innerHTML = list.map(c => {
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
+              const isSelected = selectedChannelIds.has(c.id);
               return `
-                <tr data-id="${c.id}">
+                <tr data-id="${c.id}" class="${isSelected ? 'selected' : ''}">
+                  <td style="width: 36px; text-align: center;" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="channel-checkbox" value="${c.id}" ${isSelected ? 'checked' : ''} onchange="toggleChannelSelection('${c.id}', this.checked)">
+                  </td>
                   <td>
                     <div class="table-thumb">
                       ${c.logo ? `
@@ -2956,25 +3349,438 @@ defmodule AcexGateway.Web.DashboardView do
                     </div>
                     <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${c.id}</div>
                   </td>
-                  <td><span class="chip-filter">${c.group || 'General'}</span></td>
+                  <td>
+                    <span class="chip-filter chip-filter-interactive" onclick="event.stopPropagation(); quickChangeGroup('${c.id}', '${escapeAttr(c.group || 'General')}')" title="Click to move group">📁 ${escapeHtml(c.group || 'General')} ▾</span>
+                  </td>
                   <td>
                     <div style="display: flex; align-items: center; gap: 4px;">
                       <span class="chip-status-success">🛡️ ${(c.sources || []).length} sources</span>
                       ${(c.sources || []).length > 1 ? `<button class="btn btn-ghost btn-xs" onclick="pruneDeadSources('${c.id}')" title="Prune dead sources" style="padding: 1px 4px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
                     </div>
                   </td>
-                  <td style="text-align: right;">
-                    <div style="display: inline-flex; gap: 6px;">
-                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Watch in browser">▶ Preview</button>
-                      <button class="btn btn-primary btn-xs" onclick="openLauncherForChannel('${c.id}')">Watch</button>
-                      <button class="btn btn-secondary btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)">Link</button>
-                      <button class="btn btn-secondary btn-xs" onclick="editChannel('${c.id}')">Edit</button>
-                      <button class="btn btn-destructive btn-xs" onclick="deleteChannel('${c.id}')">Delete</button>
+                  <td style="text-align: right; white-space: nowrap;">
+                    <div class="table-actions-group">
+                      <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForChannel('${c.id}')" title="Preview live in browser">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>Preview</span>
+                      </button>
+                      <button class="btn btn-primary btn-xs" onclick="openLauncherForChannel('${c.id}')" title="Launch stream in VLC / IINA / PotPlayer">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <span>Watch</span>
+                      </button>
+                      <button class="btn btn-ghost btn-icon btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy stream link">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                      <button class="btn btn-ghost btn-icon btn-xs" onclick="editChannel('${c.id}')" title="Edit channel">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      </button>
+                      <button class="btn btn-destructive btn-icon btn-xs" onclick="deleteChannel('${c.id}')" title="Delete channel">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
               `;
             }).join("");
+          }
+
+          updateBulkActionBar();
+        }
+
+        // Multi-Channel Selection & Floating Bulk Bar Handlers
+        function toggleChannelSelection(id, isSelected) {
+          if (isSelected) {
+            selectedChannelIds.add(id);
+          } else {
+            selectedChannelIds.delete(id);
+          }
+          updateChannelSelectionUi(id, isSelected);
+          updateBulkActionBar();
+        }
+
+        function updateChannelSelectionUi(id, isSelected) {
+          const card = document.querySelector(`.channel-card-sf[data-id="${id}"]`);
+          if (card) {
+            if (isSelected) card.classList.add("selected");
+            else card.classList.remove("selected");
+            const chk = card.querySelector(".channel-checkbox");
+            if (chk) chk.checked = isSelected;
+          }
+          const row = document.querySelector(`tr[data-id="${id}"]`);
+          if (row) {
+            if (isSelected) row.classList.add("selected");
+            else row.classList.remove("selected");
+            const chk = row.querySelector(".channel-checkbox");
+            if (chk) chk.checked = isSelected;
+          }
+        }
+
+        function toggleSelectAll(masterCheckbox) {
+          const isChecked = masterCheckbox.checked;
+          const currentVisible = getCurrentlyFilteredChannels();
+          currentVisible.forEach(c => {
+            if (isChecked) {
+              selectedChannelIds.add(c.id);
+            } else {
+              selectedChannelIds.delete(c.id);
+            }
+            updateChannelSelectionUi(c.id, isChecked);
+          });
+          updateBulkActionBar();
+        }
+
+        function clearSelection() {
+          selectedChannelIds.clear();
+          document.querySelectorAll(".channel-card-sf.selected").forEach(el => el.classList.remove("selected"));
+          document.querySelectorAll("tr.selected").forEach(el => el.classList.remove("selected"));
+          document.querySelectorAll(".channel-checkbox").forEach(el => { el.checked = false; });
+          const selectAll = document.getElementById("selectAllCheckbox");
+          if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+          }
+          updateBulkActionBar();
+        }
+
+        function updateBulkActionBar() {
+          const bar = document.getElementById("bulkActionBar");
+          const countBadge = document.getElementById("bulkSelectedCount");
+          const selectAll = document.getElementById("selectAllCheckbox");
+          const count = selectedChannelIds.size;
+
+          if (countBadge) countBadge.innerText = count;
+
+          if (bar) {
+            if (count > 0) {
+              bar.classList.add("show");
+            } else {
+              bar.classList.remove("show");
+            }
+          }
+
+          if (selectAll) {
+            const visible = getCurrentlyFilteredChannels();
+            const visibleSelected = visible.filter(c => selectedChannelIds.has(c.id)).length;
+            if (visible.length > 0 && visibleSelected === visible.length) {
+              selectAll.checked = true;
+              selectAll.indeterminate = false;
+            } else if (visibleSelected > 0) {
+              selectAll.checked = false;
+              selectAll.indeterminate = true;
+            } else {
+              selectAll.checked = false;
+              selectAll.indeterminate = false;
+            }
+          }
+        }
+
+        function getCurrentlyFilteredChannels() {
+          const q = document.getElementById("channelSearch") ? document.getElementById("channelSearch").value.toLowerCase().trim() : "";
+          let filtered = allChannels || [];
+
+          if (currentFilterGroup !== "ALL") {
+            filtered = filtered.filter(c => (c.group || "General") === currentFilterGroup);
+          }
+
+          if (currentFleetFilter === "multi") {
+            filtered = filtered.filter(c => (c.sources || []).length > 1);
+          } else if (currentFleetFilter === "single") {
+            filtered = filtered.filter(c => (c.sources || []).length <= 1);
+          } else if (currentFleetFilter === "live") {
+            filtered = filtered.filter(c =>
+              activeStreamingChannelKeys.has(c.id) || (c.sources || []).some(s => activeStreamingChannelKeys.has(s))
+            );
+          }
+
+          if (q) {
+            filtered = filtered.filter(c =>
+              (c.name || "").toLowerCase().includes(q) ||
+              (c.country && c.country.toLowerCase().includes(q)) ||
+              (c.group && c.group.toLowerCase().includes(q)) ||
+              (c.id || "").toLowerCase().includes(q) ||
+              (c.sources || []).some(s => s.toLowerCase().includes(q))
+            );
+          }
+          return filtered;
+        }
+
+        // Bulk Actions Execution
+        async function executeBulkMove() {
+          const channelIds = Array.from(selectedChannelIds);
+          if (channelIds.length === 0) {
+            showToast("No channels selected", false);
+            return;
+          }
+
+          const selectEl = document.getElementById("bulkGroupSelect");
+          let targetGroup = selectEl ? selectEl.value : "";
+          if (targetGroup === "__new__") {
+            targetGroup = prompt("Enter new group name:");
+            if (!targetGroup || !targetGroup.trim()) return;
+            targetGroup = targetGroup.trim();
+          }
+
+          if (!targetGroup) return;
+
+          try {
+            const res = await fetch("/api/channels/bulk-move", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ channel_ids: channelIds, group: targetGroup })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === "ok") {
+              const idSet = new Set(channelIds);
+              allChannels = allChannels.map(c => {
+                if (idSet.has(c.id)) {
+                  return { ...c, group: targetGroup };
+                }
+                return c;
+              });
+              await refreshGroupsFromServer();
+              clearSelection();
+              filterChannels();
+              showToast("Moved " + data.moved_count + " channels to '" + targetGroup + "'!");
+            } else {
+              showToast(data.error || "Failed to move channels", false);
+            }
+          } catch (err) {
+            showToast("Bulk move error: " + err.message, false);
+          }
+        }
+
+        async function executeBulkDelete() {
+          const channelIds = Array.from(selectedChannelIds);
+          if (channelIds.length === 0) {
+            showToast("No channels selected", false);
+            return;
+          }
+
+          if (!confirm("Are you sure you want to permanently delete " + channelIds.length + " selected channels?")) {
+            return;
+          }
+
+          try {
+            const res = await fetch("/api/channels/bulk-delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ channel_ids: channelIds })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === "ok") {
+              const idSet = new Set(channelIds);
+              allChannels = allChannels.filter(c => !idSet.has(c.id));
+              clearSelection();
+              await refreshGroupsFromServer();
+              updateFleetHealthMetrics();
+              filterChannels();
+              showToast("Deleted " + data.deleted_count + " channels successfully!");
+            } else {
+              showToast(data.error || "Failed to delete channels", false);
+            }
+          } catch (err) {
+            showToast("Bulk delete error: " + err.message, false);
+          }
+        }
+
+        // Single-Channel Quick Group Reassignment
+        async function quickChangeGroup(channelId, currentGroup) {
+          const channel = allChannels.find(c => c.id === channelId);
+          const channelName = channel ? channel.name : channelId;
+          const groupNames = (allGroups || []).map(g => g.name);
+          const promptMsg = "Move '" + channelName + "' to group:\nAvailable groups: " + groupNames.join(", ") + "\n(or type a new group name)";
+          const newGroup = prompt(promptMsg, currentGroup || "General");
+
+          if (!newGroup || !newGroup.trim() || newGroup.trim() === currentGroup) {
+            return;
+          }
+          const targetGroup = newGroup.trim();
+
+          try {
+            const res = await fetch("/api/channels/" + encodeURIComponent(channelId) + "/group", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ group: targetGroup })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === "ok") {
+              const idx = allChannels.findIndex(c => c.id === channelId);
+              if (idx !== -1) {
+                allChannels[idx] = { ...allChannels[idx], group: targetGroup };
+              }
+              await refreshGroupsFromServer();
+              filterChannels();
+              showToast("Moved channel to '" + targetGroup + "'!");
+            } else {
+              showToast(data.error || "Failed to update channel group", false);
+            }
+          } catch (err) {
+            showToast("Error updating group: " + err.message, false);
+          }
+        }
+
+        // Group Management Modal Controllers
+        function openGroupModal() {
+          renderGroupModalList();
+          document.getElementById("groupModal").classList.add("active");
+          const input = document.getElementById("newGroupNameInput");
+          if (input) {
+            input.value = "";
+            setTimeout(() => input.focus(), 100);
+          }
+        }
+
+        function closeGroupModal() {
+          document.getElementById("groupModal").classList.remove("active");
+        }
+
+        async function refreshGroupsFromServer() {
+          try {
+            const res = await fetch("/api/groups");
+            if (res.ok) {
+              allGroups = await res.json();
+              renderCategoryTabs();
+              populateGroupDatalist();
+            }
+          } catch (_) {}
+        }
+
+        function renderGroupModalList() {
+          const container = document.getElementById("groupManagerList");
+          if (!container) return;
+
+          if (!allGroups || allGroups.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-tertiary); padding: 16px;">No groups found</div>';
+            return;
+          }
+
+          const sorted = [...allGroups].sort((a, b) => ((a.order || 999) - (b.order || 999)));
+
+          container.innerHTML = sorted.map(g => {
+            const channelCount = (allChannels || []).filter(c => (c.group || "General") === g.name).length;
+            const isDefault = g.name === "General";
+            return `
+              <div class="group-manager-item" data-group-id="${escapeAttr(g.id)}">
+                <div class="group-manager-info">
+                  <span class="group-manager-name">${escapeHtml(g.name)}</span>
+                  <span class="group-channel-count">${channelCount} ${channelCount === 1 ? 'channel' : 'channels'}</span>
+                </div>
+                <div class="group-manager-actions">
+                  <button class="btn btn-secondary btn-xs" onclick="startRenameGroup('${escapeAttr(g.id)}', '${escapeAttr(g.name)}')" title="Rename group">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span>Rename</span>
+                  </button>
+                  ${isDefault ? `
+                    <button class="btn btn-secondary btn-xs" disabled title="Default fallback group cannot be deleted" style="opacity: 0.4;">
+                      <span>Delete</span>
+                    </button>
+                  ` : `
+                    <button class="btn btn-destructive btn-xs" onclick="deleteGroup('${escapeAttr(g.id)}', '${escapeAttr(g.name)}', ${channelCount})" title="Delete group">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <span>Delete</span>
+                    </button>
+                  `}
+                </div>
+              </div>
+            `;
+          }).join("");
+        }
+
+        async function createNewGroup() {
+          const input = document.getElementById("newGroupNameInput");
+          if (!input) return;
+          const name = input.value.trim();
+          if (!name) {
+            showToast("Please enter a group name", false);
+            return;
+          }
+
+          try {
+            const res = await fetch("/api/groups", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (res.ok && (data.status === "ok" || data.status === "created")) {
+              input.value = "";
+              await refreshGroupsFromServer();
+              renderGroupModalList();
+              showToast("Group '" + data.group.name + "' created successfully!");
+            } else {
+              showToast(data.error || "Failed to create group", false);
+            }
+          } catch (err) {
+            showToast("Error creating group: " + err.message, false);
+          }
+        }
+
+        async function startRenameGroup(groupId, currentName) {
+          const newName = prompt("Enter new name for group '" + currentName + "':", currentName);
+          if (!newName || !newName.trim() || newName.trim() === currentName) return;
+
+          const targetName = newName.trim();
+          try {
+            const res = await fetch("/api/groups/" + encodeURIComponent(groupId), {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: targetName })
+            });
+            const data = await res.json();
+            if (res.ok && (data.status === "ok" || data.status === "updated")) {
+              allChannels = allChannels.map(c => {
+                if ((c.group || "General") === currentName) {
+                  return { ...c, group: targetName };
+                }
+                return c;
+              });
+              if (currentFilterGroup === currentName) {
+                currentFilterGroup = targetName;
+              }
+              await refreshGroupsFromServer();
+              renderGroupModalList();
+              filterChannels();
+              showToast("Renamed group to '" + targetName + "' (updated member channels)!");
+            } else {
+              showToast(data.error || "Failed to rename group", false);
+            }
+          } catch (err) {
+            showToast("Error renaming group: " + err.message, false);
+          }
+        }
+
+        async function deleteGroup(groupId, groupName, channelCount = 0) {
+          let fallbackGroup = "General";
+          let confirmMsg = "Are you sure you want to delete group '" + groupName + "'?";
+          if (channelCount > 0) {
+            confirmMsg += "\\nIts " + channelCount + " channels will be safely moved to '" + fallbackGroup + "'.";
+          }
+          if (!confirm(confirmMsg)) return;
+
+          try {
+            const res = await fetch("/api/groups/" + encodeURIComponent(groupId) + "?fallback_group=" + encodeURIComponent(fallbackGroup), {
+              method: "DELETE"
+            });
+            const data = await res.json();
+            if (res.ok && (data.status === "ok" || data.status === "deleted")) {
+              allChannels = allChannels.map(c => {
+                if (c.group === groupName) {
+                  return { ...c, group: fallbackGroup };
+                }
+                return c;
+              });
+              if (currentFilterGroup === groupName) {
+                currentFilterGroup = "ALL";
+              }
+              await refreshGroupsFromServer();
+              renderGroupModalList();
+              filterChannels();
+              showToast("Deleted group '" + groupName + "' successfully!");
+            } else {
+              showToast(data.error || "Failed to delete group", false);
+            }
+          } catch (err) {
+            showToast("Error deleting group: " + err.message, false);
           }
         }
 
@@ -3557,6 +4363,7 @@ defmodule AcexGateway.Web.DashboardView do
                 allChannels.push(data.channel);
                 showToast("New channel created successfully!");
               }
+              await refreshGroupsFromServer();
               renderCategoryTabs();
               updateFleetHealthMetrics();
               filterChannels();
@@ -3575,6 +4382,11 @@ defmodule AcexGateway.Web.DashboardView do
             const res = await fetch("/api/channels/" + encodeURIComponent(id), { method: "DELETE" });
             if (res.ok) {
               allChannels = allChannels.filter(c => c.id !== id);
+              if (selectedChannelIds.has(id)) {
+                selectedChannelIds.delete(id);
+                updateBulkActionBar();
+              }
+              await refreshGroupsFromServer();
               renderCategoryTabs();
               updateFleetHealthMetrics();
               filterChannels();
@@ -3754,6 +4566,7 @@ defmodule AcexGateway.Web.DashboardView do
               const chRes = await fetch("/api/channels");
               if (chRes.ok) {
                 allChannels = await chRes.json();
+                await refreshGroupsFromServer();
                 renderCategoryTabs();
                 updateFleetHealthMetrics();
                 filterChannels();
@@ -4782,6 +5595,7 @@ defmodule AcexGateway.Web.DashboardView do
             closeImportModal();
             closeXtreamModal();
             closeUpdateModal();
+            closeGroupModal();
           }
         });
 

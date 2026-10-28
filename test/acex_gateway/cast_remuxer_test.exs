@@ -19,6 +19,12 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
       assert CastRemuxer.stop_remuxer("non-existent-channel-xyz") == :ok
     end
 
+    test "get_playlist/2 accepts optional base_url without error" do
+      # On a non-existent or inactive target, returns error tuple without crashing
+      res = CastRemuxer.get_playlist("non-existent-channel-prewarm", "https://example.com")
+      assert match?({:error, _}, res)
+    end
+
     test "cast_base_dir/0 respects custom environment variable" do
       default_dir = CastRemuxer.cast_base_dir()
       assert is_binary(default_dir)

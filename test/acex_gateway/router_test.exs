@@ -446,4 +446,144 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.status == 404
     assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
   end
+
+  test "GET /api/groups returns list of groups with channel count" do
+    conn = conn(:get, "/api/groups") |> Router.call(@opts)
+    assert conn.status == 200
+    groups = Jason.decode!(conn.resp_body)
+    assert is_list(groups)
+    assert length(groups) >= 1
+    assert Enum.any?(groups, fn g -> g["name"] == "General" end)
+    general = Enum.find(groups, fn g -> g["name"] == "General" end)
+    assert Map.has_key?(general, "channel_count")
+  end
+
+  test "POST, PUT, DELETE /api/groups manages groups and cascades changes" do
+    unique_tag = System.unique_integer([:positive])
+    init_name = "Anime #{unique_tag}"
+    renamed_name = "Animation #{unique_tag}"
+    ch_id = "anime-ch-#{unique_tag}"
+
+    # 1. POST /api/groups creates a new group
+    conn_create =
+      conn(:post, "/api/groups", %{"name" => init_name})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_create.status == 201
+    resp_create = Jason.decode!(conn_create.resp_body)
+    assert resp_create["status"] == "created"
+    assert resp_create["group"]["name"] == init_name
+    group_id = resp_create["group"]["id"]
+
+    # 2. Add channel to that group
+    ch = %{
+      "id" => ch_id,
+      "name" => "Anime Channel",
+      "group" => init_name,
+      "sources" => ["anime_hash_1"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch)
+
+    # 3. PUT /api/groups/:id renames group and cascades to channel
+    conn_rename =
+      conn(:put, "/api/groups/#{group_id}", %{"name" => renamed_name})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_rename.status == 200
+    resp_rename = Jason.decode!(conn_rename.resp_body)
+    assert resp_rename["status"] == "updated"
+    assert resp_rename["group"]["name"] == renamed_name
+    assert AcexGateway.Channels.Store.get_channel(ch_id)["group"] == renamed_name
+
+    # 4. DELETE /api/groups/:id deletes group and reassigns channel to fallback
+    conn_del =
+      conn(:delete, "/api/groups/#{group_id}?fallback_group=General")
+      |> Router.call(@opts)
+
+    assert conn_del.status == 200
+    resp_del = Jason.decode!(conn_del.resp_body)
+    assert resp_del["status"] == "deleted"
+    assert AcexGateway.Channels.Store.get_channel(ch_id)["group"] == "General"
+
+    # Cleanup
+    AcexGateway.Channels.Store.delete_channel(ch_id)
+  end
+
+  test "PATCH /api/channels/:id/group reassigns single channel group" do
+    ch = %{
+      "id" => "patch-group-ch",
+      "name" => "Patch Channel",
+      "group" => "General",
+      "sources" => ["patch_group_hash"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch)
+
+    conn =
+      conn(:patch, "/api/channels/patch-group-ch/group", %{"group" => "Documentaries"})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn.status == 200
+    resp = Jason.decode!(conn.resp_body)
+    assert resp["status"] == "ok"
+    assert resp["channel"]["group"] == "Documentaries"
+    assert AcexGateway.Channels.Store.get_channel("patch-group-ch")["group"] == "Documentaries"
+
+    # Cleanup
+    AcexGateway.Channels.Store.delete_channel("patch-group-ch")
+  end
+
+  test "POST /api/channels/bulk-move and bulk-delete batch operation" do
+    ch1 = %{
+      "id" => "bulk-test-ch-1",
+      "name" => "Bulk 1",
+      "group" => "General",
+      "sources" => ["bulk_h1"]
+    }
+
+    ch2 = %{
+      "id" => "bulk-test-ch-2",
+      "name" => "Bulk 2",
+      "group" => "General",
+      "sources" => ["bulk_h2"]
+    }
+
+    AcexGateway.Channels.Store.save_channel(ch1)
+    AcexGateway.Channels.Store.save_channel(ch2)
+
+    # 1. Bulk move
+    conn_move =
+      conn(:post, "/api/channels/bulk-move", %{
+        "channel_ids" => ["bulk-test-ch-1", "bulk-test-ch-2"],
+        "group" => "Gaming & Esports"
+      })
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_move.status == 200
+    resp_move = Jason.decode!(conn_move.resp_body)
+    assert resp_move["status"] == "ok"
+    assert resp_move["moved_count"] == 2
+    assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-1")["group"] == "Gaming & Esports"
+    assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-2")["group"] == "Gaming & Esports"
+
+    # 2. Bulk delete
+    conn_del =
+      conn(:post, "/api/channels/bulk-delete", %{
+        "channel_ids" => ["bulk-test-ch-1", "bulk-test-ch-2"]
+      })
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+
+    assert conn_del.status == 200
+    resp_del = Jason.decode!(conn_del.resp_body)
+    assert resp_del["status"] == "ok"
+    assert resp_del["deleted_count"] == 2
+    assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-1") == nil
+    assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-2") == nil
+  end
 end

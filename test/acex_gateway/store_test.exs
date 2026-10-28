@@ -254,4 +254,136 @@ defmodule AcexGateway.Channels.StoreTest do
     Store.delete_channel("auto-prune-ch")
     Store.delete_channel("single-src-ch")
   end
+
+  test "list_groups returns groups with channel_count" do
+    groups = Store.list_groups()
+    assert is_list(groups)
+    assert length(groups) >= 1
+    assert Enum.any?(groups, fn g -> g["name"] == "General" end)
+
+    general = Enum.find(groups, fn g -> g["name"] == "General" end)
+    assert Map.has_key?(general, "channel_count")
+    assert is_integer(general["channel_count"])
+  end
+
+  test "get_group returns single group with channel_count and nil for unknown" do
+    general = Store.get_group("general")
+    assert general != nil
+    assert general["name"] == "General"
+    assert is_integer(general["channel_count"])
+
+    assert Store.get_group("non_existent_group_xyz") == nil
+    assert Store.get_group(nil) == nil
+    assert Store.get_group(123) == nil
+  end
+
+  test "create_group creates group and prevents duplicates" do
+    assert {:ok, group} = Store.create_group("Test New Category")
+    assert group["name"] == "Test New Category"
+    assert group["id"] == "test-new-category"
+
+    # Duplicates rejected case-insensitively
+    assert {:error, :already_exists} = Store.create_group("test new category")
+    assert {:error, :already_exists} = Store.create_group("TEST NEW CATEGORY")
+
+    # Empty name rejected
+    assert {:error, :invalid_name} = Store.create_group("   ")
+
+    # Cleanup
+    Store.delete_group(group["id"])
+  end
+
+  test "rename_group cascades new name to all matching channels" do
+    assert {:ok, group} = Store.create_group("Original Group")
+
+    ch1 = %{
+      "id" => "cascade-ch-1",
+      "name" => "Cascade 1",
+      "group" => "Original Group",
+      "sources" => ["hash_casc_1"]
+    }
+
+    ch2 = %{
+      "id" => "cascade-ch-2",
+      "name" => "Cascade 2",
+      "group" => "Original Group",
+      "sources" => ["hash_casc_2"]
+    }
+
+    Store.save_channel(ch1)
+    Store.save_channel(ch2)
+
+    assert {:ok, updated_group} = Store.rename_group(group["id"], "Renamed Group")
+    assert updated_group["name"] == "Renamed Group"
+
+    assert Store.get_channel("cascade-ch-1")["group"] == "Renamed Group"
+    assert Store.get_channel("cascade-ch-2")["group"] == "Renamed Group"
+
+    # Cleanup
+    Store.delete_channel("cascade-ch-1")
+    Store.delete_channel("cascade-ch-2")
+    Store.delete_group(group["id"])
+  end
+
+  test "delete_group reassigns orphan channels to fallback group" do
+    assert {:ok, group} = Store.create_group("Doomed Group")
+
+    ch = %{
+      "id" => "orphan-ch",
+      "name" => "Orphan Channel",
+      "group" => "Doomed Group",
+      "sources" => ["orphan_hash"]
+    }
+
+    Store.save_channel(ch)
+
+    assert {:ok, res} = Store.delete_group(group["id"], "General")
+    assert res.deleted == group["id"]
+    assert res.reassigned_to == "General"
+
+    assert Store.get_channel("orphan-ch")["group"] == "General"
+
+    # Cleanup
+    Store.delete_channel("orphan-ch")
+  end
+
+  test "move_channels_group moves multiple channels and auto-creates group if needed" do
+    ch1 = %{
+      "id" => "move-ch-1",
+      "name" => "Move 1",
+      "group" => "General",
+      "sources" => ["hash_m1"]
+    }
+
+    ch2 = %{
+      "id" => "move-ch-2",
+      "name" => "Move 2",
+      "group" => "General",
+      "sources" => ["hash_m2"]
+    }
+
+    Store.save_channel(ch1)
+    Store.save_channel(ch2)
+
+    assert {:ok, res} =
+             Store.move_channels_group(["move-ch-1", "move-ch-2"], "New Transferred Group")
+
+    assert res.moved_count == 2
+    assert res.target_group == "New Transferred Group"
+
+    assert Store.get_channel("move-ch-1")["group"] == "New Transferred Group"
+    assert Store.get_channel("move-ch-2")["group"] == "New Transferred Group"
+
+    # Verify group was added to Store.list_groups()
+    groups = Store.list_groups()
+    assert Enum.any?(groups, fn g -> g["name"] == "New Transferred Group" end)
+
+    # Test set_channel_group for a single channel
+    assert {:ok, _} = Store.set_channel_group("move-ch-1", "Solo Group")
+    assert Store.get_channel("move-ch-1")["group"] == "Solo Group"
+
+    # Cleanup
+    Store.delete_channel("move-ch-1")
+    Store.delete_channel("move-ch-2")
+  end
 end

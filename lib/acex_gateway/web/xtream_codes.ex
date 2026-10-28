@@ -88,16 +88,12 @@ defmodule AcexGateway.Web.XtreamCodes do
   end
 
   defp get_categories do
-    channels = Store.list_channels()
+    groups = Store.list_groups()
 
-    channels
-    |> Enum.map(&(&1["group"] || "General"))
-    |> Enum.uniq()
-    |> Enum.with_index(1)
-    |> Enum.map(fn {group_name, idx} ->
+    Enum.map(groups, fn g ->
       %{
-        "category_id" => to_string(idx),
-        "category_name" => group_name,
+        "category_id" => to_string(g["order"] || 1),
+        "category_name" => g["name"],
         "parent_id" => 0
       }
     end)
@@ -105,20 +101,19 @@ defmodule AcexGateway.Web.XtreamCodes do
 
   defp get_live_streams(category_id) do
     channels = Store.list_channels()
+    groups = Store.list_groups()
 
-    groups =
-      channels
-      |> Enum.map(&(&1["group"] || "General"))
-      |> Enum.uniq()
-      |> Enum.with_index(1)
-      |> Map.new(fn {name, idx} -> {name, to_string(idx)} end)
+    group_to_cat_id =
+      Map.new(groups, fn g ->
+        {g["name"], to_string(g["order"] || 1)}
+      end)
 
     streams =
       channels
       |> Enum.with_index(1)
       |> Enum.map(fn {c, num} ->
         group = c["group"] || "General"
-        cat_id = Map.get(groups, group, "1")
+        cat_id = Map.get(group_to_cat_id, group, "1")
         name = Store.format_playlist_title(c["name"], c["country"])
 
         %{

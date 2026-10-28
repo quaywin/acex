@@ -15,7 +15,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
   require Logger
 
   @sweep_interval_ms 10_000
-  @inactivity_timeout_s 30
+  @inactivity_timeout_s 60
+  @prewarm_interval_ms 1_500
   @max_startup_wait_ms 20_000
 
   # --- Client API ---
@@ -34,12 +35,13 @@ defmodule AcexGateway.Stream.CastRemuxer do
   @doc """
   Ensures an HLS remuxer process is running for the given stream target,
   waits for initial manifest creation, and returns the path to `live.m3u8`.
+  Accepts optional `base_url` for CDN segment pre-warming.
   """
-  def get_playlist(target) do
+  def get_playlist(target, base_url \\ nil) do
     if ffmpeg_available?() do
       clean_target = sanitize_target(target)
 
-      case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target}, 15_000) do
+      case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target, base_url}, 15_000) do
         {:ok, m3u8_path} ->
           case wait_for_manifest(clean_target, m3u8_path) do
             :ok -> {:ok, m3u8_path}
@@ -85,24 +87,36 @@ defmodule AcexGateway.Stream.CastRemuxer do
   def init(_opts) do
     Process.flag(:trap_exit, true)
     schedule_sweep()
+    schedule_prewarm()
     # Clean up stale temp directories from previous runs on boot
     cleanup_dir(cast_base_dir())
     {:ok, %{jobs: %{}}}
   end
 
   @impl true
-  def handle_call({:ensure_remuxer, clean_target}, _from, state) do
+  def handle_call({:ensure_remuxer, clean_target}, from, state) do
+    handle_call({:ensure_remuxer, clean_target, nil}, from, state)
+  end
+
+  def handle_call({:ensure_remuxer, clean_target, base_url}, _from, state) do
     now = System.monotonic_time(:second)
 
     case Map.get(state.jobs, clean_target) do
       %{dir: dir} = job ->
-        updated_job = %{job | last_accessed: now}
+        new_base_url =
+          cond do
+            prewarm_eligible?(base_url) -> base_url
+            is_binary(job[:base_url]) and job[:base_url] != "" -> job[:base_url]
+            true -> effective_base_url(base_url)
+          end
+
+        updated_job = Map.merge(job, %{last_accessed: now, base_url: new_base_url})
         new_jobs = Map.put(state.jobs, clean_target, updated_job)
         m3u8_path = Path.join(dir, "live.m3u8")
         {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
 
       nil ->
-        case start_ffmpeg_job(clean_target) do
+        case start_ffmpeg_job(clean_target, base_url) do
           {:ok, job} ->
             new_jobs = Map.put(state.jobs, clean_target, job)
             m3u8_path = Path.join(job.dir, "live.m3u8")
@@ -178,6 +192,18 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   @impl true
+  def handle_info(:prewarm_tick, state) do
+    new_jobs =
+      Enum.into(state.jobs, %{}, fn {target, job} ->
+        updated_job = maybe_prewarm_job(target, job)
+        {target, updated_job}
+      end)
+
+    schedule_prewarm()
+    {:noreply, %{state | jobs: new_jobs}}
+  end
+
+  @impl true
   def handle_info({port, {:data, msg}}, state) when is_port(port) do
     if is_binary(msg) and String.contains?(msg, ["Error", "error", "Fatal", "fatal"]) do
       Logger.warning("[CastRemuxer:FFmpeg] #{String.trim(msg)}")
@@ -230,7 +256,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
     System.get_env("CAST_CACHE_DIR") || Path.join(System.tmp_dir!(), "acex_cast")
   end
 
-  defp start_ffmpeg_job(target) do
+  defp start_ffmpeg_job(target, base_url) do
     ffmpeg_bin = System.find_executable("ffmpeg")
 
     if ffmpeg_bin == nil do
@@ -327,7 +353,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
            port: port,
            os_pid: os_pid,
            dir: job_dir,
-           last_accessed: System.monotonic_time(:second)
+           last_accessed: System.monotonic_time(:second),
+           base_url: effective_base_url(base_url),
+           prewarmed: MapSet.new()
          }}
       rescue
         e ->
@@ -427,5 +455,95 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   defp schedule_sweep do
     Process.send_after(self(), :sweep, @sweep_interval_ms)
+  end
+
+  defp schedule_prewarm do
+    Process.send_after(self(), :prewarm_tick, @prewarm_interval_ms)
+  end
+
+  defp maybe_prewarm_job(target, %{dir: dir, base_url: base_url, prewarmed: prewarmed} = job) do
+    if prewarm_eligible?(base_url) do
+      m3u8_path = Path.join(dir, "live.m3u8")
+
+      case File.read(m3u8_path) do
+        {:ok, content} ->
+          segments = parse_segments_from_manifest(content)
+          new_segments = Enum.reject(segments, &MapSet.member?(prewarmed, &1))
+
+          Enum.each(new_segments, fn segment_name ->
+            trigger_prewarm_request(base_url, target, segment_name)
+          end)
+
+          # Retain only current segments in set to keep memory footprint minimal
+          current_segment_set = MapSet.new(segments)
+
+          updated_prewarmed =
+            prewarmed
+            |> MapSet.union(MapSet.new(new_segments))
+            |> MapSet.intersection(current_segment_set)
+
+          %{job | prewarmed: updated_prewarmed}
+
+        {:error, _} ->
+          job
+      end
+    else
+      job
+    end
+  end
+
+  defp maybe_prewarm_job(_target, job), do: job
+
+  defp parse_segments_from_manifest(content) do
+    content
+    |> String.split(["\n", "\r\n"], trim: true)
+    |> Enum.filter(&String.ends_with?(&1, ".ts"))
+    |> Enum.map(&Path.basename/1)
+  end
+
+  defp trigger_prewarm_request(base_url, target, segment_name) do
+    clean_base = String.trim_trailing(base_url, "/")
+    url = "#{clean_base}/cast/#{target}/#{segment_name}"
+
+    Task.start(fn ->
+      try do
+        Logger.debug("[CastRemuxer] Pre-warming CDN segment: #{url}")
+
+        Req.get(url,
+          headers: [
+            {"user-agent", "AcexGateway-Prewarmer/1.0"},
+            {"x-purpose", "preview"}
+          ],
+          into: fn {:data, _chunk}, acc -> {:cont, acc} end,
+          receive_timeout: 5_000,
+          connect_options: [timeout: 3_000]
+        )
+      rescue
+        _ -> :ok
+      catch
+        :exit, _ -> :ok
+      end
+    end)
+  end
+
+  defp prewarm_eligible?(base_url) when is_binary(base_url) and base_url != "" do
+    case System.get_env("CAST_PREWARM_ENABLED") do
+      "false" ->
+        false
+
+      _ ->
+        uri = URI.parse(base_url)
+        host = uri.host || ""
+
+        uri.scheme in ["http", "https"] and
+          host not in ["localhost", "127.0.0.1", "0.0.0.0", ""] and
+          not String.ends_with?(host, ".local")
+    end
+  end
+
+  defp prewarm_eligible?(_), do: false
+
+  defp effective_base_url(base_url) do
+    System.get_env("CAST_PREWARM_BASE_URL") || base_url
   end
 end

@@ -9,7 +9,10 @@ defmodule AcexGateway.Channels.Store do
   require Logger
 
   @default_file "data/channels.json"
+  @default_groups_file "data/groups.json"
   @table :acex_channels
+
+  @baseline_groups ["General", "Sports", "News", "Movies", "Entertainment"]
 
   @default_channels [
     %{
@@ -235,6 +238,78 @@ defmodule AcexGateway.Channels.Store do
     GenServer.call(__MODULE__, {:import_channels, input, opts})
   end
 
+  @doc """
+  Lists all configured playlist groups, enriched with live channel counts.
+  Reads lock-free from ETS.
+  """
+  def list_groups do
+    groups =
+      case :ets.whereis(@table) do
+        :undefined ->
+          GenServer.call(__MODULE__, :list_groups)
+
+        _ ->
+          case :ets.lookup(@table, :all_groups) do
+            [{:all_groups, list}] -> list
+            [] -> GenServer.call(__MODULE__, :list_groups)
+          end
+      end
+
+    channels = list_channels()
+    counts = Enum.frequencies_by(channels, fn c -> c["group"] || "General" end)
+
+    Enum.map(groups, fn g ->
+      count = Map.get(counts, g["name"], 0)
+      Map.put(g, "channel_count", count)
+    end)
+  end
+
+  @doc """
+  Gets a group by its slug ID, enriched with live channel count.
+  """
+  def get_group(id) when is_binary(id) do
+    Enum.find(list_groups(), fn g -> g["id"] == id end)
+  end
+
+  def get_group(_), do: nil
+
+  @doc """
+  Creates a new group.
+  """
+  def create_group(attrs_or_name) do
+    GenServer.call(__MODULE__, {:create_group, attrs_or_name})
+  end
+
+  @doc """
+  Renames a group and cascades the new name to all matching channels.
+  """
+  def rename_group(id, new_name) when is_binary(id) and is_binary(new_name) do
+    GenServer.call(__MODULE__, {:rename_group, id, new_name})
+  end
+
+  @doc """
+  Deletes a group and reassigns any member channels to fallback_group (default "General").
+  """
+  def delete_group(id, fallback_group \\ "General") when is_binary(id) do
+    GenServer.call(__MODULE__, {:delete_group, id, fallback_group})
+  end
+
+  @doc """
+  Moves multiple channels to a target group. Auto-creates the group if it doesn't exist.
+  """
+  def move_channels_group(channel_ids, target_group_name)
+      when is_list(channel_ids) and is_binary(target_group_name) do
+    GenServer.call(__MODULE__, {:move_channels_group, channel_ids, target_group_name})
+  end
+
+  @doc """
+  Moves a single channel to a target group.
+  """
+  def set_channel_group(channel_id, target_group_name)
+      when is_binary(channel_id) and is_binary(target_group_name) do
+    move_channels_group([channel_id], target_group_name)
+  end
+
   # Server Callbacks
 
   @impl true
@@ -251,10 +326,19 @@ defmodule AcexGateway.Channels.Store do
           System.get_env("CHANNELS_FILE", @default_file)
       )
 
-    channels = load_channels(file_path)
-    sync_to_ets(channels)
+    groups_file =
+      Keyword.get(
+        opts,
+        :groups_file,
+        Application.get_env(:acex_gateway, :groups_file) ||
+          System.get_env("GROUPS_FILE", @default_groups_file)
+      )
 
-    {:ok, %{file_path: file_path, channels: channels}}
+    channels = load_channels(file_path)
+    groups = load_groups(groups_file, channels)
+    sync_to_ets(channels, groups)
+
+    {:ok, %{file_path: file_path, groups_file: groups_file, channels: channels, groups: groups}}
   end
 
   @impl true
@@ -269,6 +353,9 @@ defmodule AcexGateway.Channels.Store do
 
   def handle_call({:save_channel, params}, _from, state) do
     channel = normalize_channel_param(params)
+    group_name = channel["group"] || "General"
+
+    {new_groups, groups_changed} = maybe_add_group(state.groups, group_name)
 
     # Upsert channel
     new_channels =
@@ -277,16 +364,17 @@ defmodule AcexGateway.Channels.Store do
         idx -> List.replace_at(state.channels, idx, channel)
       end
 
-    sync_to_ets(new_channels)
-    new_state = %{state | channels: new_channels}
+    sync_to_ets(new_channels, new_groups)
+    new_state = %{state | channels: new_channels, groups: new_groups}
     persist_channels(new_state.file_path, new_channels)
+    if groups_changed, do: persist_groups(new_state.groups_file, new_groups)
 
     {:reply, {:ok, channel}, new_state}
   end
 
   def handle_call({:delete_channel, id}, _from, state) do
     new_channels = Enum.reject(state.channels, fn c -> c["id"] == id end)
-    sync_to_ets(new_channels)
+    sync_to_ets(new_channels, state.groups)
     new_state = %{state | channels: new_channels}
     persist_channels(new_state.file_path, new_channels)
 
@@ -347,12 +435,179 @@ defmodule AcexGateway.Channels.Store do
           end)
         end
 
-      sync_to_ets(new_channels)
-      new_state = %{state | channels: new_channels}
+      # Extract groups and sync
+      imported_groups =
+        new_channels
+        |> Enum.map(&(&1["group"] || "General"))
+        |> Enum.uniq()
+
+      {new_groups, groups_changed} =
+        Enum.reduce(imported_groups, {state.groups, false}, fn gname, {acc_groups, acc_changed} ->
+          {updated_groups, changed} = maybe_add_group(acc_groups, gname)
+          {updated_groups, acc_changed or changed}
+        end)
+
+      sync_to_ets(new_channels, new_groups)
+      new_state = %{state | channels: new_channels, groups: new_groups}
       persist_channels(new_state.file_path, new_channels)
+      if groups_changed, do: persist_groups(new_state.groups_file, new_groups)
 
       {:reply, {:ok, parsed_channels}, new_state}
     end
+  end
+
+  def handle_call(:list_groups, _from, state) do
+    {:reply, state.groups, state}
+  end
+
+  def handle_call({:create_group, attrs_or_name}, _from, state) do
+    name =
+      cond do
+        is_binary(attrs_or_name) ->
+          String.trim(attrs_or_name)
+
+        is_map(attrs_or_name) ->
+          String.trim(to_string(attrs_or_name["name"] || attrs_or_name[:name] || ""))
+
+        true ->
+          ""
+      end
+
+    if name == "" do
+      {:reply, {:error, :invalid_name}, state}
+    else
+      exists =
+        Enum.find(state.groups, fn g ->
+          String.downcase(g["name"]) == String.downcase(name)
+        end)
+
+      if exists do
+        {:reply, {:error, :already_exists}, state}
+      else
+        new_group = build_new_group(state.groups, name)
+        new_groups = state.groups ++ [new_group]
+        sync_to_ets(state.channels, new_groups)
+        persist_groups(state.groups_file, new_groups)
+
+        {:reply, {:ok, new_group}, %{state | groups: new_groups}}
+      end
+    end
+  end
+
+  def handle_call({:rename_group, id, new_name}, _from, state) do
+    clean_name = String.trim(new_name)
+
+    if clean_name == "" do
+      {:reply, {:error, :invalid_name}, state}
+    else
+      case Enum.find_index(state.groups, fn g -> g["id"] == id end) do
+        nil ->
+          {:reply, {:error, :not_found}, state}
+
+        idx ->
+          exists =
+            Enum.find(state.groups, fn g ->
+              g["id"] != id and String.downcase(g["name"]) == String.downcase(clean_name)
+            end)
+
+          if exists do
+            {:reply, {:error, :already_exists}, state}
+          else
+            old_group = Enum.at(state.groups, idx)
+            old_name = old_group["name"]
+            updated_group = Map.put(old_group, "name", clean_name)
+            new_groups = List.replace_at(state.groups, idx, updated_group)
+
+            # Cascade rename to all channels
+            {new_channels, channels_changed} =
+              Enum.map_reduce(state.channels, false, fn ch, changed ->
+                if ch["group"] == old_name do
+                  {Map.put(ch, "group", clean_name), true}
+                else
+                  {ch, changed}
+                end
+              end)
+
+            sync_to_ets(new_channels, new_groups)
+            persist_groups(state.groups_file, new_groups)
+            if channels_changed, do: persist_channels(state.file_path, new_channels)
+
+            {:reply, {:ok, updated_group}, %{state | groups: new_groups, channels: new_channels}}
+          end
+      end
+    end
+  end
+
+  def handle_call({:delete_group, id, fallback_group}, _from, state) do
+    case Enum.find(state.groups, fn g -> g["id"] == id end) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      target_group ->
+        if length(state.groups) <= 1 do
+          {:reply, {:error, :cannot_delete_last_group}, state}
+        else
+          old_name = target_group["name"]
+          remaining_groups = Enum.reject(state.groups, fn g -> g["id"] == id end)
+          clean_fallback = String.trim(fallback_group || "")
+
+          fallback_name =
+            cond do
+              clean_fallback != "" and clean_fallback != old_name and
+                  Enum.any?(remaining_groups, &(&1["name"] == clean_fallback)) ->
+                clean_fallback
+
+              Enum.any?(remaining_groups, &(&1["name"] == "General")) ->
+                "General"
+
+              true ->
+                hd(remaining_groups)["name"]
+            end
+
+          {final_groups, _} = maybe_add_group(remaining_groups, fallback_name)
+
+          # Reassign orphan channels to fallback group
+          {new_channels, channels_changed} =
+            Enum.map_reduce(state.channels, false, fn ch, changed ->
+              if ch["group"] == old_name do
+                {Map.put(ch, "group", fallback_name), true}
+              else
+                {ch, changed}
+              end
+            end)
+
+          sync_to_ets(new_channels, final_groups)
+          persist_groups(state.groups_file, final_groups)
+          if channels_changed, do: persist_channels(state.file_path, new_channels)
+
+          {:reply, {:ok, %{deleted: id, reassigned_to: fallback_name}},
+           %{state | groups: final_groups, channels: new_channels}}
+        end
+    end
+  end
+
+  def handle_call({:move_channels_group, channel_ids, target_group_name}, _from, state) do
+    clean_target = String.trim(target_group_name || "")
+    clean_target = if clean_target == "", do: "General", else: clean_target
+    target_ids_set = MapSet.new(channel_ids)
+
+    {new_groups, groups_changed} = maybe_add_group(state.groups, clean_target)
+
+    {new_channels, moved_count} =
+      Enum.map_reduce(state.channels, 0, fn ch, acc ->
+        if MapSet.member?(target_ids_set, ch["id"]) do
+          {Map.put(ch, "group", clean_target), acc + 1}
+        else
+          {ch, acc}
+        end
+      end)
+
+    sync_to_ets(new_channels, new_groups)
+    if moved_count > 0, do: persist_channels(state.file_path, new_channels)
+    if groups_changed, do: persist_groups(state.groups_file, new_groups)
+
+    {:reply, {:ok, %{moved_count: moved_count, target_group: clean_target}},
+     %{state | channels: new_channels, groups: new_groups}}
   end
 
   def handle_call({:export_m3u, base_url, auth_opts}, _from, state) do
@@ -367,10 +622,11 @@ defmodule AcexGateway.Channels.Store do
 
   # Fast ETS Synchronization
 
-  defp sync_to_ets(channels) do
+  defp sync_to_ets(channels, groups) do
     if :ets.whereis(@table) != :undefined do
       :ets.delete_all_objects(@table)
       :ets.insert(@table, {:all_channels, channels})
+      :ets.insert(@table, {:all_groups, groups})
 
       for channel <- channels do
         id = channel["id"]
@@ -547,6 +803,136 @@ defmodule AcexGateway.Channels.Store do
       {:error, reason} ->
         Logger.error("[Channels.Store] Failed to serialize channels: #{inspect(reason)}")
     end
+  end
+
+  defp load_groups(groups_file, channels) do
+    with {:ok, content} <- File.read(groups_file),
+         {:ok, list} when is_list(list) and list != [] <- Jason.decode(content) do
+      normalized =
+        list
+        |> Enum.with_index(1)
+        |> Enum.map(fn {g, idx} ->
+          name = g["name"] || "General"
+          base_id = g["id"] || generate_slug(name)
+          id = if base_id == "", do: "group-#{idx}", else: base_id
+          order = g["order"] || idx
+          %{"id" => id, "name" => name, "order" => order}
+        end)
+
+      channel_groups =
+        channels
+        |> Enum.map(&(&1["group"] || "General"))
+        |> Enum.uniq()
+
+      {merged, changed} =
+        Enum.reduce(channel_groups, {normalized, false}, fn gname, {acc, chg} ->
+          {res, c} = maybe_add_group(acc, gname)
+          {res, chg or c}
+        end)
+
+      if changed, do: persist_groups(groups_file, merged)
+      Enum.sort_by(merged, &(&1["order"] || 0))
+    else
+      _ ->
+        bootstrap_groups(groups_file, channels)
+    end
+  end
+
+  defp bootstrap_groups(groups_file, channels) do
+    channel_groups =
+      channels
+      |> Enum.map(& &1["group"])
+      |> Enum.reject(&(is_nil(&1) or String.trim(&1) == ""))
+
+    distinct_names =
+      ["General" | channel_groups ++ @baseline_groups]
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq_by(&String.downcase/1)
+
+    groups =
+      distinct_names
+      |> Enum.with_index(1)
+      |> Enum.map(fn {name, idx} ->
+        base = generate_slug(name)
+        id = if base == "", do: "group-#{idx}", else: base
+
+        %{
+          "id" => id,
+          "name" => name,
+          "order" => idx
+        }
+      end)
+
+    persist_groups(groups_file, groups)
+    groups
+  end
+
+  defp persist_groups(file_path, groups) do
+    dir = Path.dirname(file_path)
+
+    if dir != "." and not File.dir?(dir) do
+      File.mkdir_p!(dir)
+    end
+
+    case Jason.encode(groups, pretty: true) do
+      {:ok, json} ->
+        tmp_path = "#{file_path}.tmp.#{:erlang.unique_integer([:positive])}"
+
+        case File.write(tmp_path, json) do
+          :ok ->
+            File.rename(tmp_path, file_path)
+
+          {:error, reason} ->
+            Logger.error(
+              "[Channels.Store] Failed to write groups temp file '#{tmp_path}': #{inspect(reason)}"
+            )
+        end
+
+      {:error, reason} ->
+        Logger.error("[Channels.Store] Failed to serialize groups: #{inspect(reason)}")
+    end
+  end
+
+  defp maybe_add_group(groups, name) do
+    clean_name = String.trim(name || "")
+    clean_name = if clean_name == "", do: "General", else: clean_name
+
+    case Enum.find(groups, fn g -> String.downcase(g["name"]) == String.downcase(clean_name) end) do
+      nil ->
+        new_group = build_new_group(groups, clean_name)
+        {groups ++ [new_group], true}
+
+      _existing ->
+        {groups, false}
+    end
+  end
+
+  defp build_new_group(groups, name) do
+    clean_name = String.trim(name || "")
+    clean_name = if clean_name == "", do: "General", else: clean_name
+
+    order =
+      case Enum.map(groups, &(&1["order"] || 0)) do
+        [] -> 1
+        orders -> Enum.max(orders) + 1
+      end
+
+    base_slug = generate_slug(clean_name)
+    slug = if base_slug == "", do: "group-#{order}", else: base_slug
+
+    unique_slug =
+      if Enum.any?(groups, &(&1["id"] == slug)) do
+        "#{slug}-#{order}"
+      else
+        slug
+      end
+
+    %{
+      "id" => unique_slug,
+      "name" => clean_name,
+      "order" => order
+    }
   end
 
   @doc """

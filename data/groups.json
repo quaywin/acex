@@ -1,0 +1,107 @@
+[
+  {
+    "id": "general",
+    "name": "General",
+    "order": 1
+  },
+  {
+    "id": "vietnam",
+    "name": "Vietnam",
+    "order": 2
+  },
+  {
+    "id": "sports-uk",
+    "name": "Sports - UK",
+    "order": 3
+  },
+  {
+    "id": "sports-germany",
+    "name": "Sports - Germany",
+    "order": 4
+  },
+  {
+    "id": "sports-austria",
+    "name": "Sports - Austria",
+    "order": 5
+  },
+  {
+    "id": "sports-spain",
+    "name": "Sports - Spain",
+    "order": 6
+  },
+  {
+    "id": "sports-poland",
+    "name": "Sports - Poland",
+    "order": 7
+  },
+  {
+    "id": "sports-portugal",
+    "name": "Sports - Portugal",
+    "order": 8
+  },
+  {
+    "id": "sports-netherlands",
+    "name": "Sports - Netherlands",
+    "order": 9
+  },
+  {
+    "id": "sports-france",
+    "name": "Sports - France",
+    "order": 10
+  },
+  {
+    "id": "sports-usa",
+    "name": "Sports - USA",
+    "order": 11
+  },
+  {
+    "id": "sports-russia",
+    "name": "Sports - Russia",
+    "order": 12
+  },
+  {
+    "id": "sports-ukraine",
+    "name": "Sports - Ukraine",
+    "order": 13
+  },
+  {
+    "id": "sports-turkey",
+    "name": "Sports - Turkey",
+    "order": 14
+  },
+  {
+    "id": "sports",
+    "name": "Sports",
+    "order": 15
+  },
+  {
+    "id": "4k-uhd",
+    "name": "4K UHD",
+    "order": 16
+  },
+  {
+    "id": "documentary-movies",
+    "name": "Documentary & Movies",
+    "order": 17
+  },
+  {
+    "id": "live-feeds",
+    "name": "Live Feeds",
+    "order": 18
+  },
+  {
+    "id": "news",
+    "name": "News",
+    "order": 19
+  },
+  {
+    "id": "movies",
+    "name": "Movies",
+    "order": 20
+  },
+  {
+    "id": "entertainment",
+    "name": "Entertainment",
+    "order": 21
+  }
+]
