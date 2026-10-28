@@ -16,7 +16,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @sweep_interval_ms 10_000
   @inactivity_timeout_s 30
-  @max_startup_wait_ms 10_000
+  @max_startup_wait_ms 20_000
 
   # --- Client API ---
 
@@ -167,7 +167,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
     Enum.each(expired_jobs, fn {target, job} ->
       Logger.info(
-        "[CastRemuxer] Inactivity timeout (30s) reached for '#{target}'. Terminating remuxer."
+        "[CastRemuxer] Inactivity timeout (#{@inactivity_timeout_s}s) reached for '#{target}'. Terminating remuxer."
       )
 
       terminate_job(job.port, job.os_pid, job.dir)
@@ -178,7 +178,11 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   @impl true
-  def handle_info({port, {:data, _msg}}, state) when is_port(port) do
+  def handle_info({port, {:data, msg}}, state) when is_port(port) do
+    if is_binary(msg) and String.contains?(msg, ["Error", "error", "Fatal", "fatal"]) do
+      Logger.warning("[CastRemuxer:FFmpeg] #{String.trim(msg)}")
+    end
+
     {:noreply, state}
   end
 
@@ -282,9 +286,13 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hls_time",
         "3",
         "-hls_list_size",
-        "6",
+        "10",
+        "-hls_delete_threshold",
+        "5",
+        "-hls_base_url",
+        "/cast/#{target}/",
         "-hls_flags",
-        "delete_segments+temp_file+independent_segments",
+        "delete_segments+temp_file+independent_segments+omit_endlist",
         "-hls_segment_type",
         "mpegts",
         "-hls_segment_filename",

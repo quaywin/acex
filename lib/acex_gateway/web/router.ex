@@ -612,13 +612,20 @@ defmodule AcexGateway.Web.Router do
       |> String.replace_suffix(".m3u8", "")
       |> String.replace_suffix(".ts", "")
 
+    Logger.debug("[Router] Cast playlist requested for '#{clean_target}'")
+
     case CastRemuxer.get_playlist(clean_target) do
       {:ok, m3u8_path} ->
         case File.read(m3u8_path) do
           {:ok, content} ->
             conn
             |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
-            |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+            |> put_resp_header(
+              "cache-control",
+              "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0"
+            )
+            |> put_resp_header("pragma", "no-cache")
+            |> put_resp_header("expires", "0")
             |> put_resp_header("access-control-allow-origin", "*")
             |> send_resp(200, content)
 
@@ -634,6 +641,8 @@ defmodule AcexGateway.Web.Router do
         |> send_resp(503, "FFmpeg is required on server for Chromecast HLS remuxing")
 
       {:error, reason} ->
+        Logger.error("[Router] Cast playlist error for '#{clean_target}': #{inspect(reason)}")
+
         conn
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_resp(503, "Chromecast remuxer error: #{inspect(reason)}")
@@ -654,7 +663,11 @@ defmodule AcexGateway.Web.Router do
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_file(200, segment_path)
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning(
+          "[Router] Cast segment not found: target='#{clean_target}', segment='#{segment_name}', reason=#{inspect(reason)}"
+        )
+
         conn
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_resp(404, "Segment not found")
