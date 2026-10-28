@@ -86,6 +86,19 @@ defmodule AcexGateway.Web.RouterTest do
       conn_get_php = conn(:get, "/get.php?username=user1&password=pass1&output=hls") |> Router.call(@opts)
       assert conn_get_php.status == 200
       assert conn_get_php.resp_body =~ "/h/user1/pass1/"
+
+      # 4. GET / Dashboard requires authentication when enabled
+      conn_dash_unauth = conn(:get, "/") |> Router.call(@opts)
+      assert conn_dash_unauth.status == 401
+      assert get_resp_header(conn_dash_unauth, "www-authenticate") == ["Basic realm=\"AcexGateway\""]
+
+      auth_header = "Basic " <> Base.encode64("user1:pass1")
+      conn_dash_auth =
+        conn(:get, "/")
+        |> put_req_header("authorization", auth_header)
+        |> Router.call(@opts)
+      assert conn_dash_auth.status == 200
+      assert conn_dash_auth.resp_body =~ "AcexGateway"
     after
       conn(:post, "/api/settings", %{"auth_enabled" => false})
       |> put_req_header("content-type", "application/json")

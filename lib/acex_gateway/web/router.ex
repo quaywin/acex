@@ -1213,14 +1213,20 @@ defmodule AcexGateway.Web.Router do
   end
 
   get "/" do
-    base_url = request_base_url(conn)
-    channels = Store.list_channels()
-    groups = Store.list_groups()
-    html = DashboardView.render(base_url, channels, groups)
+    case authenticate_request(conn) do
+      :ok ->
+        base_url = request_base_url(conn)
+        channels = Store.list_channels()
+        groups = Store.list_groups()
+        html = DashboardView.render(base_url, channels, groups)
 
-    conn
-    |> put_resp_content_type("text/html; charset=utf-8")
-    |> send_resp(200, html)
+        conn
+        |> put_resp_content_type("text/html; charset=utf-8")
+        |> send_resp(200, html)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
   end
 
   match _ do
