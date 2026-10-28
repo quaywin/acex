@@ -37,7 +37,8 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 - **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`, `STATUS main:error`, fatal `LOADRESP`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
 - **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source), with 1-click fleet-wide cleanup (`POST /api/channels/prune-all-dead`).
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
-- **In-Dashboard Web Video Player & Chromecast**: Instant in-browser MPEG-TS live playback using HTML5 MSE decoding (`mpegts.js`), plus 1-click casting to Chromecast & Google TV devices via on-demand, zero-video-transcode HLS remuxing with AAC audio compatibility.
+- **In-Dashboard Web Video Player & Chromecast**: Instant in-browser HLS live playback via `hls.js` and native Apple HLS decoding, plus 1-click casting to Chromecast & Google TV devices via on-demand, zero-video-transcode HLS remuxing with AAC audio compatibility.
+- **Mobile-Optimized Responsive Dashboard**: Fully responsive touch-friendly UI for smartphones and tablets, featuring mobile card views, adaptive modals, streamlined action hubs, and quick copy actions.
 - **In-Dashboard 1-Click System Updater**: Automated GitHub Releases checker with ETS caching, changelog inspector, and 1-click update trigger via internal Watchtower HTTP API with automatic polling and page reload, plus 1-line CLI script `./update.sh`.
 - **Web Dashboard & Live Telemetry**: Manage channels, inspect Fleet Health metrics (total, multi-source, single-source, active streams), smart filter chips, one-click clipboard hash extractor, priority fallback reordering (`▲/▼`), real-time prebuffering progress (`%`), and stream launchers for VLC, IINA, or PotPlayer.
 
@@ -60,7 +61,7 @@ docker run -d \
   --tmpfs /tmp:size=128M,mode=1777 \
   -e ACE_LIVE_BUFFER=20 \
   -e ACE_MAX_PEERS=15 \
-  -e ACE_MAX_UPLOAD_RATE=500 \
+  -e ACE_MAX_UPLOAD_RATE=1000 \
   -e ACE_MEMORY_CACHE_LIMIT=268435456 \
   ghcr.io/quaywin/acex:latest
 ```
@@ -88,7 +89,7 @@ services:
       - PORT=8686
       - ACE_LIVE_BUFFER=20
       - ACE_MAX_PEERS=15
-      - ACE_MAX_UPLOAD_RATE=500
+      - ACE_MAX_UPLOAD_RATE=1000
       - ACE_MEMORY_CACHE_LIMIT=268435456
       - GRACE_PERIOD_MS=15000
       - WATCHTOWER_ENDPOINT=http://acex-watchtower:8080/v1/update
@@ -171,6 +172,7 @@ docker compose pull && docker compose up -d
 | `GET /player_api.php` | Xtream Codes API | TiviMate, IPTV Smarters, XCIPTV |
 | `GET /playlist.m3u8` | Extended M3U Playlist | Apple TV, Smart TV, OTT Navigator |
 | `GET /live/:target.ts` | Direct MPEG-TS Stream | VLC, IINA, PotPlayer, MPV |
+| `GET /cast/:target/live.m3u8` | On-Demand HLS Stream | Google Cast / Chromecast, Safari, Web Video Caster |
 | `GET /` | Web Console | Channel management and player launcher |
 | `POST /api/channels/validate-source` | JSON API | Content ID health check (no buffering, ETS memoized) |
 | `POST /api/channels/:id/prune-dead` | JSON API | One-click dead source pruning (keeps $\ge 1$ source) |
@@ -187,13 +189,14 @@ docker compose pull && docker compose up -d
 | `PORT` | `8686` | Web Dashboard and stream relay port |
 | `ACE_LIVE_BUFFER` | `20` | P2P live buffer in seconds |
 | `ACE_MAX_PEERS` | `15` | Maximum P2P peers connected per stream |
-| `ACE_MAX_UPLOAD_RATE` | `500` | Maximum P2P upload speed limit in KB/s (prevents uplink saturation) |
+| `ACE_MAX_UPLOAD_RATE` | `1000` | Maximum P2P upload speed limit in KB/s (1 MB/s fair-share cap) |
 | `ACE_MEMORY_CACHE_LIMIT` | `268435456` | Maximum AceStream memory cache in bytes (256MB) |
 | `RING_BUFFER_BYTES` | `4194304` | In-memory buffer size in bytes (4MB) |
 | `GRACE_PERIOD_MS` | `15000` | Keep-alive delay in ms after last viewer leaves |
 | `AUTH_USERNAME` | *(empty)* | Optional authentication username |
 | `AUTH_PASSWORD` | *(empty)* | Optional authentication password |
 | `EPG_URL` | *(empty)* | Custom XMLTV EPG URL |
+| `CAST_CACHE_DIR` | `/tmp/acex_cast` | Temporary directory for on-demand Chromecast HLS segments (tmpfs recommended) |
 | `CHANNELS_FILE` | `/app/data/channels.json` | Path to persistent channel storage |
 
 ---

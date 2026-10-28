@@ -60,7 +60,7 @@ defmodule AcexGateway.Web.DashboardView do
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-      <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
       <script>
         window['__onGCastApiAvailable'] = function(isAvailable) {
           if (isAvailable) {
@@ -1516,6 +1516,96 @@ defmodule AcexGateway.Web.DashboardView do
             grid-template-columns: 1fr !important;
             gap: var(--space-sm) !important;
           }
+          .fleet-health-banner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px 14px;
+            gap: 12px;
+          }
+          .fleet-metrics-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 12px;
+            width: 100%;
+          }
+          .fleet-metric-item {
+            gap: 6px;
+          }
+          .fleet-metric-icon {
+            width: 28px;
+            height: 28px;
+            font-size: 13px;
+          }
+          .fleet-metric-val {
+            font-size: 16px;
+          }
+          .fleet-filter-bar {
+            padding-bottom: 6px;
+            -webkit-overflow-scrolling: touch;
+          }
+          .filter-tab-pill {
+            padding: 5px 11px;
+            font-size: 12px;
+          }
+          .input-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+          }
+          .input-row .btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .panel-actions-row {
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+          .panel-actions-row .btn {
+            flex: 1 1 calc(50% - 6px);
+            min-width: 0;
+            padding: 6px 8px;
+            font-size: 12px;
+          }
+          .card-actions-row {
+            flex-wrap: wrap;
+            gap: 4px;
+          }
+          .card-actions-row .btn-sm {
+            flex: 1;
+            justify-content: center;
+          }
+          .source-card-item {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            padding: 8px 10px;
+          }
+          .source-card-actions {
+            justify-content: flex-end;
+          }
+          .format-choice-grid {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+          }
+          .version-compare-banner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            text-align: center;
+            gap: 10px !important;
+          }
+          .version-compare-banner .version-arrow {
+            transform: rotate(90deg);
+            margin: 2px 0;
+          }
+          .update-modal-footer {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+          .update-modal-footer .btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
           .toast-shelf {
             right: 12px;
             bottom: 12px;
@@ -2337,7 +2427,7 @@ defmodule AcexGateway.Web.DashboardView do
         </div>
       </div>
 
-      <!-- In-Dashboard Web Video Player Modal (MPEG-TS Live Player) -->
+      <!-- In-Dashboard Web Video Player Modal (HLS Live Player) -->
       <div id="webPlayerModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'webPlayerModal')">
         <div class="modal-window" style="max-width: 820px; padding: var(--space-md);">
           <div class="modal-top" style="margin-bottom: var(--space-sm);">
@@ -2347,7 +2437,7 @@ defmodule AcexGateway.Web.DashboardView do
                 <span id="webPlayerChannelName">Live Stream Player</span>
               </h3>
               <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
-                Direct MPEG-TS live playback in browser (HTML5 MSE)
+                Direct HLS live stream playback in browser
               </p>
             </div>
             <button class="btn btn-secondary btn-xs" onclick="closeWebPlayerModal()">✕</button>
@@ -2356,7 +2446,7 @@ defmodule AcexGateway.Web.DashboardView do
           <div class="video-player-box">
             <div class="video-player-hud">
               <span id="playerLiveBadge" class="chip-status-success" style="font-size: 11px;">● LIVE</span>
-              <span id="playerStatsBadge" style="font-family: var(--font-mono); font-size: 11px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary);">MPEG-TS Engine</span>
+              <span id="playerStatsBadge" style="font-family: var(--font-mono); font-size: 11px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary);">HLS Engine</span>
               <span id="playerCastBadge" style="display: none; font-family: var(--font-mono); font-size: 11px; background: rgba(59, 130, 246, 0.3); border: 1px solid rgba(59, 130, 246, 0.6); padding: 2px 8px; border-radius: 4px; color: #93c5fd;">📺 Casting to TV</span>
             </div>
             <video id="webVideoPlayer" controls autoplay muted playsinline></video>
@@ -2525,7 +2615,7 @@ defmodule AcexGateway.Web.DashboardView do
           </div>
 
           <!-- Format Choice Grid -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-md);">
+          <div class="format-choice-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-md);">
             <!-- Format 1: Text Content IDs -->
             <a href="/api/channels/export?format=txt" download="acex_channels.txt" class="btn btn-secondary" style="flex-direction: column; padding: 14px 10px; gap: 4px; text-decoration: none; text-align: center;">
               <span style="font-size: 20px;">📄</span>
@@ -2586,12 +2676,12 @@ defmodule AcexGateway.Web.DashboardView do
 
           <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
             <!-- Version Comparison Banner -->
-            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 14px; display: flex; align-items: center; justify-content: space-between;">
+            <div class="version-compare-banner" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 14px; display: flex; align-items: center; justify-content: space-between;">
               <div>
                 <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Current Version</div>
                 <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #FFFFFF; margin-top: 2px;" id="modalCurrentVer">v#{AcexGateway.version()}</div>
               </div>
-              <div style="font-size: 20px; color: var(--text-tertiary);">➔</div>
+              <div class="version-arrow" style="font-size: 20px; color: var(--text-tertiary);">➔</div>
               <div>
                 <div style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.05em;">Latest Release</div>
                 <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--color-primary);" id="modalLatestVer">Checking...</div>
@@ -2628,7 +2718,7 @@ defmodule AcexGateway.Web.DashboardView do
             </div>
 
             <!-- Footer Actions -->
-            <div style="display: flex; gap: var(--space-sm); justify-content: space-between; align-items: center; margin-top: 4px;">
+            <div class="update-modal-footer" style="display: flex; gap: var(--space-sm); justify-content: space-between; align-items: center; margin-top: 4px;">
               <button class="btn btn-secondary btn-sm" onclick="checkSystemVersion(true)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 <span>Re-check</span>
@@ -2654,8 +2744,7 @@ defmodule AcexGateway.Web.DashboardView do
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
         let currentView = "grid";
-        let activeStreamUrl = "";
-        let mpegtsPlayerInstance = null;
+        let hlsPlayerInstance = null;
         let activeWebPlayerUrl = "";
         let activeWebPlayerTitle = "";
         let activeWebPlayerTarget = "";
@@ -2665,27 +2754,20 @@ defmodule AcexGateway.Web.DashboardView do
         let isManuallyEditingGroup = false;
         let isManuallyEditingCountry = false;
 
-        function getLiveStreamUrl(target) {
+        function getLiveStreamUrl(target, isContentId = false) {
           if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
             return baseUrl + "/live/" + encodeURIComponent(appSettings.auth_username) + "/" + encodeURIComponent(appSettings.auth_password) + "/" + encodeURIComponent(target) + ".ts";
           } else {
-            return baseUrl + "/live?channel=" + encodeURIComponent(target);
-          }
-        }
-
-        function getQuickStreamUrl(target) {
-          if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
-            return baseUrl + "/live/" + encodeURIComponent(appSettings.auth_username) + "/" + encodeURIComponent(appSettings.auth_password) + "/" + encodeURIComponent(target) + ".ts";
-          } else {
-            return baseUrl + "/live?id=" + encodeURIComponent(target);
+            const param = isContentId ? "id=" : "channel=";
+            return baseUrl + "/live?" + param + encodeURIComponent(target);
           }
         }
 
         function openWebPlayerForChannel(channelId) {
           const c = (allChannels || []).find(x => x.id === channelId);
           const name = c ? (c.name || "Channel") : "Channel";
-          const liveUrl = getLiveStreamUrl(channelId);
-          openWebPlayerModal(name, liveUrl, channelId);
+          const hlsUrl = getCastStreamUrl(channelId);
+          openWebPlayerModal(name, hlsUrl, channelId);
         }
 
         function openLauncherForChannel(channelId) {
@@ -3045,7 +3127,7 @@ defmodule AcexGateway.Web.DashboardView do
             showToast("Please enter a valid Content ID (40 hex chars)", false);
             return;
           }
-          const streamUrl = getQuickStreamUrl(clean);
+          const streamUrl = getLiveStreamUrl(clean, true);
           openLauncherModal("Quick Stream (" + clean.substring(0, 8) + "...)", streamUrl, clean);
         }
 
@@ -3056,7 +3138,7 @@ defmodule AcexGateway.Web.DashboardView do
             showToast("Please enter a valid Content ID to copy link!", false);
             return;
           }
-          const url = getQuickStreamUrl(clean);
+          const url = getLiveStreamUrl(clean, true);
           copyText(url, "Link copied: " + url, btn);
         }
 
@@ -3721,11 +3803,14 @@ defmodule AcexGateway.Web.DashboardView do
           copyText(text, "All channels copied in Content ID format!", btn);
         }
 
-        // In-Dashboard Web Video Player Modal (MPEG-TS Live Player)
+        // In-Dashboard Web Video Player Modal (HLS Live Player)
         function openWebPlayerModal(title, streamUrl, target = "") {
           activeWebPlayerTitle = title;
-          activeWebPlayerUrl = streamUrl;
           activeWebPlayerTarget = target || "";
+
+          // Ensure streamUrl is always the HLS playlist endpoint (/cast/:target/live.m3u8)
+          const hlsUrl = (target ? getCastStreamUrl(target) : streamUrl) || "";
+          activeWebPlayerUrl = hlsUrl;
 
           const titleEl = document.getElementById("webPlayerChannelName");
           if (titleEl) titleEl.innerText = title;
@@ -3736,15 +3821,14 @@ defmodule AcexGateway.Web.DashboardView do
           const statsBadge = document.getElementById("playerStatsBadge");
           const castBadge = document.getElementById("playerCastBadge");
 
-          // Reset existing player instance cleanly
-          if (mpegtsPlayerInstance) {
+          // Reset existing Hls player instance cleanly
+          if (hlsPlayerInstance) {
             try {
-              mpegtsPlayerInstance.pause();
-              mpegtsPlayerInstance.unload();
-              mpegtsPlayerInstance.detachMediaElement();
-              mpegtsPlayerInstance.destroy();
+              hlsPlayerInstance.stopLoad();
+              hlsPlayerInstance.detachMedia();
+              hlsPlayerInstance.destroy();
             } catch (_) {}
-            mpegtsPlayerInstance = null;
+            hlsPlayerInstance = null;
           }
 
           if (videoElem) {
@@ -3761,60 +3845,78 @@ defmodule AcexGateway.Web.DashboardView do
             if (castBadge) castBadge.style.display = "none";
           }
 
-          if (window.mpegts && mpegts.isSupported()) {
-            if (statsBadge) statsBadge.innerText = "MSE Connecting...";
+          if (window.Hls && Hls.isSupported()) {
+            if (statsBadge) statsBadge.innerText = "HLS Connecting...";
             try {
-              mpegtsPlayerInstance = mpegts.createPlayer({
-                type: "mse",
-                isLive: true,
-                url: streamUrl
-              }, {
+              hlsPlayerInstance = new Hls({
                 enableWorker: true,
-                lazyLoad: false,
-                stashInitialSize: 512 * 1024,
-                liveBufferLatencyChasing: false,
-                autoCleanupSourceBuffer: true,
-                autoCleanupMaxBackwardDuration: 60,
-                autoCleanupMinBackwardDuration: 30
+                lowLatencyMode: true,
+                backBufferLength: 30,
+                maxBufferLength: 10,
+                maxMaxBufferLength: 20
               });
 
-              mpegtsPlayerInstance.attachMediaElement(videoElem);
-              mpegtsPlayerInstance.load();
-              const p = mpegtsPlayerInstance.play();
-              if (p && p.catch) {
-                p.catch(err => {
-                  console.log("Autoplay blocked or waiting user gesture:", err);
-                });
-              }
+              hlsPlayerInstance.loadSource(hlsUrl);
+              hlsPlayerInstance.attachMedia(videoElem);
 
-              mpegtsPlayerInstance.on(mpegts.Events.STATISTICS_INFO, (stat) => {
-                if (stat && stat.speed && statsBadge) {
-                  statsBadge.innerText = "MSE: " + Math.round(stat.speed) + " KB/s";
+              hlsPlayerInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                if (statsBadge) statsBadge.innerText = "HLS Live";
+                const p = videoElem.play();
+                if (p && p.catch) {
+                  p.catch(err => {
+                    console.log("Autoplay blocked or waiting user gesture:", err);
+                  });
                 }
               });
 
-              mpegtsPlayerInstance.on(mpegts.Events.ERROR, (errType, errDetail) => {
-                console.warn("MPEG-TS Error:", errType, errDetail);
-                if (statsBadge) statsBadge.innerText = "MSE: " + errType;
+              hlsPlayerInstance.on(Hls.Events.FRAG_LOADED, (event, data) => {
+                if (data && data.stats && statsBadge) {
+                  const bw = data.stats.total && data.stats.loading.end ? Math.round((data.stats.total / 1024) / Math.max(0.1, (data.stats.loading.end - data.stats.loading.start) / 1000)) : 0;
+                  if (bw > 0) {
+                    statsBadge.innerText = "HLS: " + bw + " KB/s";
+                  } else {
+                    statsBadge.innerText = "HLS Live";
+                  }
+                }
+              });
+
+              hlsPlayerInstance.on(Hls.Events.ERROR, (event, data) => {
+                console.warn("HLS Error:", data.type, data.details);
+                if (data.fatal) {
+                  switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                      if (statsBadge) statsBadge.innerText = "HLS: Network Error, retrying...";
+                      hlsPlayerInstance.startLoad();
+                      break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                      if (statsBadge) statsBadge.innerText = "HLS: Media Error, recovering...";
+                      hlsPlayerInstance.recoverMediaError();
+                      break;
+                    default:
+                      if (statsBadge) statsBadge.innerText = "HLS: " + data.details;
+                      hlsPlayerInstance.destroy();
+                      hlsPlayerInstance = null;
+                      break;
+                  }
+                }
               });
             } catch (err) {
-              console.warn("mpegts.createPlayer error:", err);
+              console.warn("Hls initialization error:", err);
               if (statsBadge) statsBadge.innerText = "Direct Stream";
               if (videoElem) {
-                videoElem.src = streamUrl;
+                videoElem.src = hlsUrl;
                 videoElem.play().catch(() => {});
               }
             }
-          } else if (videoElem && videoElem.canPlayType("application/vnd.apple.mpegurl") && activeWebPlayerTarget) {
-            // Safari / iOS Native HLS playback fallback
+          } else if (videoElem && videoElem.canPlayType("application/vnd.apple.mpegurl")) {
+            // Safari / iOS Native HLS playback
             if (statsBadge) statsBadge.innerText = "HLS Native";
-            const hlsUrl = getCastStreamUrl(activeWebPlayerTarget);
             videoElem.src = hlsUrl;
             videoElem.play().catch(() => {});
           } else {
             if (statsBadge) statsBadge.innerText = "Native Video Fallback";
             if (videoElem) {
-              videoElem.src = streamUrl;
+              videoElem.src = hlsUrl;
               videoElem.play().catch(() => {});
             }
           }
@@ -3825,14 +3927,13 @@ defmodule AcexGateway.Web.DashboardView do
           if (modal) modal.classList.remove("active");
 
           const videoElem = document.getElementById("webVideoPlayer");
-          if (mpegtsPlayerInstance) {
+          if (hlsPlayerInstance) {
             try {
-              mpegtsPlayerInstance.pause();
-              mpegtsPlayerInstance.unload();
-              mpegtsPlayerInstance.detachMediaElement();
-              mpegtsPlayerInstance.destroy();
+              hlsPlayerInstance.stopLoad();
+              hlsPlayerInstance.detachMedia();
+              hlsPlayerInstance.destroy();
             } catch (_) {}
-            mpegtsPlayerInstance = null;
+            hlsPlayerInstance = null;
           }
 
           if (videoElem) {
@@ -3843,8 +3944,11 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         function openExternalFromWebPlayer() {
+          const liveUrl = activeWebPlayerTarget ? getLiveStreamUrl(activeWebPlayerTarget) : activeWebPlayerUrl;
+          const target = activeWebPlayerTarget;
+          const title = activeWebPlayerTitle;
           closeWebPlayerModal();
-          openLauncherModal(activeWebPlayerTitle, activeWebPlayerUrl, activeWebPlayerTarget);
+          openLauncherModal(title, liveUrl, target);
         }
 
         // --- Google Cast (Chromecast / Google TV) Support ---

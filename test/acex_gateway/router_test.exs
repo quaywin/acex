@@ -29,7 +29,7 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn.resp_body =~ "fleet-health-banner"
     assert conn.resp_body =~ "filter-tab-pill"
     assert conn.resp_body =~ "webPlayerModal"
-    assert conn.resp_body =~ "mpegts.min.js"
+    assert conn.resp_body =~ "hls.min.js"
     assert conn.resp_body =~ "updateBadgeBtn"
     assert conn.resp_body =~ "updateModal"
     assert conn.resp_body =~ "manualUpdateCmdInput"
