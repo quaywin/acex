@@ -57,8 +57,10 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   --tmpfs /root/.ACEStream/cache:size=512M,mode=1777 \
   --tmpfs /root/.ACEStream/buffer:size=256M,mode=1777 \
+  --tmpfs /tmp:size=128M,mode=1777 \
   -e ACE_LIVE_BUFFER=20 \
   -e ACE_MAX_PEERS=15 \
+  -e ACE_MAX_UPLOAD_RATE=500 \
   -e ACE_MEMORY_CACHE_LIMIT=268435456 \
   ghcr.io/quaywin/acex:latest
 ```
@@ -86,6 +88,7 @@ services:
       - PORT=8686
       - ACE_LIVE_BUFFER=20
       - ACE_MAX_PEERS=15
+      - ACE_MAX_UPLOAD_RATE=500
       - ACE_MEMORY_CACHE_LIMIT=268435456
       - GRACE_PERIOD_MS=15000
       - WATCHTOWER_ENDPOINT=http://acex-watchtower:8080/v1/update
@@ -184,6 +187,7 @@ docker compose pull && docker compose up -d
 | `PORT` | `8686` | Web Dashboard and stream relay port |
 | `ACE_LIVE_BUFFER` | `20` | P2P live buffer in seconds |
 | `ACE_MAX_PEERS` | `15` | Maximum P2P peers connected per stream |
+| `ACE_MAX_UPLOAD_RATE` | `500` | Maximum P2P upload speed limit in KB/s (prevents uplink saturation) |
 | `ACE_MEMORY_CACHE_LIMIT` | `268435456` | Maximum AceStream memory cache in bytes (256MB) |
 | `RING_BUFFER_BYTES` | `4194304` | In-memory buffer size in bytes (4MB) |
 | `GRACE_PERIOD_MS` | `15000` | Keep-alive delay in ms after last viewer leaves |

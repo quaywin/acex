@@ -86,7 +86,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
     Process.flag(:trap_exit, true)
     schedule_sweep()
     # Clean up stale temp directories from previous runs on boot
-    cleanup_dir(Path.join(System.tmp_dir!(), "acex_cast"))
+    cleanup_dir(cast_base_dir())
     {:ok, %{jobs: %{}}}
   end
 
@@ -225,13 +225,18 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   # --- Internal Helpers ---
 
+  @doc false
+  def cast_base_dir do
+    System.get_env("CAST_CACHE_DIR") || Path.join(System.tmp_dir!(), "acex_cast")
+  end
+
   defp start_ffmpeg_job(target) do
     ffmpeg_bin = System.find_executable("ffmpeg")
 
     if ffmpeg_bin == nil do
       {:error, :ffmpeg_not_found}
     else
-      base_dir = Path.join(System.tmp_dir!(), "acex_cast")
+      base_dir = cast_base_dir()
       job_dir = Path.join(base_dir, target)
       File.mkdir_p!(job_dir)
 
@@ -281,6 +286,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "128k",
         "-af",
         "aresample=async=1000",
+        "-sn",
+        "-dn",
         "-f",
         "hls",
         "-hls_time",

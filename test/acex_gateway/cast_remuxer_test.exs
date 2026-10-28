@@ -19,10 +19,17 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
       assert CastRemuxer.stop_remuxer("non-existent-channel-xyz") == :ok
     end
 
-    test "get_playlist/1 returns either {:ok, path} or {:error, reason}" do
-      case CastRemuxer.get_playlist("non-existent-target") do
-        {:ok, path} -> assert is_binary(path)
-        {:error, reason} -> assert is_atom(reason)
+    test "cast_base_dir/0 respects custom environment variable" do
+      default_dir = CastRemuxer.cast_base_dir()
+      assert is_binary(default_dir)
+      assert String.ends_with?(default_dir, "acex_cast")
+
+      System.put_env("CAST_CACHE_DIR", "/tmp/custom_cast_test")
+
+      try do
+        assert CastRemuxer.cast_base_dir() == "/tmp/custom_cast_test"
+      after
+        System.delete_env("CAST_CACHE_DIR")
       end
     end
   end
