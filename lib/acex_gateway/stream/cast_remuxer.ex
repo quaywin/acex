@@ -57,8 +57,10 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   @doc """
-  Touches the target to refresh its last-accessed timestamp and returns
-  the absolute path of the requested segment file.
+  Returns the absolute path of the requested segment file.
+  Note: Activity heartbeat is tracked exclusively via manifest requests (`get_playlist/2`)
+  to ensure accurate client tracking behind CDN edge caches and prevent pre-warmers
+  from keeping idle streams alive indefinitely.
   """
   def get_segment(target, segment_name) do
     GenServer.call(__MODULE__, {:get_segment, target, segment_name})
@@ -137,18 +139,15 @@ defmodule AcexGateway.Stream.CastRemuxer do
   def handle_call({:get_segment, target, segment_name}, _from, state) do
     clean_target = sanitize_target(target)
     clean_segment = Path.basename(segment_name)
-    now = System.monotonic_time(:second)
 
     case Map.get(state.jobs, clean_target) do
-      %{dir: dir} = job ->
-        updated_job = %{job | last_accessed: now}
-        new_jobs = Map.put(state.jobs, clean_target, updated_job)
+      %{dir: dir} ->
         segment_path = Path.join(dir, clean_segment)
 
         if File.exists?(segment_path) do
-          {:reply, {:ok, segment_path}, %{state | jobs: new_jobs}}
+          {:reply, {:ok, segment_path}, state}
         else
-          {:reply, {:error, :not_found}, %{state | jobs: new_jobs}}
+          {:reply, {:error, :not_found}, state}
         end
 
       nil ->
@@ -286,7 +285,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
         end
 
       output_m3u8 = Path.join(job_dir, "live.m3u8")
-      segment_pattern = Path.join(job_dir, "seg_%03d.ts")
+      segment_pattern = Path.join(job_dir, "seg_%s.ts")
 
       args = [
         "-hide_banner",
@@ -316,6 +315,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-dn",
         "-f",
         "hls",
+        "-strftime",
+        "1",
         "-hls_time",
         "3",
         "-hls_list_size",
