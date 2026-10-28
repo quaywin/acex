@@ -816,7 +816,7 @@ defmodule AcexGateway.Web.Router do
 
         conn
         |> put_resp_header("content-type", mime_type)
-        |> put_resp_header("cache-control", "public, max-age=600, s-maxage=600, immutable")
+        |> put_resp_header("cache-control", "public, max-age=180, s-maxage=180, immutable")
         |> put_resp_header("access-control-allow-origin", "*")
         |> send_file(200, segment_path)
 
