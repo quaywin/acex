@@ -13,6 +13,7 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
 
     test "get_segment/2 returns error :not_running for inactive target" do
       assert CastRemuxer.get_segment("inactive-ch", "seg_000.ts") == {:error, :not_running}
+      assert CastRemuxer.get_segment("inactive-ch", "avatar_mock123.webp") == {:error, :not_running}
     end
 
     test "stop_remuxer/1 does not crash on non-existent target" do

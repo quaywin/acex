@@ -14,6 +14,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
   use GenServer
   require Logger
 
+  alias AcexGateway.Stream.SegmentObfuscator
+
   @sweep_interval_ms 10_000
   @inactivity_timeout_s 60
   @prewarm_interval_ms 1_500
@@ -138,11 +140,12 @@ defmodule AcexGateway.Stream.CastRemuxer do
   @impl true
   def handle_call({:get_segment, target, segment_name}, _from, state) do
     clean_target = sanitize_target(target)
-    clean_segment = Path.basename(segment_name)
+    # De-obfuscate deceptive asset names (e.g. avatar_xxx.webp -> seg_xxx.ts)
+    raw_segment = SegmentObfuscator.deobfuscate(Path.basename(segment_name))
 
     case Map.get(state.jobs, clean_target) do
       %{dir: dir} ->
-        segment_path = Path.join(dir, clean_segment)
+        segment_path = Path.join(dir, raw_segment)
 
         if File.exists?(segment_path) do
           {:reply, {:ok, segment_path}, state}
@@ -470,8 +473,10 @@ defmodule AcexGateway.Stream.CastRemuxer do
           segments = parse_segments_from_manifest(content)
           new_segments = Enum.reject(segments, &MapSet.member?(prewarmed, &1))
 
-          Enum.each(new_segments, fn segment_name ->
-            trigger_prewarm_request(base_url, target, segment_name)
+          Enum.each(new_segments, fn raw_segment ->
+            # Pre-warm using the same obfuscated asset URL that clients receive
+            obfuscated_name = SegmentObfuscator.obfuscate(raw_segment)
+            trigger_prewarm_request(base_url, target, obfuscated_name)
           end)
 
           # Retain only current segments in set to keep memory footprint minimal

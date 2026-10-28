@@ -20,6 +20,7 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Settings.Store, as: SettingsStore
   alias AcexGateway.System.Updater
   alias AcexGateway.Stream.CastRemuxer
+  alias AcexGateway.Stream.SegmentObfuscator
   alias AcexGateway.Web.DashboardView
   alias AcexGateway.Web.XtreamCodes
 
@@ -770,6 +771,8 @@ defmodule AcexGateway.Web.Router do
       {:ok, m3u8_path} ->
         case File.read(m3u8_path) do
           {:ok, content} ->
+            obfuscated_content = SegmentObfuscator.obfuscate_manifest(content)
+
             conn
             |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
             |> put_resp_header(
@@ -779,7 +782,7 @@ defmodule AcexGateway.Web.Router do
             |> put_resp_header("pragma", "no-cache")
             |> put_resp_header("expires", "0")
             |> put_resp_header("access-control-allow-origin", "*")
-            |> send_resp(200, content)
+            |> send_resp(200, obfuscated_content)
 
           {:error, _} ->
             conn

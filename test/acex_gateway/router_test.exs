@@ -586,4 +586,9 @@ defmodule AcexGateway.Web.RouterTest do
     assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-1") == nil
     assert AcexGateway.Channels.Store.get_channel("bulk-test-ch-2") == nil
   end
+
+  test "GET /cast/:target/:segment_name supports obfuscated assets (.webp, .jpg, etc.)" do
+    conn = conn(:get, "/cast/test-target/avatar_abcd1234efgh.webp") |> Router.call(@opts)
+    assert conn.status in [404, 503]
+  end
 end
