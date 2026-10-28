@@ -5518,67 +5518,114 @@ defmodule AcexGateway.Web.DashboardView do
           }, 2000);
         }
 
-        // Realtime Polling
-        async function pollStats() {
-          try {
-            const res = await fetch("/stat");
-            if (!res.ok) return;
-            const data = await res.json();
+        // Realtime Stats Processing
+        function applyStatsUpdate(data) {
+          if (!data) return;
 
-            // Status Pill Elements
-            const pill = document.getElementById("statusPill");
-            const dot = document.getElementById("statusDot");
-            const text = document.getElementById("statusText");
+          // Status Pill Elements
+          const pill = document.getElementById("statusPill");
+          const dot = document.getElementById("statusDot");
+          const text = document.getElementById("statusText");
 
-            const channels = (data.channels || []).filter(c => c && c.status);
+          const channels = (data.channels || []).filter(c => c && c.status);
 
-            if (channels.length > 0) {
-              const streamingCount = channels.filter(c => c.status === "streaming").length;
-              const startingCount = channels.filter(c => c.status === "starting").length;
+          if (channels.length > 0) {
+            const streamingCount = channels.filter(c => c.status === "streaming").length;
+            const startingCount = channels.filter(c => c.status === "starting").length;
 
-              if (streamingCount > 0) {
-                pill.className = "status-pill status-live";
-                dot.className = "pulse-dot pulse-active";
-              } else if (startingCount > 0) {
-                pill.className = "status-pill status-starting";
-                dot.className = "pulse-dot pulse-active";
-              } else {
-                pill.className = "status-pill status-starting";
-                dot.className = "pulse-dot";
-              }
-
-              if (channels.length === 1) {
-                const c = channels[0];
-                const meta = findChannelMeta(c.channel_key, c.target, c.active_channel);
-                const title = c.channel_name || meta?.name || c.channel_key;
-                if (c.status === "streaming") {
-                  text.innerText = "LIVE: " + title;
-                } else if (c.progress && c.progress > 0) {
-                  text.innerText = "PREBUF " + c.progress + "%: " + title;
-                } else {
-                  text.innerText = "CONNECTING: " + title;
-                }
-              } else {
-                text.innerText = "LIVE: " + channels.length + " ACTIVE STREAMS";
-              }
+            if (streamingCount > 0) {
+              pill.className = "status-pill status-live";
+              dot.className = "pulse-dot pulse-active";
+            } else if (startingCount > 0) {
+              pill.className = "status-pill status-starting";
+              dot.className = "pulse-dot pulse-active";
             } else {
-              pill.className = "status-pill status-idle";
+              pill.className = "status-pill status-starting";
               dot.className = "pulse-dot";
-              text.innerText = "SYSTEM READY";
             }
 
-            // Extract active channel keys and update fleet health metrics
-            const activeKeys = new Set();
-            channels.forEach(c => {
-              if (c.channel_key) activeKeys.add(c.channel_key);
-              if (c.target) activeKeys.add(c.target);
-              if (c.active_channel) activeKeys.add(c.active_channel);
-            });
-            updateFleetHealthMetrics(activeKeys);
+            if (channels.length === 1) {
+              const c = channels[0];
+              const meta = findChannelMeta(c.channel_key, c.target, c.active_channel);
+              const title = c.channel_name || meta?.name || c.channel_key;
+              if (c.status === "streaming") {
+                text.innerText = "LIVE: " + title;
+              } else if (c.progress && c.progress > 0) {
+                text.innerText = "PREBUF " + c.progress + "%: " + title;
+              } else {
+                text.innerText = "CONNECTING: " + title;
+              }
+            } else {
+              text.innerText = "LIVE: " + channels.length + " ACTIVE STREAMS";
+            }
+          } else {
+            pill.className = "status-pill status-idle";
+            dot.className = "pulse-dot";
+            text.innerText = "SYSTEM READY";
+          }
 
-            // Update live indicators on catalog cards and table rows
-            updateCatalogLiveBadges(channels);
+          // Extract active channel keys and update fleet health metrics
+          const activeKeys = new Set();
+          channels.forEach(c => {
+            if (c.channel_key) activeKeys.add(c.channel_key);
+            if (c.target) activeKeys.add(c.target);
+            if (c.active_channel) activeKeys.add(c.active_channel);
+          });
+          updateFleetHealthMetrics(activeKeys);
+
+          // Update live indicators on catalog cards and table rows
+          updateCatalogLiveBadges(channels);
+        }
+
+        // Live EventStream (SSE) with Fallback Polling
+        let sseSource = null;
+        let fallbackPollingInterval = null;
+
+        function connectLiveStats() {
+          if (typeof EventSource !== "undefined") {
+            try {
+              if (sseSource) sseSource.close();
+              sseSource = new EventSource("/api/live-stats");
+
+              sseSource.onmessage = (event) => {
+                try {
+                  const data = JSON.parse(event.data);
+                  applyStatsUpdate(data);
+                } catch (_) {}
+              };
+
+              sseSource.onerror = () => {
+                // If SSE fails or disconnects, temporarily fallback to polling until reconnect
+                startFallbackPolling();
+              };
+
+              sseSource.onopen = () => {
+                if (fallbackPollingInterval) {
+                  clearInterval(fallbackPollingInterval);
+                  fallbackPollingInterval = null;
+                }
+              };
+              return;
+            } catch (_) {}
+          }
+
+          startFallbackPolling();
+        }
+
+        async function pollStatsOnce() {
+          try {
+            const res = await fetch("/stat");
+            if (res.ok) {
+              const data = await res.json();
+              applyStatsUpdate(data);
+            }
           } catch (_) {}
+        }
+
+        function startFallbackPolling() {
+          if (!fallbackPollingInterval) {
+            fallbackPollingInterval = setInterval(pollStatsOnce, 4000);
+          }
         }
 
         // Global hotkey: '/' focuses search box, 'Escape' closes modals
@@ -5603,8 +5650,8 @@ defmodule AcexGateway.Web.DashboardView do
         renderCategoryTabs();
         updateFleetHealthMetrics();
         renderChannels(allChannels);
-        setInterval(pollStats, 2000);
-        pollStats();
+        connectLiveStats();
+        pollStatsOnce();
         checkSystemVersion();
       </script>
     </body>

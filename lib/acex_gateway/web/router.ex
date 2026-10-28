@@ -925,6 +925,85 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(200, Jason.encode!(response, pretty: true))
   end
 
+  get "/api/live-stats" do
+    conn =
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+      |> put_resp_header("connection", "keep-alive")
+      |> put_resp_header("access-control-allow-origin", "*")
+      |> send_chunked(200)
+
+    sse_stats_loop(conn, nil)
+  end
+
+  defp sse_stats_loop(conn, last_payload) do
+    data = fetch_current_stats()
+    payload = Jason.encode!(data)
+
+    new_conn =
+      if payload != last_payload do
+        case chunk(conn, "data: #{payload}\n\n") do
+          {:ok, c} -> c
+          {:error, _} -> nil
+        end
+      else
+        case chunk(conn, ": ping\n\n") do
+          {:ok, c} -> c
+          {:error, _} -> nil
+        end
+      end
+
+    if new_conn do
+      receive do
+      after
+        1_500 -> sse_stats_loop(new_conn, payload)
+      end
+    else
+      conn
+    end
+  end
+
+  defp fetch_current_stats do
+    engine_stats = TelnetClient.get_stats()
+    session_info = Broadcaster.get_session_info()
+
+    uptime =
+      case :erlang.statistics(:wall_clock) do
+        {ms, _} -> div(ms, 1000)
+      end
+
+    peers =
+      if session_info.peers > 0, do: session_info.peers, else: engine_stats.peers
+
+    speed_kbps =
+      if session_info.speed_kbps > 0, do: session_info.speed_kbps, else: engine_stats.speed_kbps
+
+    %{
+      version: AcexGateway.version(),
+      engine: "AcexGateway",
+      status: session_info.status,
+      active_target: session_info.active_target,
+      active_channel: session_info.active_channel,
+      active_channel_name: session_info[:active_channel_name] || session_info.active_channel,
+      source_type: session_info.source_type,
+      client_count: session_info.client_count,
+      bytes_transferred: session_info.bytes_transferred,
+      buffered_bytes: session_info.buffered_bytes,
+      source_index: session_info.source_index,
+      total_sources: session_info.total_sources,
+      peers: peers,
+      speed_kbps: speed_kbps,
+      progress: session_info[:progress] || 0,
+      engine_state: session_info[:engine_state] || :idle,
+      engine_connected: engine_stats.connected,
+      engine_authenticated: engine_stats.authenticated,
+      uptime_seconds: uptime,
+      active_channels_count: session_info.active_channels_count,
+      channels: session_info.channels
+    }
+  end
+
   match "/restart" do
     conn = fetch_query_params(conn)
     channel = conn.query_params["channel"]

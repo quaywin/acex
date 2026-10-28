@@ -284,8 +284,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
           "http://127.0.0.1:#{port_num}/live/#{target}.ts"
         end
 
+      session_epoch = System.system_time(:second)
       output_m3u8 = Path.join(job_dir, "live.m3u8")
-      segment_pattern = Path.join(job_dir, "seg_%s.ts")
+      segment_pattern = Path.join(job_dir, "seg_#{session_epoch}_%05d.ts")
 
       args = [
         "-hide_banner",
@@ -315,8 +316,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-dn",
         "-f",
         "hls",
-        "-strftime",
-        "1",
         "-hls_time",
         "3",
         "-hls_list_size",
