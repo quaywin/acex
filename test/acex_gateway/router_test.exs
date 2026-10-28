@@ -46,6 +46,53 @@ defmodule AcexGateway.Web.RouterTest do
     end
   end
 
+  test "GET /hls.m3u8 and /ts.m3u8 return format-specific short playlists" do
+    conn_hls = conn(:get, "/hls.m3u8") |> Router.call(@opts)
+    assert conn_hls.status == 200
+    assert conn_hls.resp_body =~ "#EXTM3U"
+    assert conn_hls.resp_body =~ "/h/"
+    assert conn_hls.resp_body =~ ".m3u8"
+
+    conn_ts = conn(:get, "/ts.m3u8") |> Router.call(@opts)
+    assert conn_ts.status == 200
+    assert conn_ts.resp_body =~ "#EXTM3U"
+    assert conn_ts.resp_body =~ "/t/"
+    assert conn_ts.resp_body =~ ".ts"
+  end
+
+  test "GET /hls/:u/:p.m3u8 and /ts/:u/:p.m3u8 support path-based auth" do
+    # Enable auth temporarily
+    conn(:post, "/api/settings", %{"auth_enabled" => true, "auth_username" => "user1", "auth_password" => "pass1"})
+    |> put_req_header("content-type", "application/json")
+    |> Router.call(@opts)
+
+    try do
+      # 1. Invalid credentials -> 401
+      conn_bad = conn(:get, "/hls/user1/wrongpass.m3u8") |> Router.call(@opts)
+      assert conn_bad.status == 401
+
+      # 2. Valid credentials -> 200 with embedded channel paths
+      conn_hls = conn(:get, "/hls/user1/pass1.m3u8") |> Router.call(@opts)
+      assert conn_hls.status == 200
+      assert conn_hls.resp_body =~ "/h/user1/pass1/"
+      assert conn_hls.resp_body =~ ".m3u8"
+
+      conn_ts = conn(:get, "/ts/user1/pass1.m3u8") |> Router.call(@opts)
+      assert conn_ts.status == 200
+      assert conn_ts.resp_body =~ "/t/user1/pass1/"
+      assert conn_ts.resp_body =~ ".ts"
+
+      # 3. /get.php standard endpoint
+      conn_get_php = conn(:get, "/get.php?username=user1&password=pass1&output=hls") |> Router.call(@opts)
+      assert conn_get_php.status == 200
+      assert conn_get_php.resp_body =~ "/h/user1/pass1/"
+    after
+      conn(:post, "/api/settings", %{"auth_enabled" => false})
+      |> put_req_header("content-type", "application/json")
+      |> Router.call(@opts)
+    end
+  end
+
   test "HEAD /live and /live/:target.ts return MPEG-TS headers" do
     for path <- ["/live", "/live/test-channel.ts"] do
       conn = conn(:head, path) |> Router.call(@opts)

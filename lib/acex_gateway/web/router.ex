@@ -39,6 +39,62 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(204, "")
   end
 
+  # --- Short M3U8 Playlist routes (path-based auth) ---
+  get "/hls/:username/:password.m3u8" do
+    if Config.authenticate?(username, password) do
+      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password})
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  get "/ts/:username/:password.m3u8" do
+    if Config.authenticate?(username, password) do
+      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password})
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  # Short M3U8 Playlist routes (no credentials in path)
+  get "/hls.m3u8" do
+    case authenticate_request(conn) do
+      :ok ->
+        auth_opts = get_playlist_auth_opts(conn)
+        serve_custom_playlist(conn, :hls, auth_opts)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  get "/ts.m3u8" do
+    case authenticate_request(conn) do
+      :ok ->
+        auth_opts = get_playlist_auth_opts(conn)
+        serve_custom_playlist(conn, :ts, auth_opts)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  # Standard /get.php Xtream Codes M3U endpoint
+  get "/get.php" do
+    conn = fetch_query_params(conn)
+    username = conn.query_params["username"] || conn.query_params["user"] || ""
+    password = conn.query_params["password"] || conn.query_params["pass"] || ""
+    output = conn.query_params["output"] || "ts"
+
+    format = if output in ["hls", "m3u8"], do: :hls, else: :ts
+
+    if Config.authenticate?(username, password) do
+      serve_custom_playlist(conn, format, %{"username" => username, "password" => password})
+    else
+      send_unauthorized(conn)
+    end
+  end
+
   get "/playlist.m3u" do
     serve_playlist(conn)
   end
@@ -69,24 +125,48 @@ defmodule AcexGateway.Web.Router do
   defp serve_playlist(conn) do
     case authenticate_request(conn) do
       :ok ->
-        base_url = request_base_url(conn)
+        conn = fetch_query_params(conn)
+        output = conn.query_params["output"] || conn.query_params["format"]
+
+        format =
+          cond do
+            output in ["hls", "m3u8"] -> :hls
+            output in ["ts"] -> :ts
+            true -> nil
+          end
+
         auth_opts = get_playlist_auth_opts(conn)
-        m3u_content = Store.export_m3u(base_url, auth_opts)
-
-        filename =
-          if String.ends_with?(conn.request_path, ".m3u"),
-            do: "acex_playlist.m3u",
-            else: "acex_playlist.m3u8"
-
-        conn
-        |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
-        |> put_resp_header("content-disposition", "inline; filename=\"#{filename}\"")
-        |> put_resp_header("access-control-allow-origin", "*")
-        |> send_resp(200, m3u_content)
+        serve_custom_playlist(conn, format, auth_opts)
 
       :unauthorized ->
         send_unauthorized(conn)
     end
+  end
+
+  defp serve_custom_playlist(conn, format, auth_opts) do
+    base_url = request_base_url(conn)
+    opts = if format, do: Map.put(auth_opts, "format", format), else: auth_opts
+    m3u_content = Store.export_m3u(base_url, opts)
+
+    filename =
+      case format do
+        :hls ->
+          "acex_hls_playlist.m3u8"
+
+        :ts ->
+          "acex_ts_playlist.m3u8"
+
+        _ ->
+          if String.ends_with?(conn.request_path, ".m3u"),
+            do: "acex_playlist.m3u",
+            else: "acex_playlist.m3u8"
+      end
+
+    conn
+    |> put_resp_header("content-type", "application/x-mpegurl; charset=utf-8")
+    |> put_resp_header("content-disposition", "inline; filename=\"#{filename}\"")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> send_resp(200, m3u_content)
   end
 
   defp get_playlist_auth_opts(conn) do
@@ -623,12 +703,49 @@ defmodule AcexGateway.Web.Router do
 
   head "/live/:target_name" do
     case authenticate_request(conn) do
+      :ok ->
+        if String.ends_with?(target_name, ".m3u8"),
+          do: send_head_m3u8(conn),
+          else: send_head_live(conn)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  head "/live/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      if String.ends_with?(target_name, ".m3u8"),
+        do: send_head_m3u8(conn),
+        else: send_head_live(conn)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  head "/h/:target_name" do
+    case authenticate_request(conn) do
+      :ok -> send_head_m3u8(conn)
+      :unauthorized -> send_unauthorized(conn)
+    end
+  end
+
+  head "/h/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      send_head_m3u8(conn)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  head "/t/:target_name" do
+    case authenticate_request(conn) do
       :ok -> send_head_live(conn)
       :unauthorized -> send_unauthorized(conn)
     end
   end
 
-  head "/live/:username/:password/:target_name" do
+  head "/t/:username/:password/:target_name" do
     if Config.authenticate?(username, password) do
       send_head_live(conn)
     else
@@ -641,6 +758,14 @@ defmodule AcexGateway.Web.Router do
     |> put_resp_header("content-type", "video/mp2t")
     |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
     |> put_resp_header("connection", "keep-alive")
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> send_resp(200, "")
+  end
+
+  defp send_head_m3u8(conn) do
+    conn
+    |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
+    |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
     |> put_resp_header("access-control-allow-origin", "*")
     |> send_resp(200, "")
   end
@@ -721,7 +846,38 @@ defmodule AcexGateway.Web.Router do
     end
   end
 
-  get "/live/:target_name" do
+  # --- Short Stream Routes: HLS (/h/...) ---
+  get "/h/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      clean_target = String.replace_suffix(target_name, ".m3u8", "")
+      handle_cast_playlist(conn, clean_target)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  get "/h/:target_name" do
+    case authenticate_request(conn) do
+      :ok ->
+        clean_target = String.replace_suffix(target_name, ".m3u8", "")
+        handle_cast_playlist(conn, clean_target)
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
+  # --- Short Stream Routes: TS (/t/...) ---
+  get "/t/:username/:password/:target_name" do
+    if Config.authenticate?(username, password) do
+      {target, source_type} = parse_stream_target(target_name)
+      handle_live_stream(conn, target, source_type)
+    else
+      send_unauthorized(conn)
+    end
+  end
+
+  get "/t/:target_name" do
     case authenticate_request(conn) do
       :ok ->
         {target, source_type} = parse_stream_target(target_name)
@@ -732,10 +888,31 @@ defmodule AcexGateway.Web.Router do
     end
   end
 
+  get "/live/:target_name" do
+    case authenticate_request(conn) do
+      :ok ->
+        if String.ends_with?(target_name, ".m3u8") do
+          clean_target = String.replace_suffix(target_name, ".m3u8", "")
+          handle_cast_playlist(conn, clean_target)
+        else
+          {target, source_type} = parse_stream_target(target_name)
+          handle_live_stream(conn, target, source_type)
+        end
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
+  end
+
   get "/live/:username/:password/:target_name" do
     if Config.authenticate?(username, password) do
-      {target, source_type} = parse_stream_target(target_name)
-      handle_live_stream(conn, target, source_type)
+      if String.ends_with?(target_name, ".m3u8") do
+        clean_target = String.replace_suffix(target_name, ".m3u8", "")
+        handle_cast_playlist(conn, clean_target)
+      else
+        {target, source_type} = parse_stream_target(target_name)
+        handle_live_stream(conn, target, source_type)
+      end
     else
       send_unauthorized(conn)
     end

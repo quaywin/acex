@@ -663,6 +663,8 @@ defmodule AcexGateway.Channels.Store do
         "#EXTM3U x-tvg-url=\"\""
       end
 
+    format = auth_opts[:format] || auth_opts["format"]
+
     channel_lines =
       channels
       |> Enum.with_index(1)
@@ -687,10 +689,24 @@ defmodule AcexGateway.Channels.Store do
           "#EXTINF:-1 tvg-id=\"#{id}\" tvg-chno=\"#{index}\" tvg-name=\"#{clean_name}\"#{country_attr} tvg-logo=\"#{logo}\" group-title=\"#{group}\",#{display_name}"
 
         url =
-          if has_auth do
-            "#{base}/live/#{username}/#{password}/#{id}.ts"
-          else
-            "#{base}/live?channel=#{id}"
+          cond do
+            format in [:hls, "hls", "m3u8"] and has_auth ->
+              "#{base}/h/#{username}/#{password}/#{id}.m3u8"
+
+            format in [:hls, "hls", "m3u8"] ->
+              "#{base}/h/#{id}.m3u8"
+
+            format in [:ts, "ts"] and has_auth ->
+              "#{base}/t/#{username}/#{password}/#{id}.ts"
+
+            format in [:ts, "ts"] ->
+              "#{base}/t/#{id}.ts"
+
+            has_auth ->
+              "#{base}/live/#{username}/#{password}/#{id}.ts"
+
+            true ->
+              "#{base}/live?channel=#{id}"
           end
 
         [inf, url]

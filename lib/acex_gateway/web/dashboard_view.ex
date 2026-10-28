@@ -43,12 +43,21 @@ defmodule AcexGateway.Web.DashboardView do
     parsed_uri = URI.parse(base_url)
     server_port = to_string(parsed_uri.port || 8686)
 
-    m3u_display_url =
+    m3u_hls_url =
       if auth_enabled and auth_user != "" and auth_pass != "" do
-        "#{base_url}/playlist.m3u8?username=#{URI.encode_www_form(auth_user)}&password=#{URI.encode_www_form(auth_pass)}"
+        "#{base_url}/hls/#{URI.encode_www_form(auth_user)}/#{URI.encode_www_form(auth_pass)}.m3u8"
       else
-        "#{base_url}/playlist.m3u8"
+        "#{base_url}/hls.m3u8"
       end
+
+    m3u_ts_url =
+      if auth_enabled and auth_user != "" and auth_pass != "" do
+        "#{base_url}/ts/#{URI.encode_www_form(auth_user)}/#{URI.encode_www_form(auth_pass)}.m3u8"
+      else
+        "#{base_url}/ts.m3u8"
+      end
+
+    m3u_display_url = m3u_hls_url
 
     """
     <!DOCTYPE html>
@@ -2258,8 +2267,18 @@ defmodule AcexGateway.Web.DashboardView do
               </div>
             </div>
 
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 2px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Format:</span>
+              <button id="formatHlsBtn" type="button" class="btn btn-sm btn-primary" onclick="switchPlaylistFormat('hls')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
+                ⚡ HLS (CDN Cached)
+              </button>
+              <button id="formatTsBtn" type="button" class="btn btn-sm btn-secondary" onclick="switchPlaylistFormat('ts')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
+                🚀 Direct TS (Low Latency)
+              </button>
+            </div>
+
             <div class="input-row">
-              <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{m3u_display_url}">
+              <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{m3u_display_url}" data-hls="#{m3u_hls_url}" data-ts="#{m3u_ts_url}">
               <button id="copyM3uBtn" class="btn btn-primary btn-md" onclick="copyM3uUrl(this)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy</span>
@@ -5089,21 +5108,56 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
+        let activePlaylistFormat = "hls";
+
+        function switchPlaylistFormat(format) {
+          activePlaylistFormat = format;
+          const hlsBtn = document.getElementById("formatHlsBtn");
+          const tsBtn = document.getElementById("formatTsBtn");
+
+          if (format === "hls") {
+            if (hlsBtn) hlsBtn.className = "btn btn-sm btn-primary";
+            if (tsBtn) tsBtn.className = "btn btn-sm btn-secondary";
+          } else {
+            if (hlsBtn) hlsBtn.className = "btn btn-sm btn-secondary";
+            if (tsBtn) tsBtn.className = "btn btn-sm btn-primary";
+          }
+
+          if (appSettings) {
+            updateAuthDependentLinks(appSettings);
+          }
+        }
+
         function updateAuthDependentLinks(settings) {
           const isAuth = settings.auth_enabled;
           const user = settings.auth_username || "";
           const pass = settings.auth_password || "";
 
-          let m3uUrl = baseUrl + "/playlist.m3u8";
-          if (isAuth && user && pass) {
-            m3uUrl += "?username=" + encodeURIComponent(user) + "&password=" + encodeURIComponent(pass);
+          let m3uUrl = "";
+          if (activePlaylistFormat === "hls") {
+            if (isAuth && user && pass) {
+              m3uUrl = baseUrl + "/hls/" + encodeURIComponent(user) + "/" + encodeURIComponent(pass) + ".m3u8";
+            } else {
+              m3uUrl = baseUrl + "/hls.m3u8";
+            }
+          } else {
+            if (isAuth && user && pass) {
+              m3uUrl = baseUrl + "/ts/" + encodeURIComponent(user) + "/" + encodeURIComponent(pass) + ".m3u8";
+            } else {
+              m3uUrl = baseUrl + "/ts.m3u8";
+            }
           }
 
           const m3uInput = document.getElementById("m3uUrlInput");
           if (m3uInput) m3uInput.value = m3uUrl;
 
           const downloadLink = document.getElementById("m3uDownloadLink");
-          if (downloadLink) downloadLink.href = m3uUrl;
+          if (downloadLink) {
+            downloadLink.href = m3uUrl;
+            downloadLink.download = (activePlaylistFormat === "hls") ? "acex_hls_playlist.m3u8" : "acex_ts_playlist.m3u8";
+            const downloadText = downloadLink.querySelector("span");
+            if (downloadText) downloadText.innerText = (activePlaylistFormat === "hls") ? "Download HLS" : "Download TS";
+          }
 
           const qrDisplay = document.getElementById("qrM3uDisplay");
           if (qrDisplay) qrDisplay.innerText = m3uUrl;
