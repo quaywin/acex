@@ -63,5 +63,14 @@ defmodule AcexGateway.Stream.SegmentObfuscatorTest do
         assert SegmentObfuscator.deobfuscate(base) =~ ~r/^seg_1741234567_0000\d\.ts$/
       end)
     end
+
+    test "content_type_for/1 maps image extensions to realistic image MIME types" do
+      assert SegmentObfuscator.content_type_for("photo_123.jpg") == "image/jpeg"
+      assert SegmentObfuscator.content_type_for("photo_123.jpeg") == "image/jpeg"
+      assert SegmentObfuscator.content_type_for("avatar_123.webp") == "image/webp"
+      assert SegmentObfuscator.content_type_for("thumb_123.png") == "image/png"
+      assert SegmentObfuscator.content_type_for("asset_123.avif") == "image/avif"
+      assert SegmentObfuscator.content_type_for("unknown.bin") == "application/octet-stream"
+    end
   end
 end

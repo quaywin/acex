@@ -1,23 +1,38 @@
 defmodule AcexGateway.Stream.SegmentObfuscator do
   @moduledoc """
   Deterministic two-way obfuscator that transforms raw HLS segment filenames
-  (e.g. `seg_1712345678_00001.ts`) into innocuous static web assets
-  (e.g. `avatar_9f83a21b4e.webp`, `bundle_c02e88a1.js`, `glyph_3fa9bc12.woff2`).
+  (e.g. `seg_1712345678_00001.ts`) into innocuous high-resolution image assets
+  (e.g. `thumb_9f83a21b4e.webp`, `photo_c02e88a1.jpg`, `tile_3fa9bc12.png`).
 
   Key properties:
   - Deterministic: Same segment always maps to the exact same obfuscated filename,
     guaranteeing 100% Cloudflare Edge Cache HIT rates.
   - Reversible: The original segment filename is encoded directly within the asset name,
     requiring zero in-memory lookup tables or database lookups.
-  - Polymorphic: Rotates across benign extensions (.webp, .jpg, .png, .js, .css, .woff2)
-    and realistic CDN asset prefixes (avatar, thumb, bundle, chunk, glyph, etc.).
+  - Image-Centric: Exclusively uses realistic image extensions (.webp, .jpg, .jpeg, .png, .avif)
+    where 1.5MB - 3.5MB payloads and continuous pagination/infinite scrolling are standard
+    behavior, completely avoiding anomaly flags triggered by oversized script/font files.
   """
 
-  @prefixes ~w(thumb img avatar cover bundle vendor chunk asset media glyph font static)
-  @extensions ~w(.webp .jpg .png .js .css .woff2 .avif)
+  @prefixes ~w(thumb photo img avatar cover asset tile media frame preview)
+  @extensions ~w(.webp .jpg .jpeg .png .avif)
 
   # 16-byte fixed key for reversible lightweight obfuscation
   @obf_key :crypto.hash(:md5, "acex_hls_stream_obfuscator_v1")
+
+  @doc """
+  Determines the appropriate deceptive Content-Type MIME header for an asset name.
+  Defaults to "image/jpeg" or "application/octet-stream" to ensure seamless CDN masking.
+  """
+  def content_type_for(asset_name) when is_binary(asset_name) do
+    case Path.extname(asset_name) do
+      ".webp" -> "image/webp"
+      ".png" -> "image/png"
+      ".avif" -> "image/avif"
+      ext when ext in [".jpg", ".jpeg"] -> "image/jpeg"
+      _ -> "application/octet-stream"
+    end
+  end
 
   @doc """
   Obfuscates a raw segment name (e.g. "seg_1712345678_00001.ts") into a deceptive asset name.
