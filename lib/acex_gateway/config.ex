@@ -132,4 +132,40 @@ defmodule AcexGateway.Config do
       true
     end
   end
+
+  @doc """
+  Optional external CDN URL exclusively for offloading HLS segments (e.g. `https://media.secondary-domain.xyz`).
+  When configured, HLS manifests output absolute URLs for segments pointing to this host,
+  diverting heavy media traffic away from the primary domain.
+  """
+  def segment_cdn_url do
+    case AcexGateway.Settings.Store.get_setting(:segment_cdn_url) do
+      val when is_binary(val) and val != "" ->
+        normalize_cdn_url(val)
+
+      _ ->
+        case System.get_env("SEGMENT_CDN_URL") do
+          nil -> nil
+          "" -> nil
+          val -> normalize_cdn_url(val)
+        end
+    end
+  end
+
+  defp normalize_cdn_url(url) when is_binary(url) do
+    trimmed = String.trim(url)
+
+    cond do
+      trimmed == "" ->
+        nil
+
+      String.starts_with?(trimmed, "http://") or String.starts_with?(trimmed, "https://") ->
+        String.trim_trailing(trimmed, "/")
+
+      true ->
+        "https://" <> String.trim_trailing(trimmed, "/")
+    end
+  end
+
+  defp normalize_cdn_url(_), do: nil
 end

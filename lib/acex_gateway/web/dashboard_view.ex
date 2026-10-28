@@ -40,6 +40,7 @@ defmodule AcexGateway.Web.DashboardView do
     auth_user = AcexGateway.Config.auth_username()
     auth_pass = AcexGateway.Config.auth_password()
     epg_url = AcexGateway.Config.epg_url()
+    segment_cdn_url = AcexGateway.Config.segment_cdn_url() || ""
     parsed_uri = URI.parse(base_url)
     server_port = to_string(parsed_uri.port || 8686)
 
@@ -2841,6 +2842,21 @@ defmodule AcexGateway.Web.DashboardView do
               </div>
             </div>
 
+            <!-- Segment CDN Host -->
+            <div>
+              <label class="form-label" style="font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span>Segment CDN Host (Optional):</span>
+                <span style="font-size: 11px; color: var(--text-tertiary); font-weight: normal;">Offload / Isolate</span>
+              </label>
+              <div class="input-row">
+                <input type="text" id="segmentCdnInput" class="text-input-styled" value="#{segment_cdn_url}" placeholder="https://media.secondary-domain.xyz">
+                <button class="btn btn-secondary btn-sm" onclick="copyInput('segmentCdnInput', 'CDN URL copied!', this)">Copy</button>
+              </div>
+              <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px; line-height: 1.4;">
+                Diverts heavy HLS media segments to an external CDN domain/account. Leave blank to serve directly from this server.
+              </p>
+            </div>
+
             <!-- Save Credentials Button -->
             <button id="saveXtreamBtn" class="btn btn-primary btn-md" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="saveXtreamSettings()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -3062,7 +3078,7 @@ defmodule AcexGateway.Web.DashboardView do
         let allGroups = #{groups_json};
         let selectedChannelIds = new Set();
         const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
-        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url})};
+        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, segment_cdn_url: segment_cdn_url})};
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
         let currentView = "grid";
@@ -5057,6 +5073,7 @@ defmodule AcexGateway.Web.DashboardView do
           const userVal = document.getElementById("xtreamUserInput").value.trim();
           const passVal = document.getElementById("xtreamPassInput").value.trim();
           const epgVal = document.getElementById("xtreamEpgInput").value.trim();
+          const cdnVal = (document.getElementById("segmentCdnInput")?.value || "").trim();
 
           if (isAuthEnabled && (!userVal || !passVal)) {
             showToast("Username and Password are required when authentication is enabled!", false);
@@ -5074,7 +5091,8 @@ defmodule AcexGateway.Web.DashboardView do
                 auth_enabled: isAuthEnabled,
                 auth_username: userVal,
                 auth_password: passVal,
-                epg_url: epgVal
+                epg_url: epgVal,
+                segment_cdn_url: cdnVal
               })
             });
 
@@ -5088,7 +5106,8 @@ defmodule AcexGateway.Web.DashboardView do
               auth_enabled: isAuthEnabled,
               auth_username: userVal,
               auth_password: passVal,
-              epg_url: epgVal
+              epg_url: epgVal,
+              segment_cdn_url: cdnVal
             };
 
             appSettings = settings;

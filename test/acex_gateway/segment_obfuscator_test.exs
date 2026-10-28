@@ -64,6 +64,35 @@ defmodule AcexGateway.Stream.SegmentObfuscatorTest do
       end)
     end
 
+    test "obfuscate_manifest/2 with cdn_url produces absolute CDN URLs" do
+      raw_manifest = """
+      #EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:3
+      #EXTINF:3.000,
+      /cast/premier-sports-1/seg_1741234567_00001.ts
+      #EXTINF:3.000,
+      /cast/premier-sports-1/seg_1741234567_00002.ts
+      """
+
+      obfuscated =
+        SegmentObfuscator.obfuscate_manifest(raw_manifest, "https://media.phu88.xyz/")
+
+      lines =
+        obfuscated
+        |> String.split("\n", trim: true)
+        |> Enum.reject(&String.starts_with?(&1, "#"))
+
+      assert length(lines) == 2
+
+      Enum.each(lines, fn line ->
+        assert String.starts_with?(line, "https://media.phu88.xyz/cast/premier-sports-1/")
+        assert not String.ends_with?(line, ".ts")
+        base = Path.basename(line)
+        assert SegmentObfuscator.deobfuscate(base) =~ ~r/^seg_1741234567_0000\d\.ts$/
+      end)
+    end
+
     test "content_type_for/1 maps image extensions to realistic image MIME types" do
       assert SegmentObfuscator.content_type_for("photo_123.jpg") == "image/jpeg"
       assert SegmentObfuscator.content_type_for("photo_123.jpeg") == "image/jpeg"

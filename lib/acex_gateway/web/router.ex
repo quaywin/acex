@@ -948,7 +948,8 @@ defmodule AcexGateway.Web.Router do
       {:ok, m3u8_path} ->
         case File.read(m3u8_path) do
           {:ok, content} ->
-            obfuscated_content = SegmentObfuscator.obfuscate_manifest(content)
+            obfuscated_content =
+              SegmentObfuscator.obfuscate_manifest(content, Config.segment_cdn_url())
 
             conn
             |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")

@@ -15,6 +15,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
   require Logger
 
   alias AcexGateway.Stream.SegmentObfuscator
+  alias AcexGateway.Config
 
   @sweep_interval_ms 10_000
   @inactivity_timeout_s 60
@@ -205,10 +206,22 @@ defmodule AcexGateway.Stream.CastRemuxer do
     {:noreply, %{state | jobs: new_jobs}}
   end
 
+  @benign_ffmpeg_warnings [
+    "decode_slice_header",
+    "no frame!",
+    "non-existing PPS",
+    "Last message repeated"
+  ]
+
   @impl true
   def handle_info({port, {:data, msg}}, state) when is_port(port) do
     if is_binary(msg) and String.contains?(msg, ["Error", "error", "Fatal", "fatal"]) do
-      Logger.warning("[CastRemuxer:FFmpeg] #{String.trim(msg)}")
+      # Ignore transient H.264 slice decoding warnings before first keyframe
+      is_benign = Enum.any?(@benign_ffmpeg_warnings, &String.contains?(msg, &1))
+
+      unless is_benign do
+        Logger.warning("[CastRemuxer:FFmpeg] #{String.trim(msg)}")
+      end
     end
 
     {:noreply, state}
@@ -295,6 +308,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hide_banner",
         "-loglevel",
         "warning",
+        "-err_detect",
+        "ignore_err",
         "-fflags",
         "+genpts+discardcorrupt",
         "-reconnect",
@@ -309,6 +324,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
         input_url,
         "-c:v",
         "copy",
+        "-bsf:v",
+        "dump_extra",
         "-c:a",
         "aac",
         "-b:a",
@@ -465,7 +482,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   defp maybe_prewarm_job(target, %{dir: dir, base_url: base_url, prewarmed: prewarmed} = job) do
-    if prewarm_eligible?(base_url) do
+    warm_url = effective_base_url(base_url)
+
+    if prewarm_eligible?(warm_url) do
       m3u8_path = Path.join(dir, "live.m3u8")
 
       case File.read(m3u8_path) do
@@ -476,7 +495,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
           Enum.each(new_segments, fn raw_segment ->
             # Pre-warm using the same obfuscated asset URL that clients receive
             obfuscated_name = SegmentObfuscator.obfuscate(raw_segment)
-            trigger_prewarm_request(base_url, target, obfuscated_name)
+            trigger_prewarm_request(warm_url, target, obfuscated_name)
           end)
 
           # Retain only current segments in set to keep memory footprint minimal
@@ -549,6 +568,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
   defp prewarm_eligible?(_), do: false
 
   defp effective_base_url(base_url) do
-    System.get_env("CAST_PREWARM_BASE_URL") || base_url
+    Config.segment_cdn_url() || System.get_env("CAST_PREWARM_BASE_URL") || base_url
   end
 end

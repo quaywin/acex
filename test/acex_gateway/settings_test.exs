@@ -94,4 +94,17 @@ defmodule AcexGateway.SettingsTest do
     assert {:ok, _} = SettingsStore.update_settings(%{"max_active_channels" => 5})
     assert Config.max_active_channels() == 5
   end
+
+  test "segment_cdn_url can be dynamically configured and read via Config" do
+    assert Config.segment_cdn_url() == nil
+
+    assert {:ok, updated} =
+             SettingsStore.update_settings(%{"segment_cdn_url" => "https://media.phu88.xyz/"})
+
+    assert updated.segment_cdn_url == "https://media.phu88.xyz/"
+    assert Config.segment_cdn_url() == "https://media.phu88.xyz"
+
+    assert {:ok, _} = SettingsStore.update_settings(%{"segment_cdn_url" => ""})
+    assert Config.segment_cdn_url() == nil
+  end
 end
