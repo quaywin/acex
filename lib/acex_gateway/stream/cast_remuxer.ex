@@ -36,7 +36,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @doc """
   Ensures an HLS remuxer process is running for the given stream target,
-  waits for initial manifest creation, and returns the path to `live.m3u8`.
+  waits for initial manifest creation on cold start, and returns the path to `live.m3u8`.
+  If a valid manifest is already present on disk (mid-stream playback or reconnection),
+  it is returned immediately without waiting for FFmpeg.
   Accepts optional `base_url` for CDN segment pre-warming.
   """
   def get_playlist(target, base_url \\ nil) do
@@ -45,9 +47,14 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
       case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target, base_url}, 15_000) do
         {:ok, m3u8_path} ->
-          case wait_for_manifest(clean_target, m3u8_path) do
-            :ok -> {:ok, m3u8_path}
-            {:error, reason} -> {:error, reason}
+          # If manifest is already generated with segments, serve instantly (Stale-While-Revalidate)
+          if manifest_ready?(m3u8_path) do
+            {:ok, m3u8_path}
+          else
+            case wait_for_manifest(clean_target, m3u8_path) do
+              :ok -> {:ok, m3u8_path}
+              {:error, reason} -> {:error, reason}
+            end
           end
 
         {:error, reason} ->
