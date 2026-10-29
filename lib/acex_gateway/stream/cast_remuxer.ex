@@ -20,11 +20,29 @@ defmodule AcexGateway.Stream.CastRemuxer do
   @inactivity_timeout_s 60
   @prewarm_interval_ms 1_500
   @max_startup_wait_ms 20_000
+  @manifest_table :acex_cast_manifests
 
   # --- Client API ---
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @doc """
+  Ensures the ETS manifest and segment cache table exists.
+  """
+  def ensure_cache do
+    case :ets.whereis(@manifest_table) do
+      :undefined ->
+        try do
+          :ets.new(@manifest_table, [:set, :public, :named_table, read_concurrency: true])
+        catch
+          :error, :badarg -> @manifest_table
+        end
+
+      _tid ->
+        @manifest_table
+    end
   end
 
   @doc """
@@ -36,10 +54,32 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @doc """
   Ensures an HLS remuxer process is running for the given stream target,
-  waits for initial manifest creation on cold start, and returns the path to `live.m3u8`.
-  If a valid manifest is already present on disk (mid-stream playback or reconnection),
-  it is returned immediately without waiting for FFmpeg.
+  waits for initial manifest creation on cold start, and returns `{:ok, manifest_content}`.
+  Manifest is served directly from ETS in memory with dynamic segment aggregation,
+  eliminating disk race conditions and empty-playlist stalls.
   Accepts optional `base_url` for CDN segment pre-warming.
+  """
+  def get_manifest(target, base_url \\ nil) do
+    if ffmpeg_available?() do
+      clean_target = sanitize_target(target)
+
+      case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target, base_url}, 15_000) do
+        {:ok, m3u8_path} ->
+          job_dir = Path.dirname(m3u8_path)
+          fetch_or_wait_manifest(clean_target, job_dir)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:error, :ffmpeg_not_found}
+    end
+  end
+
+  @doc """
+  Ensures an HLS remuxer process is running for the given stream target,
+  waits for initial manifest creation on cold start, and returns the path to `live.m3u8`.
+  Maintained for backwards compatibility.
   """
   def get_playlist(target, base_url \\ nil) do
     if ffmpeg_available?() do
@@ -47,14 +87,11 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
       case GenServer.call(__MODULE__, {:ensure_remuxer, clean_target, base_url}, 15_000) do
         {:ok, m3u8_path} ->
-          # If manifest is already generated with segments, serve instantly (Stale-While-Revalidate)
-          if manifest_ready?(m3u8_path) do
-            {:ok, m3u8_path}
-          else
-            case wait_for_manifest(clean_target, m3u8_path) do
-              :ok -> {:ok, m3u8_path}
-              {:error, reason} -> {:error, reason}
-            end
+          job_dir = Path.dirname(m3u8_path)
+
+          case fetch_or_wait_manifest(clean_target, job_dir) do
+            {:ok, _content} -> {:ok, m3u8_path}
+            {:error, reason} -> {:error, reason}
           end
 
         {:error, reason} ->
@@ -66,13 +103,66 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   @doc """
+  Looks up the current cached manifest metadata for a target from ETS.
+  """
+  def lookup_manifest(target) do
+    clean_target = sanitize_target(target)
+
+    case :ets.lookup(@manifest_table, clean_target) do
+      [{^clean_target, data}] -> {:ok, data}
+      _ -> :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  @doc """
+  Returns the list of active segment filenames for a target from ETS.
+  """
+  def get_active_segments(target) do
+    case lookup_manifest(target) do
+      {:ok, %{segments: segments}} ->
+        Enum.map(segments, fn
+          {name, _dur} -> name
+          name when is_binary(name) -> name
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  @doc """
   Returns the absolute path of the requested segment file.
-  Note: Activity heartbeat is tracked exclusively via manifest requests (`get_playlist/2`)
-  to ensure accurate client tracking behind CDN edge caches and prevent pre-warmers
-  from keeping idle streams alive indefinitely.
+  Fast path checks ETS for job directory to bypass GenServer mailbox queuing.
   """
   def get_segment(target, segment_name) do
-    GenServer.call(__MODULE__, {:get_segment, target, segment_name})
+    clean_target = sanitize_target(target)
+    raw_segment = SegmentObfuscator.deobfuscate(Path.basename(segment_name))
+
+    case lookup_manifest(clean_target) do
+      {:ok, %{dir: dir}} when is_binary(dir) ->
+        segment_path = Path.join(dir, raw_segment)
+
+        if File.exists?(segment_path) do
+          {:ok, segment_path}
+        else
+          if running?(clean_target) do
+            {:error, :not_found}
+          else
+            fallback_path = Path.join([cast_base_dir(), clean_target, raw_segment])
+
+            if File.exists?(fallback_path) do
+              {:ok, fallback_path}
+            else
+              {:error, :not_running}
+            end
+          end
+        end
+
+      _ ->
+        GenServer.call(__MODULE__, {:get_segment, target, segment_name})
+    end
   end
 
   @doc """
@@ -97,6 +187,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
   @impl true
   def init(_opts) do
     Process.flag(:trap_exit, true)
+    ensure_cache()
     schedule_sweep()
     schedule_prewarm()
     # Clean up stale temp directories from previous runs on boot
@@ -120,6 +211,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
         updated_job = Map.merge(job, %{last_accessed: now, base_url: new_base_url})
         new_jobs = Map.put(state.jobs, clean_target, updated_job)
         m3u8_path = Path.join(dir, "live.m3u8")
+
+        touch_ets_job_dir(clean_target, dir)
+
         {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
 
       nil ->
@@ -127,6 +221,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
           {:ok, job} ->
             new_jobs = Map.put(state.jobs, clean_target, job)
             m3u8_path = Path.join(job.dir, "live.m3u8")
+
+            touch_ets_job_dir(clean_target, job.dir)
+
             {:reply, {:ok, m3u8_path}, %{state | jobs: new_jobs}}
 
           {:error, reason} ->
@@ -173,7 +270,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
     case Map.get(state.jobs, clean_target) do
       %{port: port, os_pid: os_pid, dir: dir} ->
-        terminate_job(port, os_pid, dir)
+        terminate_job(port, os_pid, dir, clean_target)
         {:noreply, %{state | jobs: Map.delete(state.jobs, clean_target)}}
 
       nil ->
@@ -195,7 +292,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "[CastRemuxer] Inactivity timeout (#{@inactivity_timeout_s}s) reached for '#{target}'. Terminating remuxer."
       )
 
-      terminate_job(job.port, job.os_pid, job.dir)
+      terminate_job(job.port, job.os_pid, job.dir, target)
     end)
 
     schedule_sweep()
@@ -204,6 +301,11 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @impl true
   def handle_info(:prewarm_tick, state) do
+    # Continuously refresh in-memory ETS manifests for active streams in the background
+    Enum.each(state.jobs, fn {target, job} ->
+      sync_manifest(target, job.dir)
+    end)
+
     new_jobs =
       Enum.into(state.jobs, %{}, fn {target, job} ->
         updated_job = maybe_prewarm_job(target, job)
@@ -257,6 +359,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
   def handle_info({:delayed_cleanup_dir, dir, target}, state) do
     # Only clean up if target has not been restarted
     unless Map.has_key?(state.jobs, target) do
+      :ets.delete(@manifest_table, target)
       cleanup_dir(dir)
     end
 
@@ -277,8 +380,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
   def terminate(_reason, state) do
     Logger.info("[CastRemuxer] Application stopping. Cleaning up active Chromecast remuxers...")
 
-    Enum.each(state.jobs, fn {_target, job} ->
-      terminate_job(job.port, job.os_pid, job.dir)
+    Enum.each(state.jobs, fn {target, job} ->
+      terminate_job(job.port, job.os_pid, job.dir, target)
     end)
 
     :ok
@@ -418,49 +521,318 @@ defmodule AcexGateway.Stream.CastRemuxer do
     end
   end
 
-  defp wait_for_manifest(target, m3u8_path, start_time \\ System.monotonic_time(:millisecond)) do
+  defp touch_ets_job_dir(target, dir) do
+    case :ets.lookup(@manifest_table, target) do
+      [{^target, data}] ->
+        :ets.insert(@manifest_table, {target, Map.put(data, :dir, dir)})
+
+      [] ->
+        :ets.insert(
+          @manifest_table,
+          {target,
+           %{
+             dir: dir,
+             manifest: nil,
+             segments: [],
+             media_sequence: 0,
+             target_duration: 4,
+             updated_at: 0
+           }}
+        )
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp fetch_or_wait_manifest(
+         clean_target,
+         job_dir,
+         start_time \\ System.monotonic_time(:millisecond)
+       ) do
     elapsed = System.monotonic_time(:millisecond) - start_time
 
-    cond do
-      manifest_ready?(m3u8_path) ->
-        :ok
-
-      not running?(target) ->
-        if File.exists?(m3u8_path) do
-          :ok
-        else
-          {:error, :remuxer_exited}
-        end
-
-      elapsed > @max_startup_wait_ms ->
-        # If manifest exists even partially, allow it; else timeout
-        if File.exists?(m3u8_path) do
-          :ok
-        else
-          {:error, :manifest_timeout}
-        end
-
-      true ->
-        Process.sleep(150)
-        wait_for_manifest(target, m3u8_path, start_time)
-    end
-  end
-
-  defp manifest_ready?(path) do
-    if File.exists?(path) do
-      case File.read(path) do
-        {:ok, content} ->
-          String.contains?(content, "#EXTINF")
+    # Fast path: check if ETS already holds an ultra-fresh manifest (< 500ms)
+    fast_cached =
+      case lookup_manifest(clean_target) do
+        {:ok, %{manifest: manifest, updated_at: updated_at}}
+        when is_binary(manifest) and manifest != "" ->
+          now = System.monotonic_time(:millisecond)
+          if now - updated_at < 500, do: {:ok, manifest}, else: :stale
 
         _ ->
-          false
+          :none
       end
-    else
-      false
+
+    case fast_cached do
+      {:ok, manifest} ->
+        {:ok, manifest}
+
+      _ ->
+        case sync_manifest(clean_target, job_dir) do
+          {:ok, manifest} ->
+            {:ok, manifest}
+
+          {:error, _reason} ->
+            cond do
+              not running?(clean_target) ->
+                case lookup_manifest(clean_target) do
+                  {:ok, %{manifest: manifest}} when is_binary(manifest) and manifest != "" ->
+                    {:ok, manifest}
+
+                  _ ->
+                    {:error, :remuxer_exited}
+                end
+
+              elapsed > @max_startup_wait_ms ->
+                case lookup_manifest(clean_target) do
+                  {:ok, %{manifest: manifest}} when is_binary(manifest) and manifest != "" ->
+                    {:ok, manifest}
+
+                  _ ->
+                    {:error, :manifest_timeout}
+                end
+
+              true ->
+                Process.sleep(100)
+                fetch_or_wait_manifest(clean_target, job_dir, start_time)
+            end
+        end
     end
   end
 
-  defp terminate_job(port, os_pid, dir) do
+  @doc """
+  Synchronizes the manifest for a target from disk (`live.m3u8` or completed `.ts` segments)
+  into ETS. If disk `live.m3u8` is empty or mid-flush, falls back safely to cached ETS manifest
+  or dynamically generates the manifest from finished disk segments.
+  """
+  def sync_manifest(target, dir) do
+    clean_target = sanitize_target(target)
+    m3u8_path = Path.join(dir, "live.m3u8")
+
+    disk_result =
+      case File.read(m3u8_path) do
+        {:ok, content} when byte_size(content) > 0 ->
+          if String.contains?(content, "#EXTINF") do
+            {:ok, content}
+          else
+            :invalid
+          end
+
+        _ ->
+          :invalid
+      end
+
+    case disk_result do
+      {:ok, content} ->
+        manifest_data = parse_manifest_data(clean_target, content, dir)
+        :ets.insert(@manifest_table, {clean_target, manifest_data})
+        {:ok, manifest_data.manifest}
+
+      :invalid ->
+        # Disk manifest is invalid/empty or currently being rewritten by FFmpeg.
+        # Fallback to existing ETS cache (zero-stall fallback)
+        case lookup_manifest(clean_target) do
+          {:ok, %{manifest: manifest}} when is_binary(manifest) and manifest != "" ->
+            {:ok, manifest}
+
+          _ ->
+            # No cached manifest in ETS yet (e.g. cold start).
+            # Build dynamically from finished disk segments
+            case build_dynamic_manifest_from_disk(clean_target, dir) do
+              {:ok, dynamic_data} ->
+                :ets.insert(@manifest_table, {clean_target, dynamic_data})
+                {:ok, dynamic_data.manifest}
+
+              :empty ->
+                {:error, :no_segments_yet}
+            end
+        end
+    end
+  rescue
+    _ -> {:error, :sync_failed}
+  end
+
+  @doc """
+  Builds an HLS live manifest directly from finished `.ts` segment files in the job directory.
+  Excludes the actively writing segment to avoid serving incomplete chunks.
+  """
+  def build_dynamic_manifest_from_disk(target, dir) do
+    segments = list_disk_segments(dir)
+
+    completed_segments =
+      case segments do
+        [] ->
+          []
+
+        [_single] ->
+          []
+
+        segs ->
+          # Exclude the very latest segment which FFmpeg is actively recording into
+          Enum.drop(segs, -1)
+      end
+
+    case completed_segments do
+      [] ->
+        :empty
+
+      segs ->
+        # Sliding window: keep up to 20 recent segments
+        window_segs = Enum.take(segs, -20)
+        {_first_name, first_seq, _size} = List.first(window_segs)
+
+        formatted_segments =
+          Enum.map(window_segs, fn {filename, _seq, _size} ->
+            {filename, 3.0}
+          end)
+
+        manifest = build_manifest_string(target, 4, first_seq, formatted_segments)
+
+        {:ok,
+         %{
+           target: target,
+           dir: dir,
+           manifest: manifest,
+           segments: formatted_segments,
+           media_sequence: first_seq,
+           target_duration: 4,
+           updated_at: System.monotonic_time(:millisecond)
+         }}
+    end
+  end
+
+  @doc """
+  Lists all valid `.ts` segment files in a directory sorted by sequence number.
+  """
+  def list_disk_segments(dir) do
+    case File.ls(dir) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".ts"))
+        |> Enum.filter(&String.starts_with?(&1, "seg_"))
+        |> Enum.map(fn filename ->
+          path = Path.join(dir, filename)
+
+          size =
+            case File.stat(path) do
+              {:ok, %File.Stat{size: s}} -> s
+              _ -> 0
+            end
+
+          seq = parse_seq_from_filename(filename)
+          {filename, seq, size}
+        end)
+        |> Enum.filter(fn {_name, _seq, size} -> size > 0 end)
+        |> Enum.sort_by(fn {_name, seq, _size} -> seq end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp parse_seq_from_filename(filename) do
+    case Regex.run(~r/_(\d+)\.ts$/, filename) do
+      [_, seq_str] -> String.to_integer(seq_str)
+      _ -> 0
+    end
+  end
+
+  @doc """
+  Composes a standard HLS v3 live playlist string from segment metadata.
+  """
+  def build_manifest_string(target, target_duration, media_sequence, segments) do
+    header = [
+      "#EXTM3U",
+      "#EXT-X-VERSION:3",
+      "#EXT-X-TARGETDURATION:#{target_duration}",
+      "#EXT-X-MEDIA-SEQUENCE:#{media_sequence}",
+      "#EXT-X-INDEPENDENT-SEGMENTS"
+    ]
+
+    entries =
+      Enum.flat_map(segments, fn {filename, duration} ->
+        dur_val = if is_number(duration), do: duration * 1.0, else: 3.0
+        dur_str = :erlang.float_to_binary(dur_val, decimals: 6)
+
+        [
+          "#EXTINF:#{dur_str},",
+          "/cast/#{target}/#{filename}"
+        ]
+      end)
+
+    Enum.join(header ++ entries, "\n") <> "\n"
+  end
+
+  @doc """
+  Parses an existing HLS manifest string into structured metadata.
+  """
+  def parse_manifest_data(target, content, dir) do
+    lines = String.split(content, ["\r\n", "\n"], trim: true)
+    target_duration = parse_target_duration(lines)
+    media_sequence = parse_media_sequence(lines)
+    segments = extract_segments_with_duration(lines)
+
+    %{
+      target: target,
+      dir: dir,
+      manifest: content,
+      segments: segments,
+      media_sequence: media_sequence,
+      target_duration: target_duration,
+      updated_at: System.monotonic_time(:millisecond)
+    }
+  end
+
+  defp parse_target_duration(lines) do
+    Enum.find_value(lines, 4, fn line ->
+      case Regex.run(~r/#EXT-X-TARGETDURATION:(\d+)/, line) do
+        [_, dur] -> String.to_integer(dur)
+        _ -> nil
+      end
+    end)
+  end
+
+  defp parse_media_sequence(lines) do
+    Enum.find_value(lines, 0, fn line ->
+      case Regex.run(~r/#EXT-X-MEDIA-SEQUENCE:(\d+)/, line) do
+        [_, seq] -> String.to_integer(seq)
+        _ -> nil
+      end
+    end)
+  end
+
+  defp extract_segments_with_duration(lines) do
+    {segments, _current_dur} =
+      Enum.reduce(lines, {[], 3.0}, fn line, {acc, cur_dur} ->
+        cond do
+          String.starts_with?(line, "#EXTINF:") ->
+            dur =
+              case Regex.run(~r/#EXTINF:([0-9\.]+)/, line) do
+                [_, d] ->
+                  case Float.parse(d) do
+                    {val, _} -> val
+                    _ -> 3.0
+                  end
+
+                _ ->
+                  3.0
+              end
+
+            {acc, dur}
+
+          String.ends_with?(line, ".ts") and not String.starts_with?(line, "#") ->
+            filename = Path.basename(line)
+            {[{filename, cur_dur} | acc], 3.0}
+
+          true ->
+            {acc, cur_dur}
+        end
+      end)
+
+    Enum.reverse(segments)
+  end
+
+  defp terminate_job(port, os_pid, dir, target) do
     if is_integer(os_pid) and os_pid > 0 do
       System.cmd("kill", ["-15", to_string(os_pid)], stderr_to_stdout: true)
       Process.sleep(100)
@@ -473,6 +845,10 @@ defmodule AcexGateway.Stream.CastRemuxer do
       rescue
         _ -> :ok
       end
+    end
+
+    if is_binary(target) do
+      :ets.delete(@manifest_table, target)
     end
 
     cleanup_dir(dir)
@@ -505,32 +881,40 @@ defmodule AcexGateway.Stream.CastRemuxer do
     warm_url = effective_base_url(base_url)
 
     if prewarm_eligible?(warm_url) do
-      m3u8_path = Path.join(dir, "live.m3u8")
+      segments =
+        case lookup_manifest(target) do
+          {:ok, %{segments: seg_entries}} when is_list(seg_entries) and seg_entries != [] ->
+            Enum.map(seg_entries, fn
+              {name, _dur} -> name
+              name when is_binary(name) -> name
+            end)
 
-      case File.read(m3u8_path) do
-        {:ok, content} ->
-          segments = parse_segments_from_manifest(content)
-          new_segments = Enum.reject(segments, &MapSet.member?(prewarmed, &1))
+          _ ->
+            m3u8_path = Path.join(dir, "live.m3u8")
 
-          Enum.each(new_segments, fn raw_segment ->
-            # Pre-warm using the same obfuscated asset URL that clients receive
-            obfuscated_name = SegmentObfuscator.obfuscate(raw_segment)
-            trigger_prewarm_request(warm_url, target, obfuscated_name)
-          end)
+            case File.read(m3u8_path) do
+              {:ok, content} -> parse_segments_from_manifest(content)
+              {:error, _} -> []
+            end
+        end
 
-          # Retain only current segments in set to keep memory footprint minimal
-          current_segment_set = MapSet.new(segments)
+      new_segments = Enum.reject(segments, &MapSet.member?(prewarmed, &1))
 
-          updated_prewarmed =
-            prewarmed
-            |> MapSet.union(MapSet.new(new_segments))
-            |> MapSet.intersection(current_segment_set)
+      Enum.each(new_segments, fn raw_segment ->
+        # Pre-warm using the same obfuscated asset URL that clients receive
+        obfuscated_name = SegmentObfuscator.obfuscate(raw_segment)
+        trigger_prewarm_request(warm_url, target, obfuscated_name)
+      end)
 
-          %{job | prewarmed: updated_prewarmed}
+      # Retain only current segments in set to keep memory footprint minimal
+      current_segment_set = MapSet.new(segments)
 
-        {:error, _} ->
-          job
-      end
+      updated_prewarmed =
+        prewarmed
+        |> MapSet.union(MapSet.new(new_segments))
+        |> MapSet.intersection(current_segment_set)
+
+      %{job | prewarmed: updated_prewarmed}
     else
       job
     end

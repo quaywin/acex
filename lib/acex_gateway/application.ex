@@ -12,6 +12,7 @@ defmodule AcexGateway.Application do
     # Ensure global ETS cache tables are owned by Application process
     AcexGateway.Engine.Validator.ensure_cache()
     AcexGateway.System.Updater.ensure_cache()
+    AcexGateway.Stream.CastRemuxer.ensure_cache()
 
     children = [
       AcexGateway.Settings.Store,

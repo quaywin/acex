@@ -945,29 +945,21 @@ defmodule AcexGateway.Web.Router do
 
     base_url = request_base_url(conn)
 
-    case CastRemuxer.get_playlist(clean_target, base_url) do
-      {:ok, m3u8_path} ->
-        case File.read(m3u8_path) do
-          {:ok, content} ->
-            obfuscated_content =
-              SegmentObfuscator.obfuscate_manifest(content)
+    case CastRemuxer.get_manifest(clean_target, base_url) do
+      {:ok, content} ->
+        obfuscated_content =
+          SegmentObfuscator.obfuscate_manifest(content)
 
-            conn
-            |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
-            |> put_resp_header(
-              "cache-control",
-              "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0"
-            )
-            |> put_resp_header("pragma", "no-cache")
-            |> put_resp_header("expires", "0")
-            |> put_resp_header("access-control-allow-origin", "*")
-            |> send_resp(200, obfuscated_content)
-
-          {:error, _} ->
-            conn
-            |> put_resp_header("access-control-allow-origin", "*")
-            |> send_resp(503, "Manifest temporarily unavailable. Retrying...")
-        end
+        conn
+        |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
+        |> put_resp_header(
+          "cache-control",
+          "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0"
+        )
+        |> put_resp_header("pragma", "no-cache")
+        |> put_resp_header("expires", "0")
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> send_resp(200, obfuscated_content)
 
       {:error, :ffmpeg_not_found} ->
         conn
