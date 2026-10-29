@@ -940,9 +940,11 @@ defmodule AcexGateway.Stream.CastRemuxer do
         Req.get(url,
           headers: [
             {"user-agent", "AcexGateway-Prewarmer/1.0"},
-            {"x-purpose", "preview"}
+            {"x-purpose", "preview"},
+            {"connection", "close"}
           ],
           into: fn {:data, _chunk}, acc -> {:cont, acc} end,
+          retry: false,
           receive_timeout: 10_000,
           connect_options: [timeout: 5_000]
         )
