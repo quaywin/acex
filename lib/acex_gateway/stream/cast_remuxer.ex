@@ -347,9 +347,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hls_time",
         "3",
         "-hls_list_size",
-        "6",
+        "20",
         "-hls_delete_threshold",
-        "3",
+        "15",
         "-hls_base_url",
         "/cast/#{target}/",
         "-hls_flags",
@@ -559,15 +559,13 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   defp prewarm_eligible?(base_url) when is_binary(base_url) and base_url != "" do
-    case System.get_env("CAST_PREWARM_ENABLED") do
-      "false" ->
-        false
+    if AcexGateway.Config.prewarm_enabled?() do
+      uri = URI.parse(base_url)
+      host = uri.host || ""
 
-      _ ->
-        uri = URI.parse(base_url)
-        host = uri.host || ""
-
-        uri.scheme in ["http", "https"] and not private_ip_or_local?(host)
+      uri.scheme in ["http", "https"] and not private_ip_or_local?(host)
+    else
+      false
     end
   end
 

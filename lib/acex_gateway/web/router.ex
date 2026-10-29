@@ -36,6 +36,7 @@ defmodule AcexGateway.Web.Router do
       "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
     )
     |> put_resp_header("access-control-allow-headers", "content-type, authorization")
+    |> put_resp_header("access-control-max-age", "86400")
     |> send_resp(204, "")
   end
 

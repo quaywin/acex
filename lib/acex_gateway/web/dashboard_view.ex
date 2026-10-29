@@ -41,6 +41,7 @@ defmodule AcexGateway.Web.DashboardView do
     auth_pass = AcexGateway.Config.auth_password()
     epg_url = AcexGateway.Config.epg_url()
     xtream_format = AcexGateway.Config.xtream_format()
+    prewarm_enabled = AcexGateway.Config.prewarm_enabled?()
     parsed_uri = URI.parse(base_url)
     server_port = to_string(parsed_uri.port || 8686)
 
@@ -2869,6 +2870,25 @@ defmodule AcexGateway.Web.DashboardView do
               </p>
             </div>
 
+            <!-- CDN Edge Pre-warming Toggle -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>CDN Edge Pre-warming</span>
+                  <span id="prewarmStatusBadge" class="badge-status #{if prewarm_enabled, do: "badge-enabled", else: "badge-disabled"}">
+                    #{if prewarm_enabled, do: "ENABLED", else: "DISABLED"}
+                  </span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Pre-fetches new HLS segments into Cloudflare edge cache ahead of client requests. Disable if hosting solely on local LAN without a CDN.
+                </p>
+              </div>
+              <label class="switch" title="Toggle CDN Pre-warming">
+                <input type="checkbox" id="prewarmToggleInput" #{if prewarm_enabled, do: "checked", else: ""} onchange="onPrewarmToggleChange()">
+                <span class="slider"></span>
+              </label>
+            </div>
+
             <!-- Save Credentials Button -->
             <button id="saveXtreamBtn" class="btn btn-primary btn-md" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="saveXtreamSettings()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -3090,7 +3110,7 @@ defmodule AcexGateway.Web.DashboardView do
         let allGroups = #{groups_json};
         let selectedChannelIds = new Set();
         const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
-        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, xtream_format: xtream_format})};
+        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, xtream_format: xtream_format, prewarm_enabled: prewarm_enabled})};
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
         let currentView = "grid";
@@ -5078,6 +5098,20 @@ defmodule AcexGateway.Web.DashboardView do
           showToast("Generated new random password!");
         }
 
+        function onPrewarmToggleChange() {
+          const isChecked = document.getElementById("prewarmToggleInput").checked;
+          const badge = document.getElementById("prewarmStatusBadge");
+          if (badge) {
+            if (isChecked) {
+              badge.className = "badge-status badge-enabled";
+              badge.textContent = "ENABLED";
+            } else {
+              badge.className = "badge-status badge-disabled";
+              badge.textContent = "DISABLED";
+            }
+          }
+        }
+
         async function saveXtreamSettings() {
           const btn = document.getElementById("saveXtreamBtn");
           const originalContent = btn.innerHTML;
@@ -5086,6 +5120,7 @@ defmodule AcexGateway.Web.DashboardView do
           const passVal = document.getElementById("xtreamPassInput").value.trim();
           const epgVal = document.getElementById("xtreamEpgInput").value.trim();
           const formatVal = document.querySelector('input[name="xtreamFormat"]:checked')?.value || "hls";
+          const prewarmVal = document.getElementById("prewarmToggleInput") ? document.getElementById("prewarmToggleInput").checked : false;
 
           if (isAuthEnabled && (!userVal || !passVal)) {
             showToast("Username and Password are required when authentication is enabled!", false);
@@ -5104,7 +5139,8 @@ defmodule AcexGateway.Web.DashboardView do
                 auth_username: userVal,
                 auth_password: passVal,
                 epg_url: epgVal,
-                xtream_format: formatVal
+                xtream_format: formatVal,
+                prewarm_enabled: prewarmVal
               })
             });
 
@@ -5119,7 +5155,8 @@ defmodule AcexGateway.Web.DashboardView do
               auth_username: userVal,
               auth_password: passVal,
               epg_url: epgVal,
-              xtream_format: formatVal
+              xtream_format: formatVal,
+              prewarm_enabled: prewarmVal
             };
 
             appSettings = settings;

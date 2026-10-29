@@ -671,4 +671,12 @@ defmodule AcexGateway.Web.RouterTest do
     conn = conn(:get, "/cast/test-target/avatar_abcd1234efgh.webp") |> Router.call(@opts)
     assert conn.status in [404, 503]
   end
+
+  test "OPTIONS preflight returns 204 with CORS headers" do
+    conn = conn(:options, "/cast/test-target/live.m3u8") |> Router.call(@opts)
+    assert conn.status == 204
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-allow-methods") == ["GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"]
+    assert get_resp_header(conn, "access-control-max-age") == ["86400"]
+  end
 end

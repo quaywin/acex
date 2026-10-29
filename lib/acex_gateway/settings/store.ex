@@ -113,6 +113,13 @@ defmodule AcexGateway.Settings.Store do
           val when val in ["hls", :hls] -> "hls"
           _ -> Map.get(current, :xtream_format, "hls")
         end,
+      prewarm_enabled:
+        case Map.get(params, "prewarm_enabled", Map.get(params, :prewarm_enabled)) do
+          val when is_boolean(val) -> val
+          "true" -> true
+          "false" -> false
+          _ -> Map.get(current, :prewarm_enabled, false)
+        end,
       max_active_channels:
         case Map.get(params, "max_active_channels", Map.get(params, :max_active_channels)) do
           val when is_integer(val) and val > 0 ->
@@ -168,6 +175,7 @@ defmodule AcexGateway.Settings.Store do
     env_pass = System.get_env("AUTH_PASSWORD") || ""
     env_epg = System.get_env("EPG_URL") || ""
     env_format = System.get_env("XTREAM_DEFAULT_FORMAT") || "hls"
+    env_prewarm = System.get_env("CAST_PREWARM_ENABLED") in ["true", "1"]
 
     has_env_creds =
       is_binary(env_user) and is_binary(env_pass) and String.trim(env_user) != "" and
@@ -191,6 +199,7 @@ defmodule AcexGateway.Settings.Store do
       auth_password: if(String.trim(env_pass) != "", do: String.trim(env_pass), else: "acex123"),
       epg_url: String.trim(env_epg),
       xtream_format: if(env_format in ["ts", "hls"], do: env_format, else: "hls"),
+      prewarm_enabled: env_prewarm,
       max_active_channels: default_max
     }
   end
@@ -204,6 +213,7 @@ defmodule AcexGateway.Settings.Store do
       auth_password: Map.get(json, "auth_password", defaults.auth_password),
       epg_url: Map.get(json, "epg_url", defaults.epg_url),
       xtream_format: Map.get(json, "xtream_format", defaults.xtream_format),
+      prewarm_enabled: Map.get(json, "prewarm_enabled", defaults.prewarm_enabled),
       max_active_channels: Map.get(json, "max_active_channels", defaults.max_active_channels)
     }
   end
@@ -215,6 +225,7 @@ defmodule AcexGateway.Settings.Store do
     :ets.insert(@table, {:auth_password, settings.auth_password})
     :ets.insert(@table, {:epg_url, settings.epg_url})
     :ets.insert(@table, {:xtream_format, settings.xtream_format})
+    :ets.insert(@table, {:prewarm_enabled, settings.prewarm_enabled})
     :ets.insert(@table, {:max_active_channels, settings.max_active_channels})
   end
 
@@ -230,6 +241,7 @@ defmodule AcexGateway.Settings.Store do
           "auth_password" => settings.auth_password,
           "epg_url" => settings.epg_url,
           "xtream_format" => settings.xtream_format,
+          "prewarm_enabled" => settings.prewarm_enabled,
           "max_active_channels" => settings.max_active_channels
         },
         pretty: true

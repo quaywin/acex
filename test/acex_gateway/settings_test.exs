@@ -12,7 +12,8 @@ defmodule AcexGateway.SettingsTest do
       "auth_enabled" => false,
       "auth_username" => "admin",
       "auth_password" => "acex123",
-      "epg_url" => ""
+      "epg_url" => "",
+      "prewarm_enabled" => false
     })
 
     on_exit(fn ->
@@ -20,7 +21,8 @@ defmodule AcexGateway.SettingsTest do
         "auth_enabled" => false,
         "auth_username" => "admin",
         "auth_password" => "acex123",
-        "epg_url" => ""
+        "epg_url" => "",
+        "prewarm_enabled" => false
       })
     end)
 
@@ -105,5 +107,17 @@ defmodule AcexGateway.SettingsTest do
     assert {:ok, updated2} = SettingsStore.update_settings(%{"xtream_format" => "hls"})
     assert updated2.xtream_format == "hls"
     assert Config.xtream_format() == "hls"
+  end
+
+  test "prewarm_enabled can be dynamically configured and read via Config" do
+    assert Config.prewarm_enabled?() == false
+
+    assert {:ok, updated} = SettingsStore.update_settings(%{"prewarm_enabled" => true})
+    assert updated.prewarm_enabled == true
+    assert Config.prewarm_enabled?() == true
+
+    assert {:ok, updated2} = SettingsStore.update_settings(%{"prewarm_enabled" => false})
+    assert updated2.prewarm_enabled == false
+    assert Config.prewarm_enabled?() == false
   end
 end

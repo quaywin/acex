@@ -142,4 +142,14 @@ defmodule AcexGateway.Config do
       _ -> System.get_env("XTREAM_DEFAULT_FORMAT", "hls")
     end
   end
+
+  @doc """
+  Whether HLS segment pre-warming to CDN edge cache is enabled. Defaults to `false`.
+  """
+  def prewarm_enabled? do
+    case AcexGateway.Settings.Store.get_setting(:prewarm_enabled) do
+      val when is_boolean(val) -> val
+      _ -> System.get_env("CAST_PREWARM_ENABLED") in ["true", "1"]
+    end
+  end
 end
