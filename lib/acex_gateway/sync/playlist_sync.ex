@@ -302,7 +302,26 @@ defmodule AcexGateway.Sync.PlaylistSync do
         new_etag = get_resp_header(resp, "etag")
 
         case ChannelsStore.import_channels(body, %{mode: mode, default_group: "Live TV"}) do
-          {:ok, count} ->
+          {:ok, imported} when is_list(imported) ->
+            count = length(imported)
+
+            Logger.info(
+              "[PlaylistSync] Successfully synced #{count} channels (mode: #{mode}) from #{url}"
+            )
+
+            new_channels_status = %{
+              state.status.channels
+              | url: raw_url,
+                last_sync: now_iso,
+                status: "success",
+                count: count,
+                error: nil,
+                etag: new_etag
+            }
+
+            {{:ok, count}, %{state | status: %{state.status | channels: new_channels_status}}}
+
+          {:ok, count} when is_integer(count) ->
             Logger.info(
               "[PlaylistSync] Successfully synced #{count} channels (mode: #{mode}) from #{url}"
             )

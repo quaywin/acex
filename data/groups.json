@@ -103,5 +103,140 @@
     "id": "entertainment",
     "name": "Entertainment",
     "order": 21
+  },
+  {
+    "id": "1rfef",
+    "name": "1RFEF",
+    "order": 22
+  },
+  {
+    "id": "liga",
+    "name": "Liga",
+    "order": 23
+  },
+  {
+    "id": "dazn-laliga",
+    "name": "DAZN LaLiga",
+    "order": 24
+  },
+  {
+    "id": "segunda",
+    "name": "Segunda",
+    "order": 25
+  },
+  {
+    "id": "vamos",
+    "name": "Vamos",
+    "order": 26
+  },
+  {
+    "id": "m-deportes",
+    "name": "M Deportes",
+    "order": 27
+  },
+  {
+    "id": "m-campeones",
+    "name": "M Campeones",
+    "order": 28
+  },
+  {
+    "id": "dazn",
+    "name": "Dazn",
+    "order": 29
+  },
+  {
+    "id": "motor",
+    "name": "Motor",
+    "order": 30
+  },
+  {
+    "id": "eurosport",
+    "name": "Eurosport",
+    "order": 31
+  },
+  {
+    "id": "otros-m",
+    "name": "Otros M",
+    "order": 32
+  },
+  {
+    "id": "otros",
+    "name": "Otros",
+    "order": 33
+  },
+  {
+    "id": "tdt",
+    "name": "TDT",
+    "order": 34
+  },
+  {
+    "id": "dazn-eventos",
+    "name": "Dazn eventos",
+    "order": 35
+  },
+  {
+    "id": "cine-y-documentales",
+    "name": "Cine y documentales",
+    "order": 36
+  },
+  {
+    "id": "alemania",
+    "name": "Alemania",
+    "order": 37
+  },
+  {
+    "id": "chequia",
+    "name": "Chequia",
+    "order": 38
+  },
+  {
+    "id": "eslovaquia",
+    "name": "Eslovaquia",
+    "order": 39
+  },
+  {
+    "id": "francia",
+    "name": "Francia",
+    "order": 40
+  },
+  {
+    "id": "inglaterra",
+    "name": "Inglaterra",
+    "order": 41
+  },
+  {
+    "id": "paísesbajos",
+    "name": "PaísesBajos",
+    "order": 42
+  },
+  {
+    "id": "polonia",
+    "name": "Polonia",
+    "order": 43
+  },
+  {
+    "id": "portugal",
+    "name": "Portugal",
+    "order": 44
+  },
+  {
+    "id": "rusia",
+    "name": "Rusia",
+    "order": 45
+  },
+  {
+    "id": "turquía",
+    "name": "Turquía",
+    "order": 46
+  },
+  {
+    "id": "ukrania",
+    "name": "Ukrania",
+    "order": 47
+  },
+  {
+    "id": "usa",
+    "name": "USA",
+    "order": 48
   }
 ]

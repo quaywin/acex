@@ -5719,12 +5719,13 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         function findChannelMeta(key, target, activeHash) {
-          if (!allChannels || !Array.isArray(allChannels)) return null;
-          let match = allChannels.find(ch => ch.id === key || ch.id === target);
+          const list = (currentCatalogTab === "events") ? (allEvents || []) : (allChannels || []);
+          if (!list || !Array.isArray(list)) return null;
+          let match = list.find(ch => ch.id === key || ch.id === target);
           if (match) return match;
           const cleanTarget = (target || "").toLowerCase();
           const cleanHash = (activeHash || "").toLowerCase();
-          match = allChannels.find(ch =>
+          match = list.find(ch =>
             (ch.sources || []).some(s => {
               const ls = s.toLowerCase();
               return ls === cleanTarget || ls === cleanHash;
@@ -5743,10 +5744,12 @@ defmodule AcexGateway.Web.DashboardView do
             }
           });
 
+          const currentCatalog = (currentCatalogTab === "events") ? (allEvents || []) : (allChannels || []);
+
           // Update grid cards
           document.querySelectorAll(".channel-card-sf").forEach(card => {
             const id = card.getAttribute("data-id");
-            const channelObj = allChannels.find(ch => ch.id === id);
+            const channelObj = currentCatalog.find(ch => ch.id === id);
             let activeInfo = activeMap.get(id);
 
             if (!activeInfo && channelObj && channelObj.sources) {
@@ -5790,7 +5793,7 @@ defmodule AcexGateway.Web.DashboardView do
           // Update table rows
           document.querySelectorAll("#channelTableBody tr").forEach(row => {
             const id = row.getAttribute("data-id");
-            const channelObj = allChannels.find(ch => ch.id === id);
+            const channelObj = currentCatalog.find(ch => ch.id === id);
             let activeInfo = activeMap.get(id);
 
             if (!activeInfo && channelObj && channelObj.sources) {
