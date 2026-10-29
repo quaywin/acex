@@ -133,6 +133,55 @@ defmodule AcexGateway.Settings.Store do
 
           _ ->
             Map.get(current, :max_active_channels, 5)
+        end,
+      events_m3u_url:
+        normalize_string(
+          Map.get(params, "events_m3u_url", Map.get(params, :events_m3u_url)),
+          Map.get(current, :events_m3u_url, "https://raw.githubusercontent.com/Icastresana/lista1/main/eventos.m3u")
+        ),
+      events_sync_enabled:
+        case Map.get(params, "events_sync_enabled", Map.get(params, :events_sync_enabled)) do
+          val when is_boolean(val) -> val
+          "true" -> true
+          "false" -> false
+          _ -> Map.get(current, :events_sync_enabled, true)
+        end,
+      events_sync_interval_mins:
+        case Map.get(params, "events_sync_interval_mins", Map.get(params, :events_sync_interval_mins)) do
+          val when is_integer(val) and val > 0 -> val
+          val when is_binary(val) ->
+            case Integer.parse(val) do
+              {num, ""} when num > 0 -> num
+              _ -> Map.get(current, :events_sync_interval_mins, 15)
+            end
+          _ -> Map.get(current, :events_sync_interval_mins, 15)
+        end,
+      channels_m3u_url:
+        normalize_string(
+          Map.get(params, "channels_m3u_url", Map.get(params, :channels_m3u_url)),
+          Map.get(current, :channels_m3u_url, "https://raw.githubusercontent.com/Icastresana/lista1/main/Probando")
+        ),
+      channels_sync_enabled:
+        case Map.get(params, "channels_sync_enabled", Map.get(params, :channels_sync_enabled)) do
+          val when is_boolean(val) -> val
+          "true" -> true
+          "false" -> false
+          _ -> Map.get(current, :channels_sync_enabled, true)
+        end,
+      channels_sync_interval_hours:
+        case Map.get(params, "channels_sync_interval_hours", Map.get(params, :channels_sync_interval_hours)) do
+          val when is_integer(val) and val > 0 -> val
+          val when is_binary(val) ->
+            case Integer.parse(val) do
+              {num, ""} when num > 0 -> num
+              _ -> Map.get(current, :channels_sync_interval_hours, 6)
+            end
+          _ -> Map.get(current, :channels_sync_interval_hours, 6)
+        end,
+      channels_sync_mode:
+        case Map.get(params, "channels_sync_mode", Map.get(params, :channels_sync_mode)) do
+          val when val in ["merge", "replace"] -> val
+          _ -> Map.get(current, :channels_sync_mode, "replace")
         end
     }
 
@@ -200,7 +249,14 @@ defmodule AcexGateway.Settings.Store do
       epg_url: String.trim(env_epg),
       xtream_format: if(env_format in ["ts", "hls"], do: env_format, else: "hls"),
       prewarm_enabled: env_prewarm,
-      max_active_channels: default_max
+      max_active_channels: default_max,
+      events_m3u_url: System.get_env("EVENTS_M3U_URL", "https://raw.githubusercontent.com/Icastresana/lista1/main/eventos.m3u"),
+      events_sync_enabled: System.get_env("EVENTS_SYNC_ENABLED", "true") in ["true", "1"],
+      events_sync_interval_mins: 15,
+      channels_m3u_url: System.get_env("CHANNELS_M3U_URL", "https://raw.githubusercontent.com/Icastresana/lista1/main/Probando"),
+      channels_sync_enabled: System.get_env("CHANNELS_SYNC_ENABLED", "true") in ["true", "1"],
+      channels_sync_interval_hours: 6,
+      channels_sync_mode: "replace"
     }
   end
 
@@ -214,7 +270,14 @@ defmodule AcexGateway.Settings.Store do
       epg_url: Map.get(json, "epg_url", defaults.epg_url),
       xtream_format: Map.get(json, "xtream_format", defaults.xtream_format),
       prewarm_enabled: Map.get(json, "prewarm_enabled", defaults.prewarm_enabled),
-      max_active_channels: Map.get(json, "max_active_channels", defaults.max_active_channels)
+      max_active_channels: Map.get(json, "max_active_channels", defaults.max_active_channels),
+      events_m3u_url: Map.get(json, "events_m3u_url", defaults.events_m3u_url),
+      events_sync_enabled: Map.get(json, "events_sync_enabled", defaults.events_sync_enabled),
+      events_sync_interval_mins: Map.get(json, "events_sync_interval_mins", defaults.events_sync_interval_mins),
+      channels_m3u_url: Map.get(json, "channels_m3u_url", defaults.channels_m3u_url),
+      channels_sync_enabled: Map.get(json, "channels_sync_enabled", defaults.channels_sync_enabled),
+      channels_sync_interval_hours: Map.get(json, "channels_sync_interval_hours", defaults.channels_sync_interval_hours),
+      channels_sync_mode: Map.get(json, "channels_sync_mode", defaults.channels_sync_mode)
     }
   end
 
@@ -227,6 +290,13 @@ defmodule AcexGateway.Settings.Store do
     :ets.insert(@table, {:xtream_format, settings.xtream_format})
     :ets.insert(@table, {:prewarm_enabled, settings.prewarm_enabled})
     :ets.insert(@table, {:max_active_channels, settings.max_active_channels})
+    :ets.insert(@table, {:events_m3u_url, settings.events_m3u_url})
+    :ets.insert(@table, {:events_sync_enabled, settings.events_sync_enabled})
+    :ets.insert(@table, {:events_sync_interval_mins, settings.events_sync_interval_mins})
+    :ets.insert(@table, {:channels_m3u_url, settings.channels_m3u_url})
+    :ets.insert(@table, {:channels_sync_enabled, settings.channels_sync_enabled})
+    :ets.insert(@table, {:channels_sync_interval_hours, settings.channels_sync_interval_hours})
+    :ets.insert(@table, {:channels_sync_mode, settings.channels_sync_mode})
   end
 
   defp persist_settings(file_path, settings) do

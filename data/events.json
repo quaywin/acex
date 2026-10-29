@@ -1,0 +1,12 @@
+[
+  {
+    "group": "Live Sports",
+    "id": "event-router-test",
+    "logo": "",
+    "name": "Live Event Test",
+    "source_type": "content_id",
+    "sources": [
+      "4444444444444444444444444444444444444444"
+    ]
+  }
+]

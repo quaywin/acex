@@ -135,7 +135,8 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
     client_count = map_size(state.consumers) + length(state.pending_subscribers)
 
     {resolved_name, resolved_logo} =
-      case Store.get_channel(state.channel_key) do
+      case Store.get_channel(state.channel_key) ||
+             AcexGateway.Events.Store.get_event(state.channel_key) do
         %{"name" => name, "logo" => logo} ->
           {name || state.channel_name, logo}
 
@@ -563,6 +564,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
             )
 
             Store.prune_dead_source(state.channel_key, dead_source)
+            AcexGateway.Events.Store.prune_dead_source(state.channel_key, dead_source)
             remaining = Enum.reject(state.sources, &(&1 == dead_source))
             {%{state | sources: remaining}, state.source_index, length(remaining)}
           else
@@ -652,6 +654,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   defp maybe_promote_source(%{active_hash: hash, source_index: idx} = state)
        when is_binary(hash) and idx > 0 do
     Store.promote_channel_source(state.channel_key, hash)
+    AcexGateway.Events.Store.promote_event_source(state.channel_key, hash)
     promoted_sources = [hash | Enum.reject(state.sources, &(&1 == hash))]
 
     %{
@@ -781,14 +784,17 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   end
 
   defp resolve_channel_name(channel_key, target) do
-    case Store.get_channel(channel_key) || Store.get_channel(target) do
+    case Store.get_channel(channel_key) || Store.get_channel(target) ||
+           AcexGateway.Events.Store.get_event(channel_key) ||
+           AcexGateway.Events.Store.get_event(target) do
       %{"name" => name} when is_binary(name) and name != "" ->
         name
 
       _ ->
         clean = Store.sanitize_hash(target)
 
-        case Store.find_channel_by_source(clean) do
+        case Store.find_channel_by_source(clean) ||
+               AcexGateway.Events.Store.find_event_by_source(clean) do
           %{"name" => name} when is_binary(name) and name != "" ->
             name
 

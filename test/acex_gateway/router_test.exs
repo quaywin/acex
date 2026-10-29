@@ -683,4 +683,54 @@ defmodule AcexGateway.Web.RouterTest do
 
     assert get_resp_header(conn, "access-control-max-age") == ["86400"]
   end
+
+  test "GET /events.m3u and /channels.m3u serve separated playlists" do
+    AcexGateway.Events.Store.set_events([
+      %{
+        "id" => "event-router-test",
+        "name" => "Live Event Test",
+        "sources" => ["4444444444444444444444444444444444444444"]
+      }
+    ])
+
+    conn_events = conn(:get, "/events.m3u") |> Router.call(@opts)
+    assert conn_events.status == 200
+    assert String.contains?(conn_events.resp_body, "event-router-test")
+    assert get_resp_header(conn_events, "content-disposition") == ["inline; filename=\"acex_events.m3u\""]
+
+    conn_channels = conn(:get, "/channels.m3u") |> Router.call(@opts)
+    assert conn_channels.status == 200
+    assert not String.contains?(conn_channels.resp_body, "event-router-test")
+    assert get_resp_header(conn_channels, "content-disposition") == ["inline; filename=\"acex_channels.m3u\""]
+  end
+
+  test "GET /playlist.m3u supports type filter query parameter" do
+    AcexGateway.Events.Store.set_events([
+      %{
+        "id" => "event-filter-test",
+        "name" => "Filtered Event",
+        "sources" => ["5555555555555555555555555555555555555555"]
+      }
+    ])
+
+    conn_ev = conn(:get, "/playlist.m3u?type=events") |> Router.call(@opts)
+    assert conn_ev.status == 200
+    assert String.contains?(conn_ev.resp_body, "event-filter-test")
+
+    conn_ch = conn(:get, "/playlist.m3u?type=channels") |> Router.call(@opts)
+    assert conn_ch.status == 200
+    assert not String.contains?(conn_ch.resp_body, "event-filter-test")
+  end
+
+  test "GET /api/events and /api/sync/status endpoints" do
+    conn_ev = conn(:get, "/api/events") |> Router.call(@opts)
+    assert conn_ev.status == 200
+    assert is_list(Jason.decode!(conn_ev.resp_body))
+
+    conn_sync = conn(:get, "/api/sync/status") |> Router.call(@opts)
+    assert conn_sync.status == 200
+    status = Jason.decode!(conn_sync.resp_body)
+    assert Map.has_key?(status, "events")
+    assert Map.has_key?(status, "channels")
+  end
 end

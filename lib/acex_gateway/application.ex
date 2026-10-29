@@ -17,6 +17,8 @@ defmodule AcexGateway.Application do
     children = [
       AcexGateway.Settings.Store,
       AcexGateway.Channels.Store,
+      AcexGateway.Events.Store,
+      AcexGateway.Sync.PlaylistSync,
       AcexGateway.Engine.TelnetClient,
       {Registry, keys: :unique, name: AcexGateway.ChannelRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: AcexGateway.StreamSupervisor},

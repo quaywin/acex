@@ -250,28 +250,29 @@ defmodule AcexGateway.Stream.Broadcaster do
   def resolve_sources(target, source_type) do
     cond do
       source_type == :channel ->
-        case Store.get_channel(target) do
+        case Store.get_channel(target) || AcexGateway.Events.Store.get_event(target) do
           nil ->
             {target, [target], :content_id, target}
 
-          channel ->
-            sources = channel["sources"] || []
-            name = channel["name"] || channel["id"]
-            {channel["id"], sources, :content_id, name}
+          item ->
+            sources = item["sources"] || []
+            name = item["name"] || item["id"]
+            {item["id"], sources, :content_id, name}
         end
 
       true ->
         clean_target = Store.sanitize_hash(target)
 
-        case Store.find_channel_by_source(clean_target) do
+        case Store.find_channel_by_source(clean_target) ||
+               AcexGateway.Events.Store.find_event_by_source(clean_target) do
           nil ->
             key = "content_id:#{clean_target}"
             name = "Direct Stream (#{String.slice(clean_target, 0, 8)}...)"
             {key, [clean_target], :content_id, name}
 
-          channel ->
-            name = channel["name"] || channel["id"]
-            {channel["id"], channel["sources"] || [clean_target], :content_id, name}
+          item ->
+            name = item["name"] || item["id"]
+            {item["id"], item["sources"] || [clean_target], :content_id, name}
         end
     end
   end
