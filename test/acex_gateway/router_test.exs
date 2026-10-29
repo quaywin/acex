@@ -676,7 +676,11 @@ defmodule AcexGateway.Web.RouterTest do
     conn = conn(:options, "/cast/test-target/live.m3u8") |> Router.call(@opts)
     assert conn.status == 204
     assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
-    assert get_resp_header(conn, "access-control-allow-methods") == ["GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"]
+
+    assert get_resp_header(conn, "access-control-allow-methods") == [
+             "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+           ]
+
     assert get_resp_header(conn, "access-control-max-age") == ["86400"]
   end
 end

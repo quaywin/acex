@@ -420,6 +420,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
             consumers: new_consumers,
             pending_subscribers: [],
             upstream_task: task,
+            cycle_count: 0,
             start_timer: nil,
             early_failover_timer: nil
         }
@@ -598,7 +599,7 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
         {:noreply, dispatch_load_for_current_source(new_state)}
 
       # 2. Reached end of source list, but viewers are actively watching and cycle_count < 1: wrap around ONCE
-      next_index >= total_sources and total_sources > 1 and map_size(state.consumers) > 0 and
+      next_index >= total_sources and total_sources >= 1 and map_size(state.consumers) > 0 and
           state.cycle_count < 1 ->
         Logger.warning(
           "[ChannelBroadcaster:#{state.channel_key}] Reached end of backup sources. Active viewers: #{map_size(state.consumers)}. Attempting 1 bounded wrap-around cycle starting from primary source..."
@@ -736,34 +737,47 @@ defmodule AcexGateway.Stream.ChannelBroadcaster do
   end
 
   defp start_upstream_fetch(playback_url) do
-    broadcaster = self()
+    if Application.get_env(:acex_gateway, :skip_upstream_fetch, false) do
+      nil
+    else
+      broadcaster = self()
 
-    spawn_link(fn ->
-      Logger.info("[ChannelBroadcaster.Upstream] Connecting to upstream: #{playback_url}")
+      spawn_link(fn ->
+        Logger.info("[ChannelBroadcaster.Upstream] Connecting to upstream: #{playback_url}")
 
-      try do
-        Req.get!(
-          playback_url,
-          into: fn {:data, chunk}, acc ->
-            dispatch_chunk(broadcaster, chunk)
-            {:cont, acc}
-          end,
-          receive_timeout: 30_000
-        )
+        try do
+          case Req.get(
+                 playback_url,
+                 into: fn {:data, chunk}, acc ->
+                   dispatch_chunk(broadcaster, chunk)
+                   {:cont, acc}
+                 end,
+                 retry: false,
+                 receive_timeout: 30_000
+               ) do
+            {:ok, _response} ->
+              send(broadcaster, {:upstream_completed, :eof})
 
-        send(broadcaster, {:upstream_completed, :eof})
-      catch
-        :exit, :shutdown ->
-          :ok
+            {:error, reason} ->
+              Logger.error(
+                "[ChannelBroadcaster.Upstream] Upstream connection closed/failed: #{inspect(reason)}"
+              )
 
-        error, reason ->
-          Logger.error(
-            "[ChannelBroadcaster.Upstream] Upstream error: #{inspect(error)} #{inspect(reason)}"
-          )
+              send(broadcaster, {:upstream_completed, reason})
+          end
+        catch
+          :exit, :shutdown ->
+            :ok
 
-          send(broadcaster, {:upstream_completed, reason})
-      end
-    end)
+          error, reason ->
+            Logger.error(
+              "[ChannelBroadcaster.Upstream] Upstream error: #{inspect(error)} #{inspect(reason)}"
+            )
+
+            send(broadcaster, {:upstream_completed, reason})
+        end
+      end)
+    end
   end
 
   defp resolve_channel_name(channel_key, target) do

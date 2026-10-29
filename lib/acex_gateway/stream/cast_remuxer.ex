@@ -139,18 +139,24 @@ defmodule AcexGateway.Stream.CastRemuxer do
     # De-obfuscate deceptive asset names (e.g. avatar_xxx.webp -> seg_xxx.ts)
     raw_segment = SegmentObfuscator.deobfuscate(Path.basename(segment_name))
 
-    case Map.get(state.jobs, clean_target) do
-      %{dir: dir} ->
-        segment_path = Path.join(dir, raw_segment)
+    segment_path =
+      case Map.get(state.jobs, clean_target) do
+        %{dir: dir} ->
+          Path.join(dir, raw_segment)
 
-        if File.exists?(segment_path) do
-          {:reply, {:ok, segment_path}, state}
-        else
-          {:reply, {:error, :not_found}, state}
-        end
+        nil ->
+          # Check fallback directory if job just exited or restarted
+          Path.join([cast_base_dir(), clean_target, raw_segment])
+      end
 
-      nil ->
+    if File.exists?(segment_path) do
+      {:reply, {:ok, segment_path}, state}
+    else
+      if Map.has_key?(state.jobs, clean_target) do
+        {:reply, {:error, :not_found}, state}
+      else
         {:reply, {:error, :not_running}, state}
+      end
     end
   end
 
@@ -230,12 +236,24 @@ defmodule AcexGateway.Stream.CastRemuxer do
           "[CastRemuxer] FFmpeg remuxer for '#{target}' exited with status #{status}"
         )
 
-        cleanup_dir(job.dir)
+        # Do not delete segments immediately on process exit; players need to drain existing segments
+        # while reconnecting or restarting. Schedule a delayed purge if not restarted.
+        Process.send_after(self(), {:delayed_cleanup_dir, job.dir, target}, 60_000)
         {:noreply, %{state | jobs: Map.delete(state.jobs, target)}}
 
       nil ->
         {:noreply, state}
     end
+  end
+
+  @impl true
+  def handle_info({:delayed_cleanup_dir, dir, target}, state) do
+    # Only clean up if target has not been restarted
+    unless Map.has_key?(state.jobs, target) do
+      cleanup_dir(dir)
+    end
+
+    {:noreply, state}
   end
 
   @impl true
@@ -287,9 +305,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
       job_dir = Path.join(base_dir, target)
       File.mkdir_p!(job_dir)
 
-      # Clean existing stale files in target dir
-      cleanup_manifests(job_dir)
-
       port_num =
         case AcexGateway.Config.proxy_port() do
           p when is_integer(p) and p > 0 -> p
@@ -314,8 +329,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hide_banner",
         "-loglevel",
         "warning",
-        "-threads",
-        "1",
         "-err_detect",
         "ignore_err",
         "-fflags",
@@ -353,7 +366,7 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hls_base_url",
         "/cast/#{target}/",
         "-hls_flags",
-        "delete_segments+temp_file+independent_segments+omit_endlist",
+        "delete_segments+temp_file+independent_segments+omit_endlist+append_list",
         "-hls_segment_type",
         "mpegts",
         "-hls_segment_filename",
@@ -457,18 +470,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
   defp cleanup_dir(dir) do
     if is_binary(dir) and File.exists?(dir) do
       File.rm_rf(dir)
-    end
-  end
-
-  defp cleanup_manifests(dir) do
-    if File.exists?(dir) do
-      case File.ls(dir) do
-        {:ok, files} ->
-          Enum.each(files, fn f -> File.rm(Path.join(dir, f)) end)
-
-        _ ->
-          :ok
-      end
     end
   end
 
