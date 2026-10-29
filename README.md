@@ -34,7 +34,8 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 
 - **Zero-Transcode Passthrough**: Relays MPEG-TS packets directly without CPU transcoding. An in-memory ring buffer delivers keyframes immediately on channel switch.
 - **Multi-Channel and Fan-Out Relay**: Streams multiple channels concurrently. Multiple clients watching the same channel share a single upstream connection to save bandwidth.
-- **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel with sub-second failover on dead sources (`STATE 6`, `STATUS main:error`, fatal `LOADRESP`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
+- **Live Sports Events & Multi-Source Failover**: Ephemeral live fixtures store (`/api/events`), automated GitHub/remote M3U playlist sync (`/api/sync/events` & `/api/sync/channels`), auto-consolidation of multiple streaming source hashes per event, automatic sport categorization, dedicated Events M3U playlist (`/events.m3u`), and Xtream Codes live stream integration.
+- **Multi-Source Failover & Smart Auto-Promotion**: Supports fallback Content IDs per channel and event with sub-second failover on dead sources (`STATE 6`, `STATUS main:error`, fatal `LOADRESP`), zero-peer fast switching, transparent mid-stream recovery without dropping connected player sessions, and automatic promotion of healthy backup sources to primary.
 - **Content ID Pre-Validation & Dead Source Pruning**: Pre-checks torrent swarm availability (`LOADASYNC`) directly in the channel editor without video buffering or credit cost (memoized in ETS). Automatically prunes fatal dead hashes during playback while preserving channel integrity (never deletes the final remaining source), with 1-click fleet-wide cleanup (`POST /api/channels/prune-all-dead`).
 - **Xtream Codes API and M3U8**: Compatible with TiviMate, IPTV Smarters, and XCIPTV via `/player_api.php`, plus standard M3U8 playlists with EPG support.
 - **In-Dashboard Web Video Player & Chromecast**: Instant in-browser HLS live playback via `hls.js` and native Apple HLS decoding, plus 1-click casting to Chromecast & Google TV devices via on-demand, zero-video-transcode HLS remuxing with AAC audio compatibility.
@@ -171,9 +172,14 @@ docker compose pull && docker compose up -d
 | :--- | :--- | :--- |
 | `GET /player_api.php` | Xtream Codes API | TiviMate, IPTV Smarters, XCIPTV |
 | `GET /playlist.m3u8` | Extended M3U Playlist | Apple TV, Smart TV, OTT Navigator |
+| `GET /events.m3u` | Live Events M3U Playlist | Sports fixtures with multi-source fallback streams |
 | `GET /live/:target.ts` | Direct MPEG-TS Stream | VLC, IINA, PotPlayer, MPV |
 | `GET /cast/:target/live.m3u8` | On-Demand HLS Stream | Google Cast / Chromecast, Safari, Web Video Caster |
-| `GET /` | Web Console | Channel management and player launcher |
+| `GET /` | Web Console | Channel & live event management and player launcher |
+| `GET /api/events` | JSON API | List all active live sports events |
+| `POST /api/sync/events` | JSON API | Synchronize live events from remote GitHub/M3U playlist |
+| `POST /api/sync/channels` | JSON API | Synchronize live channels from remote GitHub/M3U playlist |
+| `GET /api/sync/status` | JSON API | Get playlist synchronization status & timestamps |
 | `POST /api/channels/validate-source` | JSON API | Content ID health check (no buffering, ETS memoized) |
 | `POST /api/channels/:id/prune-dead` | JSON API | One-click dead source pruning (keeps $\ge 1$ source) |
 | `POST /api/channels/prune-all-dead` | JSON API | Bulk prune dead sources across multi-source channels (keeps $\ge 1$ source) |
@@ -196,6 +202,9 @@ docker compose pull && docker compose up -d
 | `AUTH_USERNAME` | *(empty)* | Optional authentication username |
 | `AUTH_PASSWORD` | *(empty)* | Optional authentication password |
 | `EPG_URL` | *(empty)* | Custom XMLTV EPG URL |
+| `EVENTS_SYNC_URL` | `https://github.com/Icastresana/lista1/blob/main/eventos.m3u` | Default remote URL for live sports fixtures sync |
+| `CHANNELS_SYNC_URL` | `https://github.com/Icastresana/lista1/blob/main/Probando` | Default remote URL for live channels sync |
+| `EVENTS_FILE` | `/app/data/events.json` | Path to persistent live sports events storage |
 | `CAST_CACHE_DIR` | `/tmp/acex_cast` | Temporary directory for on-demand Chromecast HLS segments (tmpfs recommended) |
 | `CHANNELS_FILE` | `/app/data/channels.json` | Path to persistent channel storage |
 
