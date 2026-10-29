@@ -4733,7 +4733,13 @@ defmodule AcexGateway.Web.DashboardView do
                 lowLatencyMode: true,
                 backBufferLength: 30,
                 maxBufferLength: 10,
-                maxMaxBufferLength: 20
+                maxMaxBufferLength: 20,
+                manifestLoadingTimeOut: 30000,
+                manifestLoadingMaxRetry: 5,
+                manifestLoadingRetryDelay: 1000,
+                manifestLoadingMaxRetryTimeout: 35000,
+                levelLoadingTimeOut: 30000,
+                fragLoadingTimeOut: 30000
               });
 
               hlsPlayerInstance.loadSource(hlsUrl);
