@@ -62,7 +62,11 @@ defmodule AcexGateway.Web.RouterTest do
 
   test "GET /hls/:u/:p.m3u8 and /ts/:u/:p.m3u8 support path-based auth" do
     # Enable auth temporarily
-    conn(:post, "/api/settings", %{"auth_enabled" => true, "auth_username" => "user1", "auth_password" => "pass1"})
+    conn(:post, "/api/settings", %{
+      "auth_enabled" => true,
+      "auth_username" => "user1",
+      "auth_password" => "pass1"
+    })
     |> put_req_header("content-type", "application/json")
     |> Router.call(@opts)
 
@@ -83,26 +87,42 @@ defmodule AcexGateway.Web.RouterTest do
       assert conn_ts.resp_body =~ ".ts"
 
       # 3. /get.php standard endpoint
-      conn_get_php = conn(:get, "/get.php?username=user1&password=pass1&output=hls") |> Router.call(@opts)
+      conn_get_php =
+        conn(:get, "/get.php?username=user1&password=pass1&output=hls") |> Router.call(@opts)
+
       assert conn_get_php.status == 200
       assert conn_get_php.resp_body =~ "/h/user1/pass1/"
 
       # 4. GET / Dashboard requires authentication when enabled
       conn_dash_unauth = conn(:get, "/") |> Router.call(@opts)
       assert conn_dash_unauth.status == 401
-      assert get_resp_header(conn_dash_unauth, "www-authenticate") == ["Basic realm=\"AcexGateway\""]
+
+      assert get_resp_header(conn_dash_unauth, "www-authenticate") == [
+               "Basic realm=\"AcexGateway\""
+             ]
 
       auth_header = "Basic " <> Base.encode64("user1:pass1")
+
       conn_dash_auth =
         conn(:get, "/")
         |> put_req_header("authorization", auth_header)
         |> Router.call(@opts)
+
       assert conn_dash_auth.status == 200
       assert conn_dash_auth.resp_body =~ "AcexGateway"
     after
       conn(:post, "/api/settings", %{"auth_enabled" => false})
       |> put_req_header("content-type", "application/json")
       |> Router.call(@opts)
+    end
+  end
+
+  test "OPTIONS returns CORS preflight headers" do
+    for path <- ["/cast/test/live.m3u8", "/cast/test/avatar_123.webp", "/api/channels"] do
+      conn = conn(:options, path) |> Router.call(@opts)
+      assert conn.status == 204
+      assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+      assert get_resp_header(conn, "access-control-allow-methods") != []
     end
   end
 

@@ -95,16 +95,15 @@ defmodule AcexGateway.SettingsTest do
     assert Config.max_active_channels() == 5
   end
 
-  test "segment_cdn_url can be dynamically configured and read via Config" do
-    assert Config.segment_cdn_url() == nil
+  test "xtream_format can be dynamically configured and read via Config" do
+    assert Config.xtream_format() == "hls"
 
-    assert {:ok, updated} =
-             SettingsStore.update_settings(%{"segment_cdn_url" => "https://media.phu88.xyz/"})
+    assert {:ok, updated} = SettingsStore.update_settings(%{"xtream_format" => "ts"})
+    assert updated.xtream_format == "ts"
+    assert Config.xtream_format() == "ts"
 
-    assert updated.segment_cdn_url == "https://media.phu88.xyz/"
-    assert Config.segment_cdn_url() == "https://media.phu88.xyz"
-
-    assert {:ok, _} = SettingsStore.update_settings(%{"segment_cdn_url" => ""})
-    assert Config.segment_cdn_url() == nil
+    assert {:ok, updated2} = SettingsStore.update_settings(%{"xtream_format" => "hls"})
+    assert updated2.xtream_format == "hls"
+    assert Config.xtream_format() == "hls"
   end
 end

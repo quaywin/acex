@@ -107,11 +107,12 @@ defmodule AcexGateway.Settings.Store do
           Map.get(params, "epg_url", Map.get(params, :epg_url)),
           current.epg_url
         ),
-      segment_cdn_url:
-        normalize_string(
-          Map.get(params, "segment_cdn_url", Map.get(params, :segment_cdn_url)),
-          Map.get(current, :segment_cdn_url, "")
-        ),
+      xtream_format:
+        case Map.get(params, "xtream_format", Map.get(params, :xtream_format)) do
+          val when val in ["ts", :ts] -> "ts"
+          val when val in ["hls", :hls] -> "hls"
+          _ -> Map.get(current, :xtream_format, "hls")
+        end,
       max_active_channels:
         case Map.get(params, "max_active_channels", Map.get(params, :max_active_channels)) do
           val when is_integer(val) and val > 0 ->
@@ -166,7 +167,7 @@ defmodule AcexGateway.Settings.Store do
     env_user = System.get_env("AUTH_USERNAME") || ""
     env_pass = System.get_env("AUTH_PASSWORD") || ""
     env_epg = System.get_env("EPG_URL") || ""
-    env_cdn = System.get_env("SEGMENT_CDN_URL") || ""
+    env_format = System.get_env("XTREAM_DEFAULT_FORMAT") || "hls"
 
     has_env_creds =
       is_binary(env_user) and is_binary(env_pass) and String.trim(env_user) != "" and
@@ -189,7 +190,7 @@ defmodule AcexGateway.Settings.Store do
       auth_username: if(String.trim(env_user) != "", do: String.trim(env_user), else: "admin"),
       auth_password: if(String.trim(env_pass) != "", do: String.trim(env_pass), else: "acex123"),
       epg_url: String.trim(env_epg),
-      segment_cdn_url: String.trim(env_cdn),
+      xtream_format: if(env_format in ["ts", "hls"], do: env_format, else: "hls"),
       max_active_channels: default_max
     }
   end
@@ -202,7 +203,7 @@ defmodule AcexGateway.Settings.Store do
       auth_username: Map.get(json, "auth_username", defaults.auth_username),
       auth_password: Map.get(json, "auth_password", defaults.auth_password),
       epg_url: Map.get(json, "epg_url", defaults.epg_url),
-      segment_cdn_url: Map.get(json, "segment_cdn_url", defaults.segment_cdn_url),
+      xtream_format: Map.get(json, "xtream_format", defaults.xtream_format),
       max_active_channels: Map.get(json, "max_active_channels", defaults.max_active_channels)
     }
   end
@@ -213,7 +214,7 @@ defmodule AcexGateway.Settings.Store do
     :ets.insert(@table, {:auth_username, settings.auth_username})
     :ets.insert(@table, {:auth_password, settings.auth_password})
     :ets.insert(@table, {:epg_url, settings.epg_url})
-    :ets.insert(@table, {:segment_cdn_url, settings.segment_cdn_url})
+    :ets.insert(@table, {:xtream_format, settings.xtream_format})
     :ets.insert(@table, {:max_active_channels, settings.max_active_channels})
   end
 
@@ -228,7 +229,7 @@ defmodule AcexGateway.Settings.Store do
           "auth_username" => settings.auth_username,
           "auth_password" => settings.auth_password,
           "epg_url" => settings.epg_url,
-          "segment_cdn_url" => settings.segment_cdn_url,
+          "xtream_format" => settings.xtream_format,
           "max_active_channels" => settings.max_active_channels
         },
         pretty: true

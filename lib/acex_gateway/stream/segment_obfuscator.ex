@@ -93,23 +93,16 @@ defmodule AcexGateway.Stream.SegmentObfuscator do
 
   @doc """
   Obfuscates all segment filenames present within an HLS playlist manifest (.m3u8).
-  If `cdn_url` is provided (e.g. "https://cdn.example.com"), absolute URLs will be generated
-  for each segment line. Otherwise relative paths are maintained.
+  Converts raw .ts segment filenames to deterministic deceptive image asset paths.
   """
-  def obfuscate_manifest(manifest_content, cdn_url \\ nil) when is_binary(manifest_content) do
-    clean_cdn_url =
-      case cdn_url do
-        url when is_binary(url) and url != "" -> String.trim_trailing(url, "/")
-        _ -> nil
-      end
-
+  def obfuscate_manifest(manifest_content) when is_binary(manifest_content) do
     manifest_content
     |> String.split(["\r\n", "\n"])
-    |> Enum.map(&obfuscate_manifest_line(&1, clean_cdn_url))
+    |> Enum.map(&obfuscate_manifest_line/1)
     |> Enum.join("\n")
   end
 
-  defp obfuscate_manifest_line(line, cdn_url) do
+  defp obfuscate_manifest_line(line) do
     trimmed = String.trim(line)
 
     cond do
@@ -117,26 +110,15 @@ defmodule AcexGateway.Stream.SegmentObfuscator do
         line
 
       String.ends_with?(trimmed, ".ts") ->
-        # May be relative or absolute path, e.g. /cast/target/seg_xxx.ts or seg_xxx.ts
+        # May be relative path, e.g. /cast/target/seg_xxx.ts or seg_xxx.ts
         dir = Path.dirname(line)
         base = Path.basename(line)
         obfuscated = obfuscate(base)
 
-        target_path =
-          if dir == "." do
-            obfuscated
-          else
-            Path.join(dir, obfuscated)
-          end
-
-        if is_binary(cdn_url) and cdn_url != "" do
-          if String.starts_with?(target_path, "/") do
-            "#{cdn_url}#{target_path}"
-          else
-            "#{cdn_url}/#{target_path}"
-          end
+        if dir == "." do
+          obfuscated
         else
-          target_path
+          Path.join(dir, obfuscated)
         end
 
       true ->

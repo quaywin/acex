@@ -949,7 +949,7 @@ defmodule AcexGateway.Web.Router do
         case File.read(m3u8_path) do
           {:ok, content} ->
             obfuscated_content =
-              SegmentObfuscator.obfuscate_manifest(content, Config.segment_cdn_url())
+              SegmentObfuscator.obfuscate_manifest(content)
 
             conn
             |> put_resp_header("content-type", "application/vnd.apple.mpegurl; charset=utf-8")
@@ -1227,6 +1227,15 @@ defmodule AcexGateway.Web.Router do
       :unauthorized ->
         send_unauthorized(conn)
     end
+  end
+
+  options _ do
+    conn
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, HEAD, OPTIONS")
+    |> put_resp_header("access-control-allow-headers", "*")
+    |> put_resp_header("access-control-max-age", "86400")
+    |> send_resp(204, "")
   end
 
   match _ do

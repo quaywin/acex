@@ -97,4 +97,19 @@ defmodule AcexGateway.Web.XtreamCodesTest do
     assert conn.status == 200
     assert get_resp_header(conn, "content-type") == ["video/mp2t"]
   end
+
+  test "GET /player_api.php handshake reflects configured xtream_format" do
+    AcexGateway.Settings.Store.update_settings(%{"xtream_format" => "hls"})
+    conn = conn(:get, "/player_api.php") |> Router.call(@opts)
+    resp = Jason.decode!(conn.resp_body)
+    assert resp["user_info"]["allowed_output_formats"] == ["m3u8", "ts"]
+
+    AcexGateway.Settings.Store.update_settings(%{"xtream_format" => "ts"})
+    conn = conn(:get, "/player_api.php") |> Router.call(@opts)
+    resp = Jason.decode!(conn.resp_body)
+    assert resp["user_info"]["allowed_output_formats"] == ["ts", "m3u8"]
+
+    # Reset back to hls
+    AcexGateway.Settings.Store.update_settings(%{"xtream_format" => "hls"})
+  end
 end

@@ -60,6 +60,12 @@ defmodule AcexGateway.Web.XtreamCodes do
     now = System.system_time(:second)
     port_str = to_string(Config.proxy_port())
 
+    formats =
+      case Config.xtream_format() do
+        "ts" -> ["ts", "m3u8"]
+        _ -> ["m3u8", "ts"]
+      end
+
     %{
       "user_info" => %{
         "username" => if(username == "", do: "guest", else: username),
@@ -72,7 +78,7 @@ defmodule AcexGateway.Web.XtreamCodes do
         "active_cons" => "1",
         "created_at" => "1700000000",
         "max_connections" => "100",
-        "allowed_output_formats" => ["ts", "m3u8"]
+        "allowed_output_formats" => formats
       },
       "server_info" => %{
         "url" => base_url,

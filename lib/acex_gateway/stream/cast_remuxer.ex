@@ -15,7 +15,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
   require Logger
 
   alias AcexGateway.Stream.SegmentObfuscator
-  alias AcexGateway.Config
 
   @sweep_interval_ms 10_000
   @inactivity_timeout_s 60
@@ -99,10 +98,6 @@ defmodule AcexGateway.Stream.CastRemuxer do
   end
 
   @impl true
-  def handle_call({:ensure_remuxer, clean_target}, from, state) do
-    handle_call({:ensure_remuxer, clean_target, nil}, from, state)
-  end
-
   def handle_call({:ensure_remuxer, clean_target, base_url}, _from, state) do
     now = System.monotonic_time(:second)
 
@@ -268,7 +263,18 @@ defmodule AcexGateway.Stream.CastRemuxer do
 
   @doc false
   def cast_base_dir do
-    System.get_env("CAST_CACHE_DIR") || Path.join(System.tmp_dir!(), "acex_cast")
+    case System.get_env("CAST_CACHE_DIR") do
+      dir when is_binary(dir) and dir != "" ->
+        dir
+
+      _ ->
+        # Prefer RAM-disk (/dev/shm) on Linux for zero disk wear and ultra-fast I/O
+        if File.dir?("/dev/shm") do
+          "/dev/shm/acex_cast"
+        else
+          Path.join(System.tmp_dir!(), "acex_cast")
+        end
+    end
   end
 
   defp start_ffmpeg_job(target, base_url) do
@@ -308,6 +314,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hide_banner",
         "-loglevel",
         "warning",
+        "-threads",
+        "1",
         "-err_detect",
         "ignore_err",
         "-fflags",
@@ -339,9 +347,9 @@ defmodule AcexGateway.Stream.CastRemuxer do
         "-hls_time",
         "3",
         "-hls_list_size",
-        "10",
+        "6",
         "-hls_delete_threshold",
-        "5",
+        "3",
         "-hls_base_url",
         "/cast/#{target}/",
         "-hls_flags",
@@ -539,8 +547,8 @@ defmodule AcexGateway.Stream.CastRemuxer do
             {"x-purpose", "preview"}
           ],
           into: fn {:data, _chunk}, acc -> {:cont, acc} end,
-          receive_timeout: 5_000,
-          connect_options: [timeout: 3_000]
+          receive_timeout: 10_000,
+          connect_options: [timeout: 5_000]
         )
       rescue
         _ -> :ok
@@ -559,15 +567,22 @@ defmodule AcexGateway.Stream.CastRemuxer do
         uri = URI.parse(base_url)
         host = uri.host || ""
 
-        uri.scheme in ["http", "https"] and
-          host not in ["localhost", "127.0.0.1", "0.0.0.0", ""] and
-          not String.ends_with?(host, ".local")
+        uri.scheme in ["http", "https"] and not private_ip_or_local?(host)
     end
   end
 
   defp prewarm_eligible?(_), do: false
 
+  defp private_ip_or_local?(host) when is_binary(host) do
+    host in ["localhost", "127.0.0.1", "0.0.0.0", ""] or
+      String.ends_with?(host, ".local") or
+      String.starts_with?(host, ["10.", "192.168.", "169.254."]) or
+      Regex.match?(~r/^172\.(1[6-9]|2[0-9]|3[0-1])\./, host)
+  end
+
+  defp private_ip_or_local?(_), do: true
+
   defp effective_base_url(base_url) do
-    Config.segment_cdn_url() || System.get_env("CAST_PREWARM_BASE_URL") || base_url
+    System.get_env("CAST_PREWARM_BASE_URL") || base_url
   end
 end

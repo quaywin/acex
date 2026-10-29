@@ -40,7 +40,7 @@ defmodule AcexGateway.Web.DashboardView do
     auth_user = AcexGateway.Config.auth_username()
     auth_pass = AcexGateway.Config.auth_password()
     epg_url = AcexGateway.Config.epg_url()
-    segment_cdn_url = AcexGateway.Config.segment_cdn_url() || ""
+    xtream_format = AcexGateway.Config.xtream_format()
     parsed_uri = URI.parse(base_url)
     server_port = to_string(parsed_uri.port || 8686)
 
@@ -2842,18 +2842,30 @@ defmodule AcexGateway.Web.DashboardView do
               </div>
             </div>
 
-            <!-- Segment CDN Host -->
+            <!-- Xtream Default Stream Format -->
             <div>
               <label class="form-label" style="font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <span>Segment CDN Host (Optional):</span>
-                <span style="font-size: 11px; color: var(--text-tertiary); font-weight: normal;">Offload / Isolate</span>
+                <span>Xtream Codes Default Stream Format:</span>
+                <span style="font-size: 11px; color: var(--text-tertiary); font-weight: normal;">Default Playback Mode</span>
               </label>
-              <div class="input-row">
-                <input type="text" id="segmentCdnInput" class="text-input-styled" value="#{segment_cdn_url}" placeholder="https://media.secondary-domain.xyz">
-                <button class="btn btn-secondary btn-sm" onclick="copyInput('segmentCdnInput', 'CDN URL copied!', this)">Copy</button>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: rgba(255,255,255,0.03); cursor: pointer; font-size: 12px;">
+                  <input type="radio" name="xtreamFormat" id="xtreamFormatHls" value="hls" #{if xtream_format == "hls", do: "checked", else: ""} style="margin-top: 2px;">
+                  <div>
+                    <div style="font-weight: 600; color: #fff;">⚡ HLS (CDN Cached)</div>
+                    <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">Edge cached, multiple TVs, stable</div>
+                  </div>
+                </label>
+                <label style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: rgba(255,255,255,0.03); cursor: pointer; font-size: 12px;">
+                  <input type="radio" name="xtreamFormat" id="xtreamFormatTs" value="ts" #{if xtream_format == "ts", do: "checked", else: ""} style="margin-top: 2px;">
+                  <div>
+                    <div style="font-weight: 600; color: #fff;">🚀 Direct TS</div>
+                    <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">Pass-through MPEG-TS, low latency</div>
+                  </div>
+                </label>
               </div>
               <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px; line-height: 1.4;">
-                Diverts heavy HLS media segments to an external CDN domain/account. Leave blank to serve directly from this server.
+                Controls default format for IPTV clients (TiviMate, XCIPTV, IPTV Smarters). HLS automatically routes streams through the CDN remuxer.
               </p>
             </div>
 
@@ -3078,7 +3090,7 @@ defmodule AcexGateway.Web.DashboardView do
         let allGroups = #{groups_json};
         let selectedChannelIds = new Set();
         const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
-        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, segment_cdn_url: segment_cdn_url})};
+        let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, xtream_format: xtream_format})};
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
         let currentView = "grid";
@@ -5073,7 +5085,7 @@ defmodule AcexGateway.Web.DashboardView do
           const userVal = document.getElementById("xtreamUserInput").value.trim();
           const passVal = document.getElementById("xtreamPassInput").value.trim();
           const epgVal = document.getElementById("xtreamEpgInput").value.trim();
-          const cdnVal = (document.getElementById("segmentCdnInput")?.value || "").trim();
+          const formatVal = document.querySelector('input[name="xtreamFormat"]:checked')?.value || "hls";
 
           if (isAuthEnabled && (!userVal || !passVal)) {
             showToast("Username and Password are required when authentication is enabled!", false);
@@ -5092,7 +5104,7 @@ defmodule AcexGateway.Web.DashboardView do
                 auth_username: userVal,
                 auth_password: passVal,
                 epg_url: epgVal,
-                segment_cdn_url: cdnVal
+                xtream_format: formatVal
               })
             });
 
@@ -5107,7 +5119,7 @@ defmodule AcexGateway.Web.DashboardView do
               auth_username: userVal,
               auth_password: passVal,
               epg_url: epgVal,
-              segment_cdn_url: cdnVal
+              xtream_format: formatVal
             };
 
             appSettings = settings;
