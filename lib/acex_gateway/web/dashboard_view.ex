@@ -3345,7 +3345,7 @@ defmodule AcexGateway.Web.DashboardView do
           let eventDate = null;
 
           // Pattern 1: Bracket format "[29/10/2026 - 15:00 CET]" or "[30/10/2026 - 21:00]"
-          const bracketMatch = name.match(/\[(\d{1,2})\/(\d{1,2})\/(\d{4})\s*-\s*(\d{1,2}):(\d{2})(?:\s*CET|\s*CEST)?\]/i);
+          const bracketMatch = name.match(/\\[(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\s*-\\s*(\\d{1,2}):(\\d{2})(?:\\s*CET|\\s*CEST)?\\]/i);
           if (bracketMatch) {
             const day = parseInt(bracketMatch[1], 10);
             const month = parseInt(bracketMatch[2], 10) - 1;
@@ -3355,7 +3355,7 @@ defmodule AcexGateway.Web.DashboardView do
             eventDate = new Date(year, month, day, hour, min);
           } else {
             // Pattern 2: Time prefix "19:00 Real Madrid..." or "13:30 Torneo..."
-            const timeMatch = name.match(/^(\d{1,2}):(\d{2})\b/);
+            const timeMatch = name.match(/^(\\d{1,2}):(\\d{2})\\b/);
             if (timeMatch) {
               const hour = parseInt(timeMatch[1], 10);
               const min = parseInt(timeMatch[2], 10);
@@ -4608,24 +4608,24 @@ defmodule AcexGateway.Web.DashboardView do
           let detectedGroup = null;
 
           // Country heuristics
-          if (/\b(vtv|htv|thvl|k\+|vtc|fpt|vieon|todaytv|truyenhinh|viet)\b/i.test(v)) {
+          if (/\\b(vtv|htv|thvl|k\\+|vtc|fpt|vieon|todaytv|truyenhinh|viet)\\b/i.test(v)) {
             detectedCountry = "VN";
-          } else if (/\b(sky|bbc|itv|tnt|channel 4|channel 5|bt sport)\b/i.test(v)) {
+          } else if (/\\b(sky|bbc|itv|tnt|channel 4|channel 5|bt sport)\\b/i.test(v)) {
             detectedCountry = "UK";
-          } else if (/\b(espn|nbc|cbs|hbo|fox|discovery|abc|cnn|paramount)\b/i.test(v)) {
+          } else if (/\\b(espn|nbc|cbs|hbo|fox|discovery|abc|cnn|paramount)\\b/i.test(v)) {
             detectedCountry = "US";
-          } else if (/\b(movistar|laliga|dazn|gol)\b/i.test(v)) {
+          } else if (/\\b(movistar|laliga|dazn|gol)\\b/i.test(v)) {
             detectedCountry = "ES";
           }
 
           // Category heuristics
-          if (/\b(sport|sports|football|soccer|golf|tennis|f1|racing|nba|premier|serie|bundesliga|ufc|boxing)\b/i.test(v)) {
+          if (/\\b(sport|sports|football|soccer|golf|tennis|f1|racing|nba|premier|serie|bundesliga|ufc|boxing)\\b/i.test(v)) {
             detectedGroup = "Sports";
-          } else if (/\b(movie|movies|cinema|cine|hbo|cinemax|film)\b/i.test(v)) {
+          } else if (/\\b(movie|movies|cinema|cine|hbo|cinemax|film)\\b/i.test(v)) {
             detectedGroup = "Movies";
-          } else if (/\b(news|cnn|bbc news)\b/i.test(v)) {
+          } else if (/\\b(news|cnn|bbc news)\\b/i.test(v)) {
             detectedGroup = "News";
-          } else if (/\b(music|mtv)\b/i.test(v)) {
+          } else if (/\\b(music|mtv)\\b/i.test(v)) {
             detectedGroup = "Music";
           }
 
