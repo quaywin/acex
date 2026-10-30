@@ -3336,6 +3336,21 @@ defmodule AcexGateway.Web.DashboardView do
           filterChannels();
         }
 
+        function getSpanishUtcOffsetHours(year, month, day, hour, min) {
+          // European Summer Time (CEST = UTC+2) runs from the last Sunday of March (01:00 UTC)
+          // to the last Sunday of October (01:00 UTC). Standard time (CET = UTC+1).
+          const marchLast = new Date(Date.UTC(year, 2, 31));
+          const marchSunday = 31 - marchLast.getUTCDay();
+          const cestStart = Date.UTC(year, 2, marchSunday, 1, 0);
+
+          const octLast = new Date(Date.UTC(year, 9, 31));
+          const octSunday = 31 - octLast.getUTCDay();
+          const cestEnd = Date.UTC(year, 9, octSunday, 1, 0);
+
+          const approxUtc = Date.UTC(year, month, day, hour - 1, min);
+          return (approxUtc >= cestStart && approxUtc < cestEnd) ? 2 : 1;
+        }
+
         function parseEventSchedule(name) {
           if (!name || typeof name !== "string") {
             return { hasTime: false, status: "unknown", priority: 2, label: "" };
@@ -3344,22 +3359,28 @@ defmodule AcexGateway.Web.DashboardView do
           const now = new Date();
           let eventDate = null;
 
-          // Pattern 1: Bracket format "[29/10/2026 - 15:00 CET]" or "[30/10/2026 - 21:00]"
-          const bracketMatch = name.match(/\\[(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\s*-\\s*(\\d{1,2}):(\\d{2})(?:\\s*CET|\\s*CEST)?\\]/i);
+          // Pattern 1: Bracket format "[29/10/2026 - 15:00 CET]" or "[30/10/2026 - 21:00 CEST]"
+          const bracketMatch = name.match(/\\[(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\s*-\\s*(\\d{1,2}):(\\d{2})(?:\\s*(CET|CEST))?\\]/i);
           if (bracketMatch) {
             const day = parseInt(bracketMatch[1], 10);
             const month = parseInt(bracketMatch[2], 10) - 1;
             const year = parseInt(bracketMatch[3], 10);
             const hour = parseInt(bracketMatch[4], 10);
             const min = parseInt(bracketMatch[5], 10);
-            eventDate = new Date(year, month, day, hour, min);
+            const tzStr = bracketMatch[6] ? bracketMatch[6].toUpperCase() : null;
+            const offset = (tzStr === "CEST") ? 2 : ((tzStr === "CET") ? 1 : getSpanishUtcOffsetHours(year, month, day, hour, min));
+            eventDate = new Date(Date.UTC(year, month, day, hour - offset, min));
           } else {
-            // Pattern 2: Time prefix "19:00 Real Madrid..." or "13:30 Torneo..."
+            // Pattern 2: Time prefix "19:00 Real Madrid..." or "13:30 Torneo..." (Spanish streams in CET/CEST)
             const timeMatch = name.match(/^(\\d{1,2}):(\\d{2})\\b/);
             if (timeMatch) {
               const hour = parseInt(timeMatch[1], 10);
               const min = parseInt(timeMatch[2], 10);
-              eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, min);
+              const y = now.getFullYear();
+              const m = now.getMonth();
+              const d = now.getDate();
+              const offset = getSpanishUtcOffsetHours(y, m, d, hour, min);
+              eventDate = new Date(Date.UTC(y, m, d, hour - offset, min));
             }
           }
 
@@ -3369,6 +3390,11 @@ defmodule AcexGateway.Web.DashboardView do
 
           const diffMinutes = (now.getTime() - eventDate.getTime()) / (1000 * 60);
 
+          // Local time display formatting
+          const localTimeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+          const isToday = eventDate.getDate() === now.getDate() && eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear();
+          const datePrefix = isToday ? "" : (eventDate.getDate() + "/" + (eventDate.getMonth() + 1) + " ");
+
           // If started between 0 and 150 mins ago -> LIVE NOW
           if (diffMinutes >= 0 && diffMinutes <= 150) {
             return {
@@ -3376,33 +3402,28 @@ defmodule AcexGateway.Web.DashboardView do
               status: "live",
               priority: 0,
               time: eventDate.getTime(),
-              label: "🔴 LIVE"
+              label: "🔴 LIVE (" + datePrefix + localTimeStr + ")"
             };
           }
 
           // If started > 150 mins ago -> ENDED / PAST
           if (diffMinutes > 150) {
-            const timeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             return {
               hasTime: true,
               status: "ended",
               priority: 3,
               time: eventDate.getTime(),
-              label: "Concluded (" + timeStr + ")"
+              label: "Concluded (" + datePrefix + localTimeStr + ")"
             };
           }
 
           // In the future -> UPCOMING
-          const timeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-          const isToday = eventDate.getDate() === now.getDate() && eventDate.getMonth() === now.getMonth();
-          const displayLabel = isToday ? timeStr : (eventDate.getDate() + "/" + (eventDate.getMonth() + 1) + " " + timeStr);
-
           return {
             hasTime: true,
             status: "upcoming",
             priority: 1,
             time: eventDate.getTime(),
-            label: "🕒 " + displayLabel
+            label: "🕒 " + datePrefix + localTimeStr
           };
         }
 
