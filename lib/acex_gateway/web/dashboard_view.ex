@@ -2202,6 +2202,38 @@ defmodule AcexGateway.Web.DashboardView do
           color: #FFFFFF;
           transform: scale(1.05);
         }
+
+        .badge-live-pulse {
+          background: rgba(225, 29, 72, 0.95);
+          color: #FFFFFF;
+          border: 1px solid #FF4B72;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          animation: pulseRed 1.8s infinite;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        @keyframes pulseRed {
+          0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+          70% { box-shadow: 0 0 0 7px rgba(225, 29, 72, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+
+        .badge-upcoming {
+          background: rgba(30, 41, 59, 0.85);
+          color: #94A3B8;
+          border: 1px solid rgba(148, 163, 184, 0.25);
+          font-weight: 600;
+        }
+
+        .badge-ended {
+          background: rgba(20, 20, 20, 0.8);
+          color: #64748B;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          font-weight: 500;
+        }
       </style>
     </head>
     <body>
@@ -2331,8 +2363,8 @@ defmodule AcexGateway.Web.DashboardView do
 
             <div class="panel-actions-row">
               <button class="btn btn-secondary btn-sm" onclick="openXtreamModal()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
-                <span>Xtream Codes</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
               </button>
               <button class="btn btn-secondary btn-sm" onclick="openQrModal()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -2409,6 +2441,9 @@ defmodule AcexGateway.Web.DashboardView do
                 </button>
               </div>
               <span id="channelCountBadge" class="chip-filter">0 channels</span>
+              <button id="toggleHideEndedEventsBtn" class="btn btn-secondary btn-xs" onclick="toggleHideEndedEvents()" style="display: none; padding: 4px 10px; font-size: 11px; font-weight: 600;" title="Toggle visibility of concluded events">
+                <span>Hide Concluded</span>
+              </button>
             </div>
 
             <div class="toolbar-right">
@@ -2820,10 +2855,10 @@ defmodule AcexGateway.Web.DashboardView do
           <div class="modal-top">
             <div style="display: flex; align-items: center; gap: 10px;">
               <div class="panel-icon-wrap" style="width: 36px; height: 36px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               </div>
               <div>
-                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Xtream Codes Login & Auth</h3>
+                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Gateway Settings & Xtream Auth</h3>
                 <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">For TiviMate, IPTV Smarters, XCIPTV & Smart TVs</p>
               </div>
             </div>
@@ -3289,6 +3324,87 @@ defmodule AcexGateway.Web.DashboardView do
         let modalSourcesArray = [];
         let isManuallyEditingGroup = false;
         let isManuallyEditingCountry = false;
+        let hideEndedEvents = true;
+
+        function toggleHideEndedEvents() {
+          hideEndedEvents = !hideEndedEvents;
+          const btn = document.getElementById("toggleHideEndedEventsBtn");
+          if (btn) {
+            btn.innerHTML = hideEndedEvents ? "<span>Hide Concluded: ON</span>" : "<span>Hide Concluded: OFF</span>";
+            btn.className = hideEndedEvents ? "btn btn-primary btn-xs" : "btn btn-secondary btn-xs";
+          }
+          filterChannels();
+        }
+
+        function parseEventSchedule(name) {
+          if (!name || typeof name !== "string") {
+            return { hasTime: false, status: "unknown", priority: 2, label: "" };
+          }
+
+          const now = new Date();
+          let eventDate = null;
+
+          // Pattern 1: Bracket format "[29/10/2026 - 15:00 CET]" or "[30/10/2026 - 21:00]"
+          const bracketMatch = name.match(/\[(\d{1,2})\/(\d{1,2})\/(\d{4})\s*-\s*(\d{1,2}):(\d{2})(?:\s*CET|\s*CEST)?\]/i);
+          if (bracketMatch) {
+            const day = parseInt(bracketMatch[1], 10);
+            const month = parseInt(bracketMatch[2], 10) - 1;
+            const year = parseInt(bracketMatch[3], 10);
+            const hour = parseInt(bracketMatch[4], 10);
+            const min = parseInt(bracketMatch[5], 10);
+            eventDate = new Date(year, month, day, hour, min);
+          } else {
+            // Pattern 2: Time prefix "19:00 Real Madrid..." or "13:30 Torneo..."
+            const timeMatch = name.match(/^(\d{1,2}):(\d{2})\b/);
+            if (timeMatch) {
+              const hour = parseInt(timeMatch[1], 10);
+              const min = parseInt(timeMatch[2], 10);
+              eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, min);
+            }
+          }
+
+          if (!eventDate || isNaN(eventDate.getTime())) {
+            return { hasTime: false, status: "unknown", priority: 2, label: "" };
+          }
+
+          const diffMinutes = (now.getTime() - eventDate.getTime()) / (1000 * 60);
+
+          // If started between 0 and 150 mins ago -> LIVE NOW
+          if (diffMinutes >= 0 && diffMinutes <= 150) {
+            return {
+              hasTime: true,
+              status: "live",
+              priority: 0,
+              time: eventDate.getTime(),
+              label: "🔴 LIVE"
+            };
+          }
+
+          // If started > 150 mins ago -> ENDED / PAST
+          if (diffMinutes > 150) {
+            const timeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            return {
+              hasTime: true,
+              status: "ended",
+              priority: 3,
+              time: eventDate.getTime(),
+              label: "Concluded (" + timeStr + ")"
+            };
+          }
+
+          // In the future -> UPCOMING
+          const timeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+          const isToday = eventDate.getDate() === now.getDate() && eventDate.getMonth() === now.getMonth();
+          const displayLabel = isToday ? timeStr : (eventDate.getDate() + "/" + (eventDate.getMonth() + 1) + " " + timeStr);
+
+          return {
+            hasTime: true,
+            status: "upcoming",
+            priority: 1,
+            time: eventDate.getTime(),
+            label: "🕒 " + displayLabel
+          };
+        }
 
         function getLiveStreamUrl(target, isContentId = false) {
           if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
@@ -3449,6 +3565,7 @@ defmodule AcexGateway.Web.DashboardView do
 
           sortedGroups.forEach(g => {
             const count = (allChannels || []).filter(c => (c.group || "General") === g.name).length;
+            if (count === 0) return;
             const activeClass = currentFilterGroup === g.name ? "active" : "";
             html += `
               <button class="tab-btn ${activeClass}" onclick="selectCategory('${escapeAttr(g.name)}')">
@@ -3473,12 +3590,16 @@ defmodule AcexGateway.Web.DashboardView do
           const channelsBtn = document.getElementById("catalogTabChannels");
           const eventsBtn = document.getElementById("catalogTabEvents");
           const addChannelBtn = document.getElementById("btnAddChannelBtn");
+          const hideEndedBtn = document.getElementById("toggleHideEndedEventsBtn");
 
           if (channelsBtn) channelsBtn.className = "view-btn " + (tab === "channels" ? "active" : "");
           if (eventsBtn) eventsBtn.className = "view-btn " + (tab === "events" ? "active" : "");
 
           if (addChannelBtn) {
             addChannelBtn.style.display = (tab === "channels") ? "inline-flex" : "none";
+          }
+          if (hideEndedBtn) {
+            hideEndedBtn.style.display = (tab === "events") ? "inline-flex" : "none";
           }
 
           currentFilterGroup = "ALL";
@@ -3532,6 +3653,18 @@ defmodule AcexGateway.Web.DashboardView do
                 const fallbackCount = sources.length;
                 const liveUrl = getLiveStreamUrl(e.id);
                 const initials = (e.name || "Live").substring(0, 2).toUpperCase();
+                const sched = e._schedule || parseEventSchedule(e.name);
+
+                let scheduleBadgeHtml = "";
+                if (sched.hasTime) {
+                  if (sched.status === "live") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-live-pulse">${sched.label}</span>`;
+                  } else if (sched.status === "upcoming") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-upcoming">${sched.label}</span>`;
+                  } else if (sched.status === "ended") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-ended">${sched.label}</span>`;
+                  }
+                }
 
                 const sourcesListHtml = sources.map((s, idx) => `
                   <div class="source-item" id="source-row-${e.id}-${idx}">
@@ -3555,6 +3688,7 @@ defmodule AcexGateway.Web.DashboardView do
 
                       <!-- Overlay Badges -->
                       <div class="poster-badges-top">
+                        ${scheduleBadgeHtml}
                         <span class="chip-filter" style="background: rgba(225, 29, 72, 0.25); border-color: rgba(225, 29, 72, 0.5); color: #FFF; font-weight: 700;">${escapeHtml(e.group || 'Live Sports')}</span>
                         <span class="chip-status-success">🛡️ ${fallbackCount} sources</span>
                       </div>
@@ -3607,6 +3741,18 @@ defmodule AcexGateway.Web.DashboardView do
               channelTableBody.innerHTML = list.map(e => {
                 const liveUrl = getLiveStreamUrl(e.id);
                 const initials = (e.name || "Live").substring(0, 2).toUpperCase();
+                const sched = e._schedule || parseEventSchedule(e.name);
+
+                let scheduleBadgeHtml = "";
+                if (sched.hasTime) {
+                  if (sched.status === "live") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-live-pulse" style="margin-left: 6px;">${sched.label}</span>`;
+                  } else if (sched.status === "upcoming") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-upcoming" style="margin-left: 6px;">${sched.label}</span>`;
+                  } else if (sched.status === "ended") {
+                    scheduleBadgeHtml = `<span class="chip-filter badge-ended" style="margin-left: 6px;">${sched.label}</span>`;
+                  }
+                }
 
                 return `
                   <tr data-id="${e.id}">
@@ -3621,7 +3767,10 @@ defmodule AcexGateway.Web.DashboardView do
                       </div>
                     </td>
                     <td>
-                      <div style="font-weight: 700; color: #FFFFFF; font-size: 15px;">${escapeHtml(e.name)}</div>
+                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-weight: 700; color: #FFFFFF; font-size: 15px;">${escapeHtml(e.name)}</span>
+                        ${scheduleBadgeHtml}
+                      </div>
                       <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${escapeHtml(e.id)}</div>
                     </td>
                     <td>
@@ -3861,7 +4010,45 @@ defmodule AcexGateway.Web.DashboardView do
               );
             }
 
-            renderChannels(filtered);
+            // Enrich with schedule metadata
+            let enriched = filtered.map(e => ({
+              ...e,
+              _schedule: parseEventSchedule(e.name)
+            }));
+
+            // Filter out ended/concluded events if hideEndedEvents is active
+            if (hideEndedEvents) {
+              enriched = enriched.filter(e => e._schedule.status !== "ended");
+            }
+
+            // Sort logic:
+            // Group 1 (priority 0): LIVE NOW
+            // Group 2 (priority 1): UPCOMING, sorted by time ascending (nearest first)
+            // Group 3 (priority 2): Events with NO time information (kept in original order)
+            // Group 4 (priority 3): Concluded/ended (if visible)
+            enriched.sort((a, b) => {
+              const pa = a._schedule.priority;
+              const pb = b._schedule.priority;
+
+              if (pa !== pb) {
+                return pa - pb;
+              }
+
+              // Within same UPCOMING priority, sort by time ascending
+              if (pa === 1 && pb === 1) {
+                return (a._schedule.time || 0) - (b._schedule.time || 0);
+              }
+
+              // Within LIVE, keep earliest first
+              if (pa === 0 && pb === 0) {
+                return (a._schedule.time || 0) - (b._schedule.time || 0);
+              }
+
+              // For events without time (priority 2), preserve original playlist order (0)
+              return 0;
+            });
+
+            renderChannels(enriched);
             return;
           }
 
@@ -6402,6 +6589,13 @@ defmodule AcexGateway.Web.DashboardView do
         connectLiveStats();
         pollStatsOnce();
         checkSystemVersion();
+
+        // Periodically refresh event schedules (update LIVE / UPCOMING / ENDED badges)
+        setInterval(() => {
+          if (currentCatalogTab === "events") {
+            filterChannels();
+          }
+        }, 60000);
       </script>
     </body>
     </html>
