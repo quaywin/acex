@@ -136,18 +136,36 @@ defmodule AcexGateway.Settings.Store do
         end,
       events_m3u_url:
         normalize_string(
-          Map.get(params, "events_m3u_url", Map.get(params, :events_m3u_url)),
+          Map.get(params, "events_m3u_url",
+            Map.get(params, :events_m3u_url,
+              Map.get(params, "sync_events_url",
+                Map.get(params, :sync_events_url)
+              )
+            )
+          ),
           Map.get(current, :events_m3u_url, "https://raw.githubusercontent.com/Icastresana/lista1/main/eventos.m3u")
         ),
       events_sync_enabled:
-        case Map.get(params, "events_sync_enabled", Map.get(params, :events_sync_enabled)) do
+        case Map.get(params, "events_sync_enabled",
+               Map.get(params, :events_sync_enabled,
+                 Map.get(params, "sync_events_enabled",
+                   Map.get(params, :sync_events_enabled)
+                 )
+               )
+             ) do
           val when is_boolean(val) -> val
           "true" -> true
           "false" -> false
           _ -> Map.get(current, :events_sync_enabled, true)
         end,
       events_sync_interval_mins:
-        case Map.get(params, "events_sync_interval_mins", Map.get(params, :events_sync_interval_mins)) do
+        case Map.get(params, "events_sync_interval_mins",
+               Map.get(params, :events_sync_interval_mins,
+                 Map.get(params, "sync_events_interval",
+                   Map.get(params, :sync_events_interval)
+                 )
+               )
+             ) do
           val when is_integer(val) and val > 0 -> val
           val when is_binary(val) ->
             case Integer.parse(val) do
@@ -158,18 +176,36 @@ defmodule AcexGateway.Settings.Store do
         end,
       channels_m3u_url:
         normalize_string(
-          Map.get(params, "channels_m3u_url", Map.get(params, :channels_m3u_url)),
+          Map.get(params, "channels_m3u_url",
+            Map.get(params, :channels_m3u_url,
+              Map.get(params, "sync_channels_url",
+                Map.get(params, :sync_channels_url)
+              )
+            )
+          ),
           Map.get(current, :channels_m3u_url, "https://raw.githubusercontent.com/Icastresana/lista1/main/Probando")
         ),
       channels_sync_enabled:
-        case Map.get(params, "channels_sync_enabled", Map.get(params, :channels_sync_enabled)) do
+        case Map.get(params, "channels_sync_enabled",
+               Map.get(params, :channels_sync_enabled,
+                 Map.get(params, "sync_channels_enabled",
+                   Map.get(params, :sync_channels_enabled)
+                 )
+               )
+             ) do
           val when is_boolean(val) -> val
           "true" -> true
           "false" -> false
           _ -> Map.get(current, :channels_sync_enabled, true)
         end,
       channels_sync_interval_hours:
-        case Map.get(params, "channels_sync_interval_hours", Map.get(params, :channels_sync_interval_hours)) do
+        case Map.get(params, "channels_sync_interval_hours",
+               Map.get(params, :channels_sync_interval_hours,
+                 Map.get(params, "sync_channels_interval",
+                   Map.get(params, :sync_channels_interval)
+                 )
+               )
+             ) do
           val when is_integer(val) and val > 0 -> val
           val when is_binary(val) ->
             case Integer.parse(val) do
@@ -179,7 +215,13 @@ defmodule AcexGateway.Settings.Store do
           _ -> Map.get(current, :channels_sync_interval_hours, 6)
         end,
       channels_sync_mode:
-        case Map.get(params, "channels_sync_mode", Map.get(params, :channels_sync_mode)) do
+        case Map.get(params, "channels_sync_mode",
+               Map.get(params, :channels_sync_mode,
+                 Map.get(params, "sync_channels_mode",
+                   Map.get(params, :sync_channels_mode)
+                 )
+               )
+             ) do
           val when val in ["merge", "replace"] -> val
           _ -> Map.get(current, :channels_sync_mode, "replace")
         end

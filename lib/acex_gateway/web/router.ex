@@ -826,7 +826,10 @@ defmodule AcexGateway.Web.Router do
   end
 
   post "/api/sync/events" do
-    case PlaylistSync.sync_events(force: true) do
+    custom_url = conn.body_params["url"]
+    sync_opts = [force: true] ++ if(custom_url && custom_url != "", do: [url: custom_url], else: [])
+
+    case PlaylistSync.sync_events(sync_opts) do
       {:ok, count} ->
         conn
         |> put_resp_header("access-control-allow-origin", "*")
@@ -849,7 +852,10 @@ defmodule AcexGateway.Web.Router do
   end
 
   post "/api/sync/channels" do
-    case PlaylistSync.sync_channels(force: true) do
+    custom_url = conn.body_params["url"]
+    sync_opts = [force: true] ++ if(custom_url && custom_url != "", do: [url: custom_url], else: [])
+
+    case PlaylistSync.sync_channels(sync_opts) do
       {:ok, count} ->
         conn
         |> put_resp_header("access-control-allow-origin", "*")

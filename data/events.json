@@ -1,12 +1,12 @@
 [
   {
     "group": "Live Sports",
-    "id": "event-filter-test",
+    "id": "event-router-test",
     "logo": "",
-    "name": "Filtered Event",
+    "name": "Live Event Test",
     "source_type": "content_id",
     "sources": [
-      "5555555555555555555555555555555555555555"
+      "4444444444444444444444444444444444444444"
     ]
   }
 ]

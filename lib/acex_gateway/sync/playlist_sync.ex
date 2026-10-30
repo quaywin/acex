@@ -92,11 +92,24 @@ defmodule AcexGateway.Sync.PlaylistSync do
 
   @impl true
   def handle_call(:get_status, _from, state) do
-    # Enrich counts dynamically
+    # Enrich counts and latest configured URLs dynamically
+    current_events_url = get_events_url()
+    current_channels_url = get_channels_url()
+
+    enriched_events =
+      state.status.events
+      |> Map.put(:count, length(EventsStore.list_events()))
+      |> Map.put(:url, current_events_url)
+
+    enriched_channels =
+      state.status.channels
+      |> Map.put(:count, length(ChannelsStore.list_channels()))
+      |> Map.put(:url, current_channels_url)
+
     enriched_status = %{
       state.status
-      | events: Map.put(state.status.events, :count, length(EventsStore.list_events())),
-        channels: Map.put(state.status.channels, :count, length(ChannelsStore.list_channels()))
+      | events: enriched_events,
+        channels: enriched_channels
     }
 
     {:reply, enriched_status, state}
@@ -158,7 +171,17 @@ defmodule AcexGateway.Sync.PlaylistSync do
   # Internal Sync Implementations
 
   defp perform_sync_events(state, opts) do
-    raw_url = get_events_url()
+    raw_url =
+      case Keyword.get(opts, :url) do
+        custom_url when is_binary(custom_url) and custom_url != "" ->
+          # Persist updated URL to SettingsStore
+          SettingsStore.update_settings(%{"events_m3u_url" => custom_url})
+          custom_url
+
+        _ ->
+          get_events_url()
+      end
+
     url = normalize_github_url(raw_url)
     etag = if Keyword.get(opts, :force, false), do: nil, else: state.status.events.etag
 
@@ -269,7 +292,17 @@ defmodule AcexGateway.Sync.PlaylistSync do
   end
 
   defp perform_sync_channels(state, opts) do
-    raw_url = get_channels_url()
+    raw_url =
+      case Keyword.get(opts, :url) do
+        custom_url when is_binary(custom_url) and custom_url != "" ->
+          # Persist updated URL to SettingsStore
+          SettingsStore.update_settings(%{"channels_m3u_url" => custom_url})
+          custom_url
+
+        _ ->
+          get_channels_url()
+      end
+
     url = normalize_github_url(raw_url)
     etag = if Keyword.get(opts, :force, false), do: nil, else: state.status.channels.etag
 

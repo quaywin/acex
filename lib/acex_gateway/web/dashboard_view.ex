@@ -6536,6 +6536,13 @@ defmodule AcexGateway.Web.DashboardView do
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
+                events_m3u_url: evUrl,
+                events_sync_enabled: evEn,
+                events_sync_interval_mins: evInt,
+                channels_m3u_url: chUrl,
+                channels_sync_enabled: chEn,
+                channels_sync_interval_hours: chInt,
+                channels_sync_mode: chMode,
                 sync_events_url: evUrl,
                 sync_events_enabled: evEn,
                 sync_events_interval: evInt,

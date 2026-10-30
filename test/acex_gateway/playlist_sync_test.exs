@@ -61,6 +61,8 @@ defmodule AcexGateway.PlaylistSyncTest do
       assert Map.has_key?(status, :channels)
       assert is_integer(status.events.count)
       assert is_integer(status.channels.count)
+      assert is_binary(status.events.url)
+      assert is_binary(status.channels.url)
     end
   end
 end
