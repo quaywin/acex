@@ -4320,37 +4320,6 @@ defmodule AcexGateway.Web.DashboardView do
           if (pillSingle) pillSingle.innerText = single;
         }
 
-        function filterChannels() {
-          const q = document.getElementById("channelSearch").value.toLowerCase().trim();
-          let filtered = allChannels;
-
-          if (currentFilterGroup !== "ALL") {
-            filtered = filtered.filter(c => c.group === currentFilterGroup);
-          }
-
-          if (currentFleetFilter === "multi") {
-            filtered = filtered.filter(c => (c.sources || []).length > 1);
-          } else if (currentFleetFilter === "single") {
-            filtered = filtered.filter(c => (c.sources || []).length <= 1);
-          } else if (currentFleetFilter === "live") {
-            filtered = filtered.filter(c =>
-              activeStreamingChannelKeys.has(c.id) || (c.sources || []).some(s => activeStreamingChannelKeys.has(s))
-            );
-          }
-
-          if (q) {
-            filtered = filtered.filter(c =>
-              c.name.toLowerCase().includes(q) ||
-              (c.country && c.country.toLowerCase().includes(q)) ||
-              (c.group && c.group.toLowerCase().includes(q)) ||
-              c.id.toLowerCase().includes(q) ||
-              (c.sources || []).some(s => s.toLowerCase().includes(q))
-            );
-          }
-
-          renderChannels(filtered);
-        }
-
         async function pruneAllDeadSources(btn = null) {
           if (!confirm("This will scan and prune dead Content IDs across all multi-source channels (single-source channels remain safe). Continue?")) {
             return;
