@@ -7,6 +7,16 @@ defmodule AcexGateway.Web.RouterTest do
 
   @opts Router.init([])
 
+  setup do
+    AcexGateway.Settings.Store.update_settings(%{
+      "auth_enabled" => false,
+      "auth_username" => "",
+      "auth_password" => ""
+    })
+
+    :ok
+  end
+
   test "GET /health returns 200 OK" do
     conn = conn(:get, "/health") |> Router.call(@opts)
     assert conn.status == 200
@@ -111,7 +121,10 @@ defmodule AcexGateway.Web.RouterTest do
       assert conn_dash_auth.status == 200
       assert conn_dash_auth.resp_body =~ "AcexGateway"
     after
+      auth_h = "Basic " <> Base.encode64("user1:pass1")
+
       conn(:post, "/api/settings", %{"auth_enabled" => false})
+      |> put_req_header("authorization", auth_h)
       |> put_req_header("content-type", "application/json")
       |> Router.call(@opts)
     end
@@ -326,9 +339,19 @@ defmodule AcexGateway.Web.RouterTest do
     assert conn_m3u.status == 200
     assert conn_m3u.resp_body =~ "/live/testadmin/testpass123/"
 
-    # Reset settings back to disabled for other tests
+    # Verify API is protected when auth is enabled
+    conn_unauth_api = conn(:get, "/api/channels") |> Router.call(@opts)
+    assert conn_unauth_api.status == 401
+
+    conn_unauth_settings = conn(:get, "/api/settings") |> Router.call(@opts)
+    assert conn_unauth_settings.status == 401
+
+    # Reset settings back to disabled for other tests using valid auth header
+    auth_h = "Basic " <> Base.encode64("testadmin:testpass123")
+
     conn_reset =
       conn(:post, "/api/settings", %{"auth_enabled" => false})
+      |> put_req_header("authorization", auth_h)
       |> put_req_header("content-type", "application/json")
       |> Router.call(@opts)
 
@@ -684,53 +707,12 @@ defmodule AcexGateway.Web.RouterTest do
     assert get_resp_header(conn, "access-control-max-age") == ["86400"]
   end
 
-  test "GET /events.m3u and /channels.m3u serve separated playlists" do
-    AcexGateway.Events.Store.set_events([
-      %{
-        "id" => "event-router-test",
-        "name" => "Live Event Test",
-        "sources" => ["4444444444444444444444444444444444444444"]
-      }
-    ])
-
-    conn_events = conn(:get, "/events.m3u") |> Router.call(@opts)
-    assert conn_events.status == 200
-    assert String.contains?(conn_events.resp_body, "event-router-test")
-    assert get_resp_header(conn_events, "content-disposition") == ["inline; filename=\"acex_events.m3u\""]
-
-    conn_channels = conn(:get, "/channels.m3u") |> Router.call(@opts)
-    assert conn_channels.status == 200
-    assert not String.contains?(conn_channels.resp_body, "event-router-test")
-    assert get_resp_header(conn_channels, "content-disposition") == ["inline; filename=\"acex_channels.m3u\""]
-  end
-
-  test "GET /playlist.m3u supports type filter query parameter" do
-    AcexGateway.Events.Store.set_events([
-      %{
-        "id" => "event-filter-test",
-        "name" => "Filtered Event",
-        "sources" => ["5555555555555555555555555555555555555555"]
-      }
-    ])
-
-    conn_ev = conn(:get, "/playlist.m3u?type=events") |> Router.call(@opts)
-    assert conn_ev.status == 200
-    assert String.contains?(conn_ev.resp_body, "event-filter-test")
-
-    conn_ch = conn(:get, "/playlist.m3u?type=channels") |> Router.call(@opts)
-    assert conn_ch.status == 200
-    assert not String.contains?(conn_ch.resp_body, "event-filter-test")
-  end
-
-  test "GET /api/events and /api/sync/status endpoints" do
-    conn_ev = conn(:get, "/api/events") |> Router.call(@opts)
-    assert conn_ev.status == 200
-    assert is_list(Jason.decode!(conn_ev.resp_body))
-
-    conn_sync = conn(:get, "/api/sync/status") |> Router.call(@opts)
-    assert conn_sync.status == 200
-    status = Jason.decode!(conn_sync.resp_body)
-    assert Map.has_key?(status, "events")
-    assert Map.has_key?(status, "channels")
+  test "GET /channels.m3u and /channels.m3u8 serve channels playlist" do
+    for path <- ["/channels.m3u", "/channels.m3u8"] do
+      conn = conn(:get, path) |> Router.call(@opts)
+      assert conn.status == 200
+      assert conn.resp_body =~ "#EXTM3U"
+      assert conn.resp_body =~ "/live?channel="
+    end
   end
 end

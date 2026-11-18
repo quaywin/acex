@@ -22,6 +22,10 @@ acex_gateway-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
+# Runtime user data and settings (preserved locally, ignored by git)
+/data/*.json
+/data/*.tmp*
+
 # OS and Editor files
 .DS_Store
 Thumbs.db

@@ -86,7 +86,9 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
     end
 
     test "build_dynamic_manifest_from_disk/2 aggregates finished segments into manifest" do
-      test_dir = Path.join(System.tmp_dir!(), "cast_test_segments_#{System.unique_integer([:positive])}")
+      test_dir =
+        Path.join(System.tmp_dir!(), "cast_test_segments_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(test_dir)
 
       try do
@@ -96,7 +98,9 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
         File.write!(Path.join(test_dir, "seg_1700000000_00003.ts"), "active_unflushed_data")
 
         # Excludes actively recording last segment, keeps 1 and 2
-        assert {:ok, dynamic_data} = CastRemuxer.build_dynamic_manifest_from_disk("disk_stream", test_dir)
+        assert {:ok, dynamic_data} =
+                 CastRemuxer.build_dynamic_manifest_from_disk("disk_stream", test_dir)
+
         assert dynamic_data.media_sequence == 1
         assert length(dynamic_data.segments) == 2
         assert String.contains?(dynamic_data.manifest, "seg_1700000000_00001.ts")
@@ -108,7 +112,9 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
     end
 
     test "sync_manifest/2 caches in ETS and serves valid manifest on mid-flush empty reads" do
-      test_dir = Path.join(System.tmp_dir!(), "cast_test_sync_#{System.unique_integer([:positive])}")
+      test_dir =
+        Path.join(System.tmp_dir!(), "cast_test_sync_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(test_dir)
       m3u8_file = Path.join(test_dir, "live.m3u8")
 
@@ -124,6 +130,7 @@ defmodule AcexGateway.Stream.CastRemuxerTest do
         #EXTINF:3.000000,
         /cast/#{target}/seg_1700000000_00010.ts
         """
+
         File.write!(m3u8_file, initial_m3u8)
 
         assert {:ok, manifest1} = CastRemuxer.sync_manifest(target, test_dir)

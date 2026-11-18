@@ -11,6 +11,13 @@ defmodule AcexGateway.Web.XtreamCodesTest do
     # Clear auth env vars for baseline tests
     System.delete_env("AUTH_USERNAME")
     System.delete_env("AUTH_PASSWORD")
+
+    AcexGateway.Settings.Store.update_settings(%{
+      "auth_enabled" => false,
+      "auth_username" => "",
+      "auth_password" => ""
+    })
+
     :ok
   end
 
@@ -111,5 +118,42 @@ defmodule AcexGateway.Web.XtreamCodesTest do
 
     # Reset back to hls
     AcexGateway.Settings.Store.update_settings(%{"xtream_format" => "hls"})
+  end
+
+  test "POST /player_api.php accepts action in body parameters" do
+    body = Plug.Conn.Query.encode(%{"action" => "get_live_categories"})
+
+    conn =
+      conn(:post, "/player_api.php", body)
+      |> put_req_header("content-type", "application/x-www-form-urlencoded")
+      |> Router.call(@opts)
+
+    assert conn.status == 200
+    categories = Jason.decode!(conn.resp_body)
+    assert is_list(categories)
+  end
+
+  test "GET /player_api.php?action=get_live_streams outputs integer stream_id" do
+    conn = conn(:get, "/player_api.php?action=get_live_streams") |> Router.call(@opts)
+    assert conn.status == 200
+
+    streams = Jason.decode!(conn.resp_body)
+    assert is_list(streams)
+    assert length(streams) >= 1
+
+    # All streams must have integer stream_id and category_ids array of integers
+    Enum.each(streams, fn stream ->
+      assert is_integer(stream["stream_id"])
+      assert is_integer(stream["num"])
+      assert is_list(stream["category_ids"])
+      assert Enum.all?(stream["category_ids"], &is_integer/1)
+      assert is_binary(stream["category_id"])
+    end)
+
+    # Test stream resolution by numeric stream_id
+    sample = hd(streams)
+    sid = sample["stream_id"]
+    conn_stream = conn(:head, "/live/#{sid}.ts") |> Router.call(@opts)
+    assert conn_stream.status == 200
   end
 end

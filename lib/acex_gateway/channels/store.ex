@@ -39,30 +39,66 @@ defmodule AcexGateway.Channels.Store do
   Lists all configured channels. Reads lock-free from ETS.
   """
   def list_channels do
-    case :ets.whereis(@table) do
-      :undefined ->
-        GenServer.call(__MODULE__, :list_channels)
+    channels =
+      case :ets.whereis(@table) do
+        :undefined ->
+          GenServer.call(__MODULE__, :list_channels)
 
-      _ ->
-        case :ets.lookup(@table, :all_channels) do
-          [{:all_channels, channels}] -> channels
-          [] -> GenServer.call(__MODULE__, :list_channels)
-        end
-    end
+        _ ->
+          case :ets.lookup(@table, :all_channels) do
+            [{:all_channels, list}] -> list
+            [] -> GenServer.call(__MODULE__, :list_channels)
+          end
+      end
+
+    Enum.with_index(channels, 1)
+    |> Enum.map(fn {c, idx} ->
+      Map.put_new(c, "stream_id", idx)
+    end)
   end
 
   @doc """
-  Gets a single channel by its ID. Reads lock-free O(1) from ETS.
+  Gets a single channel by its ID, stream_id, or slug. Reads lock-free O(1) from ETS.
   """
-  def get_channel(id) when is_binary(id) do
+  def get_channel(id) when is_binary(id) or is_integer(id) do
     case :ets.whereis(@table) do
       :undefined ->
         GenServer.call(__MODULE__, {:get_channel, id})
 
       _ ->
         case :ets.lookup(@table, id) do
-          [{^id, channel}] -> channel
-          [] -> nil
+          [{^id, channel}] ->
+            channel
+
+          [] ->
+            lookup_channel_fallback(id)
+        end
+    end
+  end
+
+  def get_channel(_), do: nil
+
+  defp lookup_channel_fallback(id) do
+    case :ets.lookup(@table, {:stream_id, id}) do
+      [{{:stream_id, ^id}, channel}] ->
+        channel
+
+      [] ->
+        case :ets.lookup(@table, {:slug, id}) do
+          [{{:slug, ^id}, channel}] ->
+            channel
+
+          [] ->
+            if is_binary(id) and Regex.match?(~r/^\d+$/, id) do
+              num = String.to_integer(id)
+
+              case :ets.lookup(@table, {:stream_id, num}) do
+                [{{:stream_id, ^num}, channel}] -> channel
+                [] -> nil
+              end
+            else
+              nil
+            end
         end
     end
   end
@@ -347,7 +383,25 @@ defmodule AcexGateway.Channels.Store do
   end
 
   def handle_call({:get_channel, id}, _from, state) do
-    channel = Enum.find(state.channels, fn c -> c["id"] == id end)
+    id_str = to_string(id)
+
+    channel =
+      Enum.with_index(state.channels, 1)
+      |> Enum.find_value(fn {c, idx} ->
+        stream_id = c["stream_id"] || idx
+        slug = generate_slug(c["id"] || "")
+
+        if c["id"] == id or
+             to_string(c["id"]) == id_str or
+             stream_id == id or
+             to_string(stream_id) == id_str or
+             (slug != "" and slug == id_str) do
+          Map.put_new(c, "stream_id", stream_id)
+        else
+          nil
+        end
+      end)
+
     {:reply, channel, state}
   end
 
@@ -610,16 +664,6 @@ defmodule AcexGateway.Channels.Store do
      %{state | channels: new_channels, groups: new_groups}}
   end
 
-  def handle_call({:export_m3u, base_url, auth_opts}, _from, state) do
-    m3u_content = generate_m3u(state.channels, base_url, auth_opts)
-    {:reply, m3u_content, state}
-  end
-
-  def handle_call(:export_txt, _from, state) do
-    txt_content = generate_txt(state.channels)
-    {:reply, txt_content, state}
-  end
-
   # Fast ETS Synchronization
 
   defp sync_to_ets(channels, groups) do
@@ -628,9 +672,20 @@ defmodule AcexGateway.Channels.Store do
       :ets.insert(@table, {:all_channels, channels})
       :ets.insert(@table, {:all_groups, groups})
 
-      for channel <- channels do
+      for {channel, idx} <- Enum.with_index(channels, 1) do
         id = channel["id"]
-        :ets.insert(@table, {id, channel})
+        stream_id = channel["stream_id"] || idx
+        channel_with_sid = Map.put_new(channel, "stream_id", stream_id)
+
+        :ets.insert(@table, {id, channel_with_sid})
+        :ets.insert(@table, {{:stream_id, stream_id}, channel_with_sid})
+        :ets.insert(@table, {{:stream_id, to_string(stream_id)}, channel_with_sid})
+
+        slug = generate_slug(id)
+
+        if slug != "" and slug != id do
+          :ets.insert(@table, {{:slug, slug}, channel_with_sid})
+        end
 
         for source <- channel["sources"] || [] do
           clean_src = sanitize_hash(source)

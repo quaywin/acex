@@ -17,8 +17,6 @@ defmodule AcexGateway.Web.Router do
   alias AcexGateway.Engine.TelnetClient
   alias AcexGateway.Engine.Validator
   alias AcexGateway.Channels.Store
-  alias AcexGateway.Events.Store, as: EventsStore
-  alias AcexGateway.Sync.PlaylistSync
   alias AcexGateway.Settings.Store, as: SettingsStore
   alias AcexGateway.System.Updater
   alias AcexGateway.Stream.CastRemuxer
@@ -28,7 +26,24 @@ defmodule AcexGateway.Web.Router do
 
   plug(:match)
   plug(Plug.Parsers, parsers: [:urlencoded, :json], json_decoder: Jason)
+  plug(:check_api_auth)
   plug(:dispatch)
+
+  defp check_api_auth(%Plug.Conn{method: "OPTIONS"} = conn, _opts), do: conn
+
+  defp check_api_auth(%Plug.Conn{path_info: ["api" | _]} = conn, _opts) do
+    case authenticate_request(conn) do
+      :ok ->
+        conn
+
+      :unauthorized ->
+        conn
+        |> send_unauthorized()
+        |> halt()
+    end
+  end
+
+  defp check_api_auth(conn, _opts), do: conn
 
   options _ do
     conn
@@ -45,15 +60,7 @@ defmodule AcexGateway.Web.Router do
   # --- Short M3U8 Playlist routes (path-based auth) ---
   get "/hls/:username/:password/channels.m3u8" do
     if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password}, :channels)
-    else
-      send_unauthorized(conn)
-    end
-  end
-
-  get "/hls/:username/:password/events.m3u8" do
-    if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password}, :events)
+      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password})
     else
       send_unauthorized(conn)
     end
@@ -61,7 +68,7 @@ defmodule AcexGateway.Web.Router do
 
   get "/hls/:username/:password.m3u8" do
     if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password}, :all)
+      serve_custom_playlist(conn, :hls, %{"username" => username, "password" => password})
     else
       send_unauthorized(conn)
     end
@@ -69,15 +76,7 @@ defmodule AcexGateway.Web.Router do
 
   get "/ts/:username/:password/channels.m3u8" do
     if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password}, :channels)
-    else
-      send_unauthorized(conn)
-    end
-  end
-
-  get "/ts/:username/:password/events.m3u8" do
-    if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password}, :events)
+      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password})
     else
       send_unauthorized(conn)
     end
@@ -85,7 +84,7 @@ defmodule AcexGateway.Web.Router do
 
   get "/ts/:username/:password.m3u8" do
     if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password}, :all)
+      serve_custom_playlist(conn, :ts, %{"username" => username, "password" => password})
     else
       send_unauthorized(conn)
     end
@@ -93,41 +92,19 @@ defmodule AcexGateway.Web.Router do
 
   # Short M3U8 Playlist routes (no credentials in path)
   get "/hls/channels.m3u8" do
-    serve_typed_playlist(conn, :channels, :hls)
-  end
-
-  get "/hls/events.m3u8" do
-    serve_typed_playlist(conn, :events, :hls)
+    serve_playlist(conn, :hls)
   end
 
   get "/hls.m3u8" do
-    case authenticate_request(conn) do
-      :ok ->
-        auth_opts = get_playlist_auth_opts(conn)
-        serve_custom_playlist(conn, :hls, auth_opts, :all)
-
-      :unauthorized ->
-        send_unauthorized(conn)
-    end
+    serve_playlist(conn, :hls)
   end
 
   get "/ts/channels.m3u8" do
-    serve_typed_playlist(conn, :channels, :ts)
-  end
-
-  get "/ts/events.m3u8" do
-    serve_typed_playlist(conn, :events, :ts)
+    serve_playlist(conn, :ts)
   end
 
   get "/ts.m3u8" do
-    case authenticate_request(conn) do
-      :ok ->
-        auth_opts = get_playlist_auth_opts(conn)
-        serve_custom_playlist(conn, :ts, auth_opts, :all)
-
-      :unauthorized ->
-        send_unauthorized(conn)
-    end
+    serve_playlist(conn, :ts)
   end
 
   # Standard /get.php Xtream Codes M3U endpoint
@@ -136,39 +113,23 @@ defmodule AcexGateway.Web.Router do
     username = conn.query_params["username"] || conn.query_params["user"] || ""
     password = conn.query_params["password"] || conn.query_params["pass"] || ""
     output = conn.query_params["output"] || "ts"
-    type_param = conn.query_params["type"] || conn.query_params["filter"]
-
-    type =
-      case type_param do
-        "events" -> :events
-        "channels" -> :channels
-        _ -> :all
-      end
 
     format = if output in ["hls", "m3u8"], do: :hls, else: :ts
 
     if Config.authenticate?(username, password) do
-      serve_custom_playlist(conn, format, %{"username" => username, "password" => password}, type)
+      serve_custom_playlist(conn, format, %{"username" => username, "password" => password})
     else
       send_unauthorized(conn)
     end
   end
 
-  # Typed Playlists (Channels / Events)
+  # Channel Playlists
   get "/channels.m3u" do
-    serve_typed_playlist(conn, :channels)
+    serve_playlist(conn)
   end
 
   get "/channels.m3u8" do
-    serve_typed_playlist(conn, :channels)
-  end
-
-  get "/events.m3u" do
-    serve_typed_playlist(conn, :events)
-  end
-
-  get "/events.m3u8" do
-    serve_typed_playlist(conn, :events)
+    serve_playlist(conn)
   end
 
   get "/playlist.m3u" do
@@ -180,10 +141,19 @@ defmodule AcexGateway.Web.Router do
   end
 
   get "/player_api.php" do
+    handle_player_api(conn)
+  end
+
+  post "/player_api.php" do
+    handle_player_api(conn)
+  end
+
+  defp handle_player_api(conn) do
     conn = fetch_query_params(conn)
+    params = Map.merge(conn.query_params || %{}, conn.body_params || %{})
     base_url = request_base_url(conn)
 
-    case XtreamCodes.handle_request(conn.query_params, base_url) do
+    case XtreamCodes.handle_request(params, base_url) do
       {:ok, data} ->
         conn
         |> put_resp_header("access-control-allow-origin", "*")
@@ -198,7 +168,7 @@ defmodule AcexGateway.Web.Router do
     end
   end
 
-  defp serve_typed_playlist(conn, type, fixed_format \\ nil) do
+  defp serve_playlist(conn, fixed_format \\ nil) do
     case authenticate_request(conn) do
       :ok ->
         conn = fetch_query_params(conn)
@@ -213,94 +183,31 @@ defmodule AcexGateway.Web.Router do
           end
 
         auth_opts = get_playlist_auth_opts(conn)
-        serve_custom_playlist(conn, format, auth_opts, type)
+        serve_custom_playlist(conn, format, auth_opts)
 
       :unauthorized ->
         send_unauthorized(conn)
     end
   end
 
-  defp serve_playlist(conn) do
-    case authenticate_request(conn) do
-      :ok ->
-        conn = fetch_query_params(conn)
-        output = conn.query_params["output"] || conn.query_params["format"]
-
-        format =
-          cond do
-            output in ["hls", "m3u8"] -> :hls
-            output in ["ts"] -> :ts
-            true -> nil
-          end
-
-        type_param = conn.query_params["type"] || conn.query_params["filter"]
-
-        type =
-          case type_param do
-            "events" -> :events
-            "channels" -> :channels
-            _ -> :all
-          end
-
-        auth_opts = get_playlist_auth_opts(conn)
-        serve_custom_playlist(conn, format, auth_opts, type)
-
-      :unauthorized ->
-        send_unauthorized(conn)
-    end
-  end
-
-  defp serve_custom_playlist(conn, format, auth_opts, type) do
+  defp serve_custom_playlist(conn, format, auth_opts) do
     base_url = request_base_url(conn)
     opts = if format, do: Map.put(auth_opts, "format", format), else: auth_opts
 
-    m3u_content =
-      case type do
-        :events ->
-          EventsStore.export_m3u(base_url, opts)
-
-        :channels ->
-          Store.export_m3u(base_url, opts)
-
-        :all ->
-          combined_channels = Store.list_channels() ++ EventsStore.list_events()
-          Store.generate_m3u(combined_channels, base_url, opts)
-      end
+    m3u_content = Store.export_m3u(base_url, opts)
 
     filename =
-      case {type, format} do
-        {:events, :hls} ->
-          "acex_events_hls.m3u8"
-
-        {:events, :ts} ->
-          "acex_events_ts.m3u8"
-
-        {:events, _} ->
-          if String.ends_with?(conn.request_path, ".m3u"),
-            do: "acex_events.m3u",
-            else: "acex_events.m3u8"
-
-        {:channels, :hls} ->
+      case format do
+        :hls ->
           "acex_channels_hls.m3u8"
 
-        {:channels, :ts} ->
+        :ts ->
           "acex_channels_ts.m3u8"
 
-        {:channels, _} ->
+        _ ->
           if String.ends_with?(conn.request_path, ".m3u"),
             do: "acex_channels.m3u",
             else: "acex_channels.m3u8"
-
-        {:all, :hls} ->
-          "acex_hls_playlist.m3u8"
-
-        {:all, :ts} ->
-          "acex_ts_playlist.m3u8"
-
-        {:all, _} ->
-          if String.ends_with?(conn.request_path, ".m3u"),
-            do: "acex_playlist.m3u",
-            else: "acex_playlist.m3u8"
       end
 
     conn
@@ -816,76 +723,6 @@ defmodule AcexGateway.Web.Router do
     |> send_resp(200, Jason.encode!(resp))
   end
 
-  get "/api/events" do
-    events = EventsStore.list_events()
-
-    conn
-    |> put_resp_header("access-control-allow-origin", "*")
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(events))
-  end
-
-  post "/api/sync/events" do
-    custom_url = conn.body_params["url"]
-    sync_opts = [force: true] ++ if(custom_url && custom_url != "", do: [url: custom_url], else: [])
-
-    case PlaylistSync.sync_events(sync_opts) do
-      {:ok, count} ->
-        conn
-        |> put_resp_header("access-control-allow-origin", "*")
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          200,
-          Jason.encode!(%{
-            status: "ok",
-            count: count,
-            message: "Successfully synced #{count} live sports events"
-          })
-        )
-
-      {:error, reason} ->
-        conn
-        |> put_resp_header("access-control-allow-origin", "*")
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{status: "error", error: to_string(reason)}))
-    end
-  end
-
-  post "/api/sync/channels" do
-    custom_url = conn.body_params["url"]
-    sync_opts = [force: true] ++ if(custom_url && custom_url != "", do: [url: custom_url], else: [])
-
-    case PlaylistSync.sync_channels(sync_opts) do
-      {:ok, count} ->
-        conn
-        |> put_resp_header("access-control-allow-origin", "*")
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          200,
-          Jason.encode!(%{
-            status: "ok",
-            count: count,
-            message: "Successfully synced #{count} channels"
-          })
-        )
-
-      {:error, reason} ->
-        conn
-        |> put_resp_header("access-control-allow-origin", "*")
-        |> put_resp_content_type("application/json")
-        |> send_resp(500, Jason.encode!(%{status: "error", error: to_string(reason)}))
-    end
-  end
-
-  get "/api/sync/status" do
-    status = PlaylistSync.get_status()
-
-    conn
-    |> put_resp_header("access-control-allow-origin", "*")
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(status))
-  end
-
   defp handle_update_settings(conn) do
     case SettingsStore.update_settings(conn.body_params) do
       {:ok, settings} ->
@@ -1145,6 +982,21 @@ defmodule AcexGateway.Web.Router do
     handle_cast_segment(conn, target_name, segment_name)
   end
 
+  get "/:username/:password/:target_name"
+      when username not in ["cast", "api", "stat", "hls", "ts", "live", "restart", "favicon.ico"] do
+    if Config.authenticate?(username, password) do
+      if String.ends_with?(target_name, ".m3u8") do
+        clean_target = String.replace_suffix(target_name, ".m3u8", "")
+        handle_cast_playlist(conn, clean_target)
+      else
+        {target, source_type} = parse_stream_target(target_name)
+        handle_live_stream(conn, target, source_type)
+      end
+    else
+      send_unauthorized(conn)
+    end
+  end
+
   defp handle_cast_playlist(conn, target_name) do
     clean_target =
       target_name
@@ -1213,7 +1065,11 @@ defmodule AcexGateway.Web.Router do
   end
 
   defp parse_stream_target(target_name) do
-    raw = String.replace_suffix(target_name, ".ts", "")
+    raw =
+      target_name
+      |> URI.decode()
+      |> String.replace_suffix(".ts", "")
+      |> String.replace_suffix(".m3u8", "")
 
     if String.length(raw) == 40 and Regex.match?(~r/^[a-fA-F0-9]{40}$/, raw) do
       {Store.sanitize_hash(raw), :content_id}
@@ -1391,15 +1247,21 @@ defmodule AcexGateway.Web.Router do
   end
 
   match "/restart" do
-    conn = fetch_query_params(conn)
-    channel = conn.query_params["channel"]
-    Logger.info("[Router] Manual reset requested (channel: #{inspect(channel)}).")
-    Broadcaster.force_reset(channel)
+    case authenticate_request(conn) do
+      :ok ->
+        conn = fetch_query_params(conn)
+        channel = conn.query_params["channel"]
+        Logger.info("[Router] Manual reset requested (channel: #{inspect(channel)}).")
+        Broadcaster.force_reset(channel)
 
-    conn
-    |> put_resp_header("access-control-allow-origin", "*")
-    |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{status: "ok", message: "Stream reset successfully"}))
+        conn
+        |> put_resp_header("access-control-allow-origin", "*")
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{status: "ok", message: "Stream reset successfully"}))
+
+      :unauthorized ->
+        send_unauthorized(conn)
+    end
   end
 
   get "/favicon.ico" do
@@ -1421,8 +1283,7 @@ defmodule AcexGateway.Web.Router do
         base_url = request_base_url(conn)
         channels = Store.list_channels()
         groups = Store.list_groups()
-        events = EventsStore.list_events()
-        html = DashboardView.render(base_url, channels, groups, events)
+        html = DashboardView.render(base_url, channels, groups)
 
         conn
         |> put_resp_content_type("text/html; charset=utf-8")

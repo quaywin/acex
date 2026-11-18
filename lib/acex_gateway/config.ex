@@ -127,7 +127,9 @@ defmodule AcexGateway.Config do
 
   def authenticate?(username, password) do
     if auth_enabled?() do
-      username == auth_username() and password == auth_password()
+      is_binary(username) and is_binary(password) and
+        Plug.Crypto.secure_compare(username, auth_username()) and
+        Plug.Crypto.secure_compare(password, auth_password())
     else
       true
     end

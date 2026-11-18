@@ -8,12 +8,12 @@ defmodule AcexGateway.Web.XtreamCodes do
   alias AcexGateway.Config
 
   @doc """
-  Dispatches an incoming `/player_api.php` request based on query parameters.
+  Dispatches an incoming `/player_api.php` request based on query or form parameters.
   """
   def handle_request(params, base_url) do
-    username = params["username"] || ""
-    password = params["password"] || ""
-    action = params["action"]
+    username = params["username"] || params[:username] || ""
+    password = params["password"] || params[:password] || ""
+    action = params["action"] || params[:action]
 
     if Config.authenticate?(username, password) do
       case action do
@@ -27,8 +27,9 @@ defmodule AcexGateway.Web.XtreamCodes do
           {:ok, get_categories()}
 
         "get_live_streams" ->
-          category_id = params["category_id"]
-          {:ok, get_live_streams(category_id)}
+          category_id = params["category_id"] || params[:category_id]
+          stream_id = params["stream_id"] || params[:stream_id]
+          {:ok, get_live_streams(category_id, stream_id)}
 
         "get_vod_categories" ->
           {:ok, []}
@@ -58,13 +59,20 @@ defmodule AcexGateway.Web.XtreamCodes do
 
   defp build_handshake(username, password, base_url) do
     now = System.system_time(:second)
-    port_str = to_string(Config.proxy_port())
+
+    uri = URI.parse(base_url)
+    host = uri.host || "localhost"
+    port = uri.port || Config.proxy_port()
+    port_str = to_string(port)
+    server_protocol = uri.scheme || "http"
 
     formats =
       case Config.xtream_format() do
         "ts" -> ["ts", "m3u8"]
         _ -> ["m3u8", "ts"]
       end
+
+    time_now_str = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M:%S")
 
     %{
       "user_info" => %{
@@ -81,56 +89,86 @@ defmodule AcexGateway.Web.XtreamCodes do
         "allowed_output_formats" => formats
       },
       "server_info" => %{
-        "url" => base_url,
+        "url" => host,
         "port" => port_str,
         "https_port" => port_str,
-        "server_protocol" => "http",
+        "server_protocol" => server_protocol,
         "rtmp_port" => port_str,
         "timezone" => "UTC",
         "timestamp_now" => now,
-        "time_now" => DateTime.utc_now() |> DateTime.to_iso8601()
+        "time_now" => time_now_str
       }
     }
   end
 
-  defp get_categories do
+  defp build_category_mapping(channels) do
+    # Channel groups that actually have channels (> 0)
+    channel_counts = Enum.frequencies_by(channels, fn c -> c["group"] || "General" end)
     groups = Store.list_groups()
 
-    Enum.map(groups, fn g ->
+    sorted_channel_groups =
+      groups
+      |> Enum.filter(fn g -> Map.get(channel_counts, g["name"], 0) > 0 end)
+      |> Enum.sort_by(&(&1["order"] || 999))
+      |> Enum.map(& &1["name"])
+
+    extra_channel_groups =
+      channels
+      |> Enum.map(&(&1["group"] || "General"))
+      |> Enum.uniq()
+      |> Enum.reject(&(&1 in sorted_channel_groups))
+
+    channel_group_names = sorted_channel_groups ++ extra_channel_groups
+
+    Map.new(Enum.with_index(channel_group_names, 1), fn {name, idx} ->
+      {name, to_string(idx)}
+    end)
+  end
+
+  defp get_categories do
+    channels = Store.list_channels()
+    cat_map = build_category_mapping(channels)
+
+    cat_map
+    |> Enum.sort_by(fn {_name, id_str} -> String.to_integer(id_str) end)
+    |> Enum.map(fn {group_name, cat_id} ->
       %{
-        "category_id" => to_string(g["order"] || 1),
-        "category_name" => g["name"],
+        "category_id" => cat_id,
+        "category_name" => group_name,
         "parent_id" => 0
       }
     end)
   end
 
-  defp get_live_streams(category_id) do
+  defp get_live_streams(category_id, stream_id) do
     channels = Store.list_channels()
-    groups = Store.list_groups()
+    cat_map = build_category_mapping(channels)
 
-    group_to_cat_id =
-      Map.new(groups, fn g ->
-        {g["name"], to_string(g["order"] || 1)}
-      end)
-
-    streams =
-      channels
-      |> Enum.with_index(1)
-      |> Enum.map(fn {c, num} ->
+    channel_streams =
+      Enum.with_index(channels, 1)
+      |> Enum.map(fn {c, idx} ->
         group = c["group"] || "General"
-        cat_id = Map.get(group_to_cat_id, group, "1")
+        cat_id = Map.get(cat_map, group, "1")
+
+        cat_id_int =
+          case Integer.parse(cat_id) do
+            {n, ""} -> n
+            _ -> 1
+          end
+
         name = Store.format_playlist_title(c["name"], c["country"])
+        sid = c["stream_id"] || idx
 
         %{
-          "num" => num,
+          "num" => sid,
           "name" => name,
           "stream_type" => "live",
-          "stream_id" => c["id"],
+          "stream_id" => sid,
           "stream_icon" => c["logo"] || "",
-          "epg_channel_id" => c["id"],
+          "epg_channel_id" => to_string(sid),
           "added" => "1700000000",
           "category_id" => cat_id,
+          "category_ids" => [cat_id_int],
           "custom_sid" => "",
           "tv_archive" => 0,
           "direct_source" => "",
@@ -138,15 +176,29 @@ defmodule AcexGateway.Web.XtreamCodes do
         }
       end)
 
-    case category_id do
+    filtered_by_cat =
+      case category_id do
+        nil ->
+          channel_streams
+
+        "" ->
+          channel_streams
+
+        cid ->
+          cid_str = to_string(cid)
+          Enum.filter(channel_streams, &(&1["category_id"] == cid_str))
+      end
+
+    case stream_id do
       nil ->
-        streams
+        filtered_by_cat
 
       "" ->
-        streams
+        filtered_by_cat
 
-      cid ->
-        Enum.filter(streams, &(&1["category_id"] == to_string(cid)))
+      sid ->
+        sid_str = to_string(sid)
+        Enum.filter(filtered_by_cat, &(to_string(&1["stream_id"]) == sid_str))
     end
   end
 end

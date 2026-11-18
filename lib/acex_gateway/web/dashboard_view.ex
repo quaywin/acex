@@ -32,12 +32,10 @@ defmodule AcexGateway.Web.DashboardView do
   @doc """
   Renders the complete HTML document for the dashboard.
   """
-  def render(base_url, channels, groups \\ nil, events \\ nil) do
+  def render(base_url, channels, groups \\ nil) do
     groups_list = groups || AcexGateway.Channels.Store.list_groups()
-    events_list = events || AcexGateway.Events.Store.list_events()
     channels_json = Jason.encode!(channels)
     groups_json = Jason.encode!(groups_list)
-    events_json = Jason.encode!(events_list)
     auth_enabled = AcexGateway.Config.auth_enabled?()
     auth_user = AcexGateway.Config.auth_username()
     auth_pass = AcexGateway.Config.auth_password()
@@ -61,28 +59,6 @@ defmodule AcexGateway.Web.DashboardView do
       if has_auth,
         do: "#{base_url}/ts/#{enc_user}/#{enc_pass}/channels.m3u8",
         else: "#{base_url}/ts/channels.m3u8"
-
-    # Events URLs
-    m3u_events_hls_url =
-      if has_auth,
-        do: "#{base_url}/hls/#{enc_user}/#{enc_pass}/events.m3u8",
-        else: "#{base_url}/hls/events.m3u8"
-
-    m3u_events_ts_url =
-      if has_auth,
-        do: "#{base_url}/ts/#{enc_user}/#{enc_pass}/events.m3u8",
-        else: "#{base_url}/ts/events.m3u8"
-
-    # All-in-one URLs
-    m3u_all_hls_url =
-      if has_auth,
-        do: "#{base_url}/hls/#{enc_user}/#{enc_pass}.m3u8",
-        else: "#{base_url}/hls.m3u8"
-
-    m3u_all_ts_url =
-      if has_auth,
-        do: "#{base_url}/ts/#{enc_user}/#{enc_pass}.m3u8",
-        else: "#{base_url}/ts.m3u8"
 
     m3u_display_url = m3u_channels_hls_url
 
@@ -1188,17 +1164,17 @@ defmodule AcexGateway.Web.DashboardView do
           padding: 12px 16px;
           text-align: left;
           font-family: var(--font-headline);
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.05em;
           color: var(--text-secondary);
           border-bottom: 1px solid var(--border-default);
+          white-space: nowrap;
         }
 
         .channel-table td {
-          padding: 0 16px;
-          height: 56px;
+          padding: 10px 16px;
           vertical-align: middle;
           border-bottom: 1px solid var(--border-default);
           font-size: 14px;
@@ -1209,18 +1185,77 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         .table-thumb {
-          width: 44px;
-          height: 28px;
+          position: relative;
+          width: 56px;
+          height: 34px;
           border-radius: var(--radius-sm);
-          object-fit: cover;
+          overflow: hidden;
           background: #111111;
           display: flex;
           align-items: center;
           justify-content: center;
+          cursor: pointer;
+          border: 1px solid var(--border-subtle);
+          box-shadow: var(--shadow-sm);
+          transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .table-thumb:hover {
+          transform: scale(1.05);
+          border-color: var(--color-primary);
+        }
+
+        .table-thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .table-thumb-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           font-family: var(--font-headline);
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 700;
-          color: var(--text-secondary);
+          color: rgba(255, 255, 255, 0.4);
+          background: radial-gradient(circle at 50% 30%, #2a2a2a 0%, #121212 100%);
+        }
+
+        .table-thumb-play {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          color: #FFFFFF;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          opacity: 0;
+          transition: opacity 0.15s ease;
+        }
+
+        .table-thumb:hover .table-thumb-play {
+          opacity: 1;
+        }
+
+        .table-sources-drawer td {
+          background: var(--surface-sunken) !important;
+          border-bottom: 1px solid var(--border-default);
+        }
+
+        .table-channel-name {
+          font-weight: 700;
+          color: #FFFFFF;
+          font-size: 15px;
+          letter-spacing: -0.01em;
+          transition: color 0.15s ease;
+        }
+
+        .table-row-live td:first-child {
+          border-left: 3px solid var(--color-primary);
         }
 
         .table-actions-group {
@@ -2326,19 +2361,6 @@ defmodule AcexGateway.Web.DashboardView do
               </div>
             </div>
 
-            <div style="display: flex; gap: 8px; align-items: center; margin-top: 2px; flex-wrap: wrap;">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Type:</span>
-              <button id="typeChannelsBtn" type="button" class="btn btn-sm btn-primary" onclick="switchPlaylistType('channels')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
-                📺 Channels
-              </button>
-              <button id="typeEventsBtn" type="button" class="btn btn-sm btn-secondary" onclick="switchPlaylistType('events')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
-                ⚽ Live Events
-              </button>
-              <button id="typeAllBtn" type="button" class="btn btn-sm btn-secondary" onclick="switchPlaylistType('all')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
-                ⚡ All-in-One
-              </button>
-            </div>
-
             <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
               <span style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">Format:</span>
               <button id="formatHlsBtn" type="button" class="btn btn-sm btn-primary" onclick="switchPlaylistFormat('hls')" style="border-radius: var(--radius-pill); padding: 4px 12px; font-size: 12px;">
@@ -2352,8 +2374,6 @@ defmodule AcexGateway.Web.DashboardView do
             <div class="input-row">
               <input type="text" id="m3uUrlInput" class="text-input-styled" readonly value="#{m3u_display_url}"
                 data-channels-hls="#{m3u_channels_hls_url}" data-channels-ts="#{m3u_channels_ts_url}"
-                data-events-hls="#{m3u_events_hls_url}" data-events-ts="#{m3u_events_ts_url}"
-                data-all-hls="#{m3u_all_hls_url}" data-all-ts="#{m3u_all_ts_url}"
                 data-hls="#{m3u_channels_hls_url}" data-ts="#{m3u_channels_ts_url}">
               <button id="copyM3uBtn" class="btn btn-primary btn-md" onclick="copyM3uUrl(this)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2430,43 +2450,26 @@ defmodule AcexGateway.Web.DashboardView do
 
           <div class="lineup-toolbar">
             <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-              <div class="view-toggle" style="background: var(--surface-card); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border-default); display: flex; gap: 2px;">
-                <button id="catalogTabChannels" class="view-btn active" onclick="switchCatalogTab('channels')" style="padding: 6px 14px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm); border: none; cursor: pointer;">
-                  <span>📺 TV Channels</span>
-                  <span id="tabCountChannels" style="opacity: 0.7; font-size: 11px;">(0)</span>
-                </button>
-                <button id="catalogTabEvents" class="view-btn" onclick="switchCatalogTab('events')" style="padding: 6px 14px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm); border: none; cursor: pointer;">
-                  <span>⚽ Live Sports</span>
-                  <span id="tabCountEvents" style="opacity: 0.7; font-size: 11px;">(0)</span>
-                </button>
-              </div>
+              <h3 style="font-family: var(--font-headline); font-size: 18px; font-weight: 700; color: #FFFFFF; margin: 0; letter-spacing: 0.02em;">📺 Channel Lineup</h3>
               <span id="channelCountBadge" class="chip-filter">0 channels</span>
-              <button id="toggleHideEndedEventsBtn" class="btn btn-secondary btn-xs" onclick="toggleHideEndedEvents()" style="display: none; padding: 4px 10px; font-size: 11px; font-weight: 600;" title="Toggle visibility of concluded events">
-                <span>Hide Concluded</span>
-              </button>
             </div>
 
             <div class="toolbar-right">
               <div class="search-box-wrap">
                 <svg class="search-icon-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="channelSearch" class="search-input" placeholder="Search channels, fixtures..." oninput="filterChannels()">
+                <input type="text" id="channelSearch" class="search-input" placeholder="Search channels..." oninput="filterChannels()">
                 <span class="kbd-shortcut">/</span>
               </div>
 
               <div class="toolbar-actions-group">
                 <div class="view-toggle">
-                  <button id="viewGridBtn" class="view-btn active" onclick="switchView('grid')" title="16:9 Poster Grid View">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                  </button>
-                  <button id="viewListBtn" class="view-btn" onclick="switchView('list')" title="Compact List View">
+                  <button id="viewListBtn" class="view-btn active" onclick="switchView('list')" title="Horizontal List View">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                   </button>
+                  <button id="viewGridBtn" class="view-btn" onclick="switchView('grid')" title="Poster Grid View">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  </button>
                 </div>
-
-                <button class="btn btn-secondary btn-sm" onclick="openSyncModal()" title="Sync channels and live sports events from remote GitHub or M3U">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                  <span>Remote Sync</span>
-                </button>
 
                 <button class="btn btn-secondary btn-sm" onclick="openImportModal()" title="Bulk import channels via Content IDs, text lists, or M3U files">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -3167,117 +3170,6 @@ defmodule AcexGateway.Web.DashboardView do
         </div>
       </div>
 
-      <!-- Remote Playlist Sync Modal -->
-      <div id="syncModal" class="modal-overlay" onclick="closeOnBackdrop(event, 'syncModal')">
-        <div class="modal-window" style="max-width: 620px;">
-          <div class="modal-top">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div class="panel-icon-wrap" style="width: 36px; height: 36px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                </svg>
-              </div>
-              <div>
-                <h3 style="font-size: 20px; font-weight: 700; color: #fff;">Remote Playlist Sync</h3>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
-                  Automate and fetch live sports fixtures and TV channels from GitHub or external M3U
-                </p>
-              </div>
-            </div>
-            <button class="btn btn-secondary btn-xs" onclick="closeSyncModal()">✕</button>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 16px;">
-            <!-- Section 1: Live Sports Events Sync -->
-            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 18px;">⚽</span>
-                  <div>
-                    <h4 style="font-size: 15px; font-weight: 700; color: #FFFFFF; margin: 0;">Live Sports Events Sync</h4>
-                    <div style="font-size: 12px; color: var(--text-tertiary);" id="eventsSyncStatusText">Checking status...</div>
-                  </div>
-                </div>
-                <button type="button" class="btn btn-primary btn-sm" id="btnSyncEventsNow" onclick="triggerSyncEvents(this)">
-                  <span>⚡ Sync Events Now</span>
-                </button>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 10px;">
-                <label class="form-label" style="font-size: 12px;">Events Source URL (GitHub or Raw M3U):</label>
-                <input type="text" id="syncEventsUrl" class="form-control" placeholder="https://github.com/Icastresana/lista1/blob/main/eventos.m3u" style="font-family: var(--font-mono); font-size: 12px;">
-              </div>
-
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="syncEventsEnabled" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
-                  <span>Auto-sync background timer</span>
-                </label>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="color: var(--text-secondary); font-size: 12px;">Interval:</span>
-                  <input type="number" id="syncEventsInterval" min="5" max="1440" value="15" style="width: 60px; padding: 4px 6px; background: var(--surface-input); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: #fff; font-size: 12px; text-align: center;">
-                  <span style="color: var(--text-secondary); font-size: 12px;">mins</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section 2: TV Channels Sync -->
-            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 18px;">📺</span>
-                  <div>
-                    <h4 style="font-size: 15px; font-weight: 700; color: #FFFFFF; margin: 0;">TV Channels Sync</h4>
-                    <div style="font-size: 12px; color: var(--text-tertiary);" id="channelsSyncStatusText">Checking status...</div>
-                  </div>
-                </div>
-                <button type="button" class="btn btn-primary btn-sm" id="btnSyncChannelsNow" onclick="triggerSyncChannels(this)">
-                  <span>⚡ Sync Channels Now</span>
-                </button>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 10px;">
-                <label class="form-label" style="font-size: 12px;">Channels Source URL (GitHub or Raw M3U):</label>
-                <input type="text" id="syncChannelsUrl" class="form-control" placeholder="https://github.com/Icastresana/lista1/blob/main/Probando" style="font-family: var(--font-mono); font-size: 12px;">
-              </div>
-
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 8px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="syncChannelsEnabled" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
-                  <span>Auto-sync background timer</span>
-                </label>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="color: var(--text-secondary); font-size: 12px;">Interval:</span>
-                  <input type="number" id="syncChannelsInterval" min="1" max="168" value="24" style="width: 60px; padding: 4px 6px; background: var(--surface-input); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: #fff; font-size: 12px; text-align: center;">
-                  <span style="color: var(--text-secondary); font-size: 12px;">hours</span>
-                </div>
-              </div>
-
-              <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
-                <span>Sync Mode:</span>
-                <select id="syncChannelsMode" style="padding: 4px 8px; background: var(--surface-input); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: #fff; font-size: 12px;">
-                  <option value="replace">Replace (Overwrite with remote channels)</option>
-                  <option value="merge">Merge (Keep existing channels and add new)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Footer actions -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-              <button class="btn btn-secondary btn-sm" onclick="fetchSyncStatus()">
-                🔄 Refresh Status
-              </button>
-              <div style="display: flex; gap: var(--space-sm);">
-                <button class="btn btn-secondary" onclick="closeSyncModal()">Cancel</button>
-                <button class="btn btn-primary" id="btnSaveSyncSettings" onclick="saveSyncSettings(this)">
-                  Save Settings
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Floating Bulk Action Bar -->
       <div id="bulkActionBar" class="floating-bulk-bar">
         <span class="bulk-count-badge">
@@ -3306,15 +3198,19 @@ defmodule AcexGateway.Web.DashboardView do
 
       <script>
         let allChannels = #{channels_json};
-        let allEvents = #{events_json};
         let allGroups = #{groups_json};
         let selectedChannelIds = new Set();
-        let currentCatalogTab = "channels";
         const baseUrl = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "#{base_url}";
         let appSettings = #{Jason.encode!(%{auth_enabled: auth_enabled, auth_username: auth_user, auth_password: auth_pass, epg_url: epg_url, xtream_format: xtream_format, prewarm_enabled: prewarm_enabled})};
         let currentFilterGroup = "ALL";
         let currentFleetFilter = "all";
-        let currentView = "grid";
+        let currentView = (function() {
+          try {
+            return localStorage.getItem("acex_preferred_view") || "list";
+          } catch (e) {
+            return "list";
+          }
+        })();
         let hlsPlayerInstance = null;
         let activeWebPlayerUrl = "";
         let activeWebPlayerTitle = "";
@@ -3324,108 +3220,6 @@ defmodule AcexGateway.Web.DashboardView do
         let modalSourcesArray = [];
         let isManuallyEditingGroup = false;
         let isManuallyEditingCountry = false;
-        let hideEndedEvents = true;
-
-        function toggleHideEndedEvents() {
-          hideEndedEvents = !hideEndedEvents;
-          const btn = document.getElementById("toggleHideEndedEventsBtn");
-          if (btn) {
-            btn.innerHTML = hideEndedEvents ? "<span>Hide Concluded: ON</span>" : "<span>Hide Concluded: OFF</span>";
-            btn.className = hideEndedEvents ? "btn btn-primary btn-xs" : "btn btn-secondary btn-xs";
-          }
-          filterChannels();
-        }
-
-        function getSpanishUtcOffsetHours(year, month, day, hour, min) {
-          // European Summer Time (CEST = UTC+2) runs from the last Sunday of March (01:00 UTC)
-          // to the last Sunday of October (01:00 UTC). Standard time (CET = UTC+1).
-          const marchLast = new Date(Date.UTC(year, 2, 31));
-          const marchSunday = 31 - marchLast.getUTCDay();
-          const cestStart = Date.UTC(year, 2, marchSunday, 1, 0);
-
-          const octLast = new Date(Date.UTC(year, 9, 31));
-          const octSunday = 31 - octLast.getUTCDay();
-          const cestEnd = Date.UTC(year, 9, octSunday, 1, 0);
-
-          const approxUtc = Date.UTC(year, month, day, hour - 1, min);
-          return (approxUtc >= cestStart && approxUtc < cestEnd) ? 2 : 1;
-        }
-
-        function parseEventSchedule(name) {
-          if (!name || typeof name !== "string") {
-            return { hasTime: false, status: "unknown", priority: 2, label: "" };
-          }
-
-          const now = new Date();
-          let eventDate = null;
-
-          // Pattern 1: Bracket format "[29/10/2026 - 15:00 CET]" or "[30/10/2026 - 21:00 CEST]"
-          const bracketMatch = name.match(/\\[(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})\\s*-\\s*(\\d{1,2}):(\\d{2})(?:\\s*(CET|CEST))?\\]/i);
-          if (bracketMatch) {
-            const day = parseInt(bracketMatch[1], 10);
-            const month = parseInt(bracketMatch[2], 10) - 1;
-            const year = parseInt(bracketMatch[3], 10);
-            const hour = parseInt(bracketMatch[4], 10);
-            const min = parseInt(bracketMatch[5], 10);
-            const tzStr = bracketMatch[6] ? bracketMatch[6].toUpperCase() : null;
-            const offset = (tzStr === "CEST") ? 2 : ((tzStr === "CET") ? 1 : getSpanishUtcOffsetHours(year, month, day, hour, min));
-            eventDate = new Date(Date.UTC(year, month, day, hour - offset, min));
-          } else {
-            // Pattern 2: Time prefix "19:00 Real Madrid..." or "13:30 Torneo..." (Spanish streams in CET/CEST)
-            const timeMatch = name.match(/^(\\d{1,2}):(\\d{2})\\b/);
-            if (timeMatch) {
-              const hour = parseInt(timeMatch[1], 10);
-              const min = parseInt(timeMatch[2], 10);
-              const y = now.getFullYear();
-              const m = now.getMonth();
-              const d = now.getDate();
-              const offset = getSpanishUtcOffsetHours(y, m, d, hour, min);
-              eventDate = new Date(Date.UTC(y, m, d, hour - offset, min));
-            }
-          }
-
-          if (!eventDate || isNaN(eventDate.getTime())) {
-            return { hasTime: false, status: "unknown", priority: 2, label: "" };
-          }
-
-          const diffMinutes = (now.getTime() - eventDate.getTime()) / (1000 * 60);
-
-          // Local time display formatting
-          const localTimeStr = eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-          const isToday = eventDate.getDate() === now.getDate() && eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear();
-          const datePrefix = isToday ? "" : (eventDate.getDate() + "/" + (eventDate.getMonth() + 1) + " ");
-
-          // If started between 0 and 150 mins ago -> LIVE NOW
-          if (diffMinutes >= 0 && diffMinutes <= 150) {
-            return {
-              hasTime: true,
-              status: "live",
-              priority: 0,
-              time: eventDate.getTime(),
-              label: "🔴 LIVE (" + datePrefix + localTimeStr + ")"
-            };
-          }
-
-          // If started > 150 mins ago -> ENDED / PAST
-          if (diffMinutes > 150) {
-            return {
-              hasTime: true,
-              status: "ended",
-              priority: 3,
-              time: eventDate.getTime(),
-              label: "Concluded (" + datePrefix + localTimeStr + ")"
-            };
-          }
-
-          // In the future -> UPCOMING
-          return {
-            hasTime: true,
-            status: "upcoming",
-            priority: 1,
-            time: eventDate.getTime(),
-            label: "🕒 " + datePrefix + localTimeStr
-          };
-        }
 
         function getLiveStreamUrl(target, isContentId = false) {
           if (appSettings && appSettings.auth_enabled && appSettings.auth_username && appSettings.auth_password) {
@@ -3448,20 +3242,6 @@ defmodule AcexGateway.Web.DashboardView do
           const name = c ? (c.name || "Channel") : "Channel";
           const liveUrl = getLiveStreamUrl(channelId);
           openLauncherModal(name, liveUrl, channelId);
-        }
-
-        function openWebPlayerForEvent(eventId) {
-          const ev = (allEvents || []).find(x => x.id === eventId);
-          const name = ev ? (ev.name || "Event") : "Event";
-          const hlsUrl = getCastStreamUrl(eventId);
-          openWebPlayerModal(name, hlsUrl, eventId);
-        }
-
-        function openLauncherForEvent(eventId) {
-          const ev = (allEvents || []).find(x => x.id === eventId);
-          const name = ev ? (ev.name || "Event") : "Event";
-          const liveUrl = getLiveStreamUrl(eventId);
-          openLauncherModal(name, liveUrl, eventId);
         }
 
         // DOM Elements
@@ -3518,47 +3298,10 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        // Render Category Tabs (StreamFlix Filter Chips with Manage Groups CTA)
+        // Render Category Tabs (Filter Chips with Manage Groups CTA)
         function renderCategoryTabs() {
           const tabCountChannels = document.getElementById("tabCountChannels");
-          const tabCountEvents = document.getElementById("tabCountEvents");
           if (tabCountChannels) tabCountChannels.innerText = "(" + (allChannels || []).length + ")";
-          if (tabCountEvents) tabCountEvents.innerText = "(" + (allEvents || []).length + ")";
-
-          if (currentCatalogTab === "events") {
-            const eventGroups = new Map();
-            (allEvents || []).forEach(e => {
-              const grp = (e.group && e.group.trim()) ? e.group.trim() : "Live Sports";
-              eventGroups.set(grp, (eventGroups.get(grp) || 0) + 1);
-            });
-
-            let html = `
-              <button class="tab-btn ${currentFilterGroup === "ALL" ? "active" : ""}" onclick="selectCategory('ALL')">
-                <span>All Sports</span>
-                <span style="opacity: 0.7; font-size: 12px;">(${(allEvents || []).length})</span>
-              </button>
-            `;
-
-            Array.from(eventGroups.keys()).sort().forEach(grp => {
-              const count = eventGroups.get(grp);
-              const activeClass = currentFilterGroup === grp ? "active" : "";
-              html += `
-                <button class="tab-btn ${activeClass}" onclick="selectCategory('${escapeAttr(grp)}')">
-                  <span>${escapeHtml(grp)}</span>
-                  <span style="opacity: 0.7; font-size: 12px;">(${count})</span>
-                </button>
-              `;
-            });
-
-            html += `
-              <button class="tab-btn" onclick="openSyncModal()" title="Configure Remote Sync" style="border-style: dashed; margin-left: auto;">
-                <span>🔄 Sync Events</span>
-              </button>
-            `;
-
-            categoryTabs.innerHTML = html;
-            return;
-          }
 
           const groupMap = new Map();
           (allGroups || []).forEach(g => {
@@ -3606,29 +3349,6 @@ defmodule AcexGateway.Web.DashboardView do
           populateGroupDatalist();
         }
 
-        function switchCatalogTab(tab) {
-          currentCatalogTab = tab;
-          const channelsBtn = document.getElementById("catalogTabChannels");
-          const eventsBtn = document.getElementById("catalogTabEvents");
-          const addChannelBtn = document.getElementById("btnAddChannelBtn");
-          const hideEndedBtn = document.getElementById("toggleHideEndedEventsBtn");
-
-          if (channelsBtn) channelsBtn.className = "view-btn " + (tab === "channels" ? "active" : "");
-          if (eventsBtn) eventsBtn.className = "view-btn " + (tab === "events" ? "active" : "");
-
-          if (addChannelBtn) {
-            addChannelBtn.style.display = (tab === "channels") ? "inline-flex" : "none";
-          }
-          if (hideEndedBtn) {
-            hideEndedBtn.style.display = (tab === "events") ? "inline-flex" : "none";
-          }
-
-          currentFilterGroup = "ALL";
-          currentFleetFilter = "all";
-          renderCategoryTabs();
-          filterChannels();
-        }
-
         function selectCategory(group) {
           currentFilterGroup = group;
           renderCategoryTabs();
@@ -3637,191 +3357,32 @@ defmodule AcexGateway.Web.DashboardView do
 
         function switchView(mode) {
           currentView = mode;
-          document.getElementById("viewGridBtn").className = "view-btn " + (mode === "grid" ? "active" : "");
-          document.getElementById("viewListBtn").className = "view-btn " + (mode === "list" ? "active" : "");
+          try {
+            localStorage.setItem("acex_preferred_view", mode);
+          } catch (e) {}
+          syncViewButtonsUi();
           filterChannels();
         }
 
-        // Render Channel & Events Catalog
-        function renderChannels(channels = null) {
-          if (currentCatalogTab === "events") {
-            const list = Array.isArray(channels) ? channels : (allEvents || []);
-            channelCountBadge.innerText = list.length + " live events";
+        function syncViewButtonsUi() {
+          const gridBtn = document.getElementById("viewGridBtn");
+          const listBtn = document.getElementById("viewListBtn");
+          if (gridBtn) gridBtn.className = "view-btn " + (currentView === "grid" ? "active" : "");
+          if (listBtn) listBtn.className = "view-btn " + (currentView === "list" ? "active" : "");
+        }
 
-            if (list.length === 0) {
-              const emptyHtml = `
-                <div style="grid-column: 1/-1; text-align: center; padding: 48px 24px; background: var(--surface-card); border-radius: var(--radius-md); border: 1px dashed var(--border-default);">
-                  <div style="font-size: 32px; margin-bottom: 8px;">⚽</div>
-                  <h4 style="font-family: var(--font-headline); font-size: 20px; color: #FFFFFF; margin-bottom: 6px;">No live sports fixtures found</h4>
-                  <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">Sync fixtures automatically from GitHub or configure remote URL.</p>
-                  <button class="btn btn-primary btn-sm" onclick="openSyncModal()">
-                    <span>⚡ Remote Sync Events</span>
-                  </button>
-                </div>
-              `;
-              channelGrid.innerHTML = emptyHtml;
-              channelGrid.style.display = "grid";
-              if (channelTableContainer) channelTableContainer.classList.remove("show");
-              return;
-            }
-
-            if (currentView === "grid") {
-              channelGrid.style.display = "grid";
-              if (channelTableContainer) channelTableContainer.classList.remove("show");
-
-              channelGrid.innerHTML = list.map(e => {
-                const sources = e.sources || [];
-                const fallbackCount = sources.length;
-                const liveUrl = getLiveStreamUrl(e.id);
-                const initials = (e.name || "Live").substring(0, 2).toUpperCase();
-                const sched = e._schedule || parseEventSchedule(e.name);
-
-                let scheduleBadgeHtml = "";
-                if (sched.hasTime) {
-                  if (sched.status === "live") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-live-pulse">${sched.label}</span>`;
-                  } else if (sched.status === "upcoming") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-upcoming">${sched.label}</span>`;
-                  } else if (sched.status === "ended") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-ended">${sched.label}</span>`;
-                  }
-                }
-
-                const sourcesListHtml = sources.map((s, idx) => `
-                  <div class="source-item" id="source-row-${e.id}-${idx}">
-                    <span style="color: var(--color-primary); font-weight: 700;">#${idx + 1}</span>
-                    <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
-                    <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Event source hash copied!', this)">Copy</button>
-                  </div>
-                `).join("");
-
-                return `
-                  <div class="channel-card-sf" data-id="${e.id}">
-                    <!-- 16:9 Cinematic Poster Header -->
-                    <div class="poster-box">
-                      ${e.logo ? `
-                        <img class="poster-img" src="${e.logo}" alt="${e.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-                        <div class="poster-fallback" style="display: none;">${initials}</div>
-                      ` : `
-                        <div class="poster-fallback">${initials}</div>
-                      `}
-                      <div class="poster-scrim"></div>
-
-                      <!-- Overlay Badges -->
-                      <div class="poster-badges-top">
-                        ${scheduleBadgeHtml}
-                        <span class="chip-filter" style="background: rgba(225, 29, 72, 0.25); border-color: rgba(225, 29, 72, 0.5); color: #FFF; font-weight: 700;">${escapeHtml(e.group || 'Live Sports')}</span>
-                        <span class="chip-status-success">🛡️ ${fallbackCount} sources</span>
-                      </div>
-
-                      <!-- Centered Hover Play CTA -->
-                      <button class="poster-play-btn" onclick="openLauncherForEvent('${e.id}')" title="Watch fixture">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                      </button>
-                    </div>
-
-                    <!-- Content & Meta Area -->
-                    <div class="card-content">
-                      <div class="channel-title" title="${escapeAttr(e.name)}">${escapeHtml(e.name)}</div>
-                      <div class="channel-slug">${escapeHtml(e.id)}</div>
-
-                      <!-- Accordion for Sources Fallback List -->
-                      <div class="sources-accordion-wrap">
-                        <button class="sources-accordion-toggle" onclick="toggleSourcesAccordion('${e.id}')">
-                          <span>${fallbackCount} Stream Source${fallbackCount !== 1 ? 's' : ''} (Priority #1 &rarr; #${fallbackCount})</span>
-                          <span id="arrow-${e.id}">▼</span>
-                        </button>
-                        <div id="sources-${e.id}" class="sources-list-drop">
-                          ${sourcesListHtml}
-                        </div>
-                      </div>
-
-                      <!-- Action Button Row -->
-                      <div class="card-actions-row">
-                        <button class="btn btn-secondary btn-sm" onclick="openWebPlayerForEvent('${e.id}')" title="Preview in browser">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                          <span>Preview</span>
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="openLauncherForEvent('${e.id}')" title="Watch in player">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                          <span>Watch</span>
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="copyText('${liveUrl}', 'Event stream link copied!', this)" title="Copy stream link">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join("");
-            } else {
-              // Table view for events
-              channelGrid.style.display = "none";
-              if (channelTableContainer) channelTableContainer.classList.add("show");
-
-              channelTableBody.innerHTML = list.map(e => {
-                const liveUrl = getLiveStreamUrl(e.id);
-                const initials = (e.name || "Live").substring(0, 2).toUpperCase();
-                const sched = e._schedule || parseEventSchedule(e.name);
-
-                let scheduleBadgeHtml = "";
-                if (sched.hasTime) {
-                  if (sched.status === "live") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-live-pulse" style="margin-left: 6px;">${sched.label}</span>`;
-                  } else if (sched.status === "upcoming") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-upcoming" style="margin-left: 6px;">${sched.label}</span>`;
-                  } else if (sched.status === "ended") {
-                    scheduleBadgeHtml = `<span class="chip-filter badge-ended" style="margin-left: 6px;">${sched.label}</span>`;
-                  }
-                }
-
-                return `
-                  <tr data-id="${e.id}">
-                    <td style="text-align: center;"><span style="color: var(--text-tertiary);">•</span></td>
-                    <td>
-                      <div class="table-thumb">
-                        ${e.logo ? `
-                          <img src="${e.logo}" alt="${e.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" onerror="this.outerHTML='<span>${initials}</span>'">
-                        ` : `
-                          <span>${initials}</span>
-                        `}
-                      </div>
-                    </td>
-                    <td>
-                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span style="font-weight: 700; color: #FFFFFF; font-size: 15px;">${escapeHtml(e.name)}</span>
-                        ${scheduleBadgeHtml}
-                      </div>
-                      <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${escapeHtml(e.id)}</div>
-                    </td>
-                    <td>
-                      <span class="chip-filter">⚽ ${escapeHtml(e.group || 'Live Sports')}</span>
-                    </td>
-                    <td>
-                      <span class="chip-status-success">🛡️ ${(e.sources || []).length} sources</span>
-                    </td>
-                    <td style="text-align: right; white-space: nowrap;">
-                      <div class="table-actions-group">
-                        <button class="btn btn-secondary btn-xs" onclick="openWebPlayerForEvent('${e.id}')" title="Preview in browser">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                          <span>Preview</span>
-                        </button>
-                        <button class="btn btn-primary btn-xs" onclick="openLauncherForEvent('${e.id}')" title="Watch in external player">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                          <span>Watch</span>
-                        </button>
-                        <button class="btn btn-ghost btn-icon btn-xs" onclick="copyText('${liveUrl}', 'Stream link copied!', this)" title="Copy link">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                `;
-              }).join("");
-            }
-            return;
+        function toggleTableSources(id) {
+          const el = document.getElementById("table-sources-" + id);
+          if (el) {
+            const isHidden = (el.style.display === "none" || el.style.display === "");
+            el.style.display = isHidden ? "table-row" : "none";
+            const arrow = document.getElementById("table-arrow-" + id);
+            if (arrow) arrow.innerText = isHidden ? "▲" : "▼";
           }
+        }
 
+        // Render Channel Catalog
+        function renderChannels(channels = null) {
           const list = Array.isArray(channels) ? channels : (allChannels || []);
           channelCountBadge.innerText = list.length + " channels";
 
@@ -3950,38 +3511,59 @@ defmodule AcexGateway.Web.DashboardView do
             channelGrid.style.display = "none";
             if (channelTableContainer) channelTableContainer.classList.add("show");
 
-            channelTableBody.innerHTML = list.map(c => {
+            channelTableBody.innerHTML = list.map((c, idx) => {
+              const sources = c.sources || [];
+              const fallbackCount = sources.length;
               const liveUrl = getLiveStreamUrl(c.id);
               const initials = (c.name || "TV").substring(0, 2).toUpperCase();
               const isSelected = selectedChannelIds.has(c.id);
+
+              const sourcesListHtml = sources.map((s, sIdx) => `
+                <div class="source-item" id="table-source-row-${c.id}-${sIdx}">
+                  <span style="color: var(--color-primary); font-weight: 700;">#${sIdx + 1}</span>
+                  <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s}</span>
+                  <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); copyText('${s}', 'Source hash copied!', this)">Copy</button>
+                </div>
+              `).join("");
+
               return `
                 <tr data-id="${c.id}" class="${isSelected ? 'selected' : ''}">
-                  <td style="width: 36px; text-align: center;" onclick="event.stopPropagation()">
+                  <td style="width: 38px; text-align: center;" onclick="event.stopPropagation()">
                     <input type="checkbox" class="channel-checkbox" value="${c.id}" ${isSelected ? 'checked' : ''} onchange="toggleChannelSelection('${c.id}', this.checked)">
                   </td>
                   <td>
-                    <div class="table-thumb">
+                    <div class="table-thumb" onclick="openLauncherForChannel('${c.id}')" title="Click to play">
                       ${c.logo ? `
-                        <img src="${c.logo}" alt="${c.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" onerror="this.outerHTML='<span>${initials}</span>'">
+                        <img src="${c.logo}" alt="${escapeAttr(c.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                        <div class="table-thumb-fallback" style="display: none;">${initials}</div>
                       ` : `
-                        <span>${initials}</span>
+                        <div class="table-thumb-fallback">${initials}</div>
                       `}
+                      <div class="table-thumb-play">▶</div>
                     </div>
                   </td>
                   <td>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <span style="font-weight: 700; color: #FFFFFF; font-size: 15px;">${c.name}</span>
-                      ${c.country ? `<span class="chip-filter" style="font-size: 11px; padding: 1px 6px; font-weight: 700;">${c.country}</span>` : ''}
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span class="table-channel-name" title="${escapeAttr(c.name)}">${escapeHtml(c.name)}</span>
+                      ${c.country ? `<span class="chip-filter" style="font-size: 10px; padding: 1px 6px; font-weight: 700; background: rgba(225, 29, 72, 0.2); border-color: rgba(225, 29, 72, 0.4); color: #FFF;">🌐 ${c.country}</span>` : ''}
+                      <span class="card-type-tag" style="font-size: 10px;">${c.source_type || 'content_id'}</span>
                     </div>
-                    <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${c.id}</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 3px; font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">
+                      <span>ID: <code style="color: var(--text-secondary);">${escapeHtml(c.id)}</code></span>
+                      <span>•</span>
+                      <span>Stream: <code style="color: var(--color-primary); font-weight: 600;">#${c.stream_id || (idx + 1)}</code></span>
+                    </div>
                   </td>
                   <td>
                     <span class="chip-filter chip-filter-interactive" onclick="event.stopPropagation(); quickChangeGroup('${c.id}', '${escapeAttr(c.group || 'General')}')" title="Click to move group">📁 ${escapeHtml(c.group || 'General')} ▾</span>
                   </td>
                   <td>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <span class="chip-status-success">🛡️ ${(c.sources || []).length} sources</span>
-                      ${(c.sources || []).length > 1 ? `<button class="btn btn-ghost btn-xs" onclick="pruneDeadSources('${c.id}')" title="Prune dead sources" style="padding: 1px 4px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); toggleTableSources('${c.id}')" title="Toggle sources list" style="font-size: 11px; padding: 2px 8px; background: rgba(34, 197, 94, 0.12); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25);">
+                        🛡️ ${fallbackCount} sources <span id="table-arrow-${c.id}">▼</span>
+                      </button>
+                      <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); validateChannelSources('${c.id}')" title="Test sources health" style="padding: 2px 6px; font-size: 11px;">🔍</button>
+                      ${fallbackCount > 1 ? `<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); pruneDeadSources('${c.id}')" title="Prune dead sources" style="padding: 2px 6px; font-size: 11px; color: var(--color-danger);">🧹</button>` : ''}
                     </div>
                   </td>
                   <td style="text-align: right; white-space: nowrap;">
@@ -4006,6 +3588,16 @@ defmodule AcexGateway.Web.DashboardView do
                     </div>
                   </td>
                 </tr>
+                <tr id="table-sources-${c.id}" class="table-sources-drawer" style="display: none;">
+                  <td colspan="6" style="padding: 10px 16px 12px 64px;">
+                    <div style="font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                      Configured Fallback Sources (${fallbackCount})
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      ${sourcesListHtml}
+                    </div>
+                  </td>
+                </tr>
               `;
             }).join("");
           }
@@ -4014,65 +3606,6 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         function filterChannels() {
-          if (currentCatalogTab === "events") {
-            const q = document.getElementById("channelSearch") ? document.getElementById("channelSearch").value.toLowerCase().trim() : "";
-            let filtered = allEvents || [];
-
-            if (currentFilterGroup !== "ALL") {
-              filtered = filtered.filter(e => (e.group || "Live Sports") === currentFilterGroup);
-            }
-
-            if (q) {
-              filtered = filtered.filter(e =>
-                (e.name || "").toLowerCase().includes(q) ||
-                (e.group && e.group.toLowerCase().includes(q)) ||
-                (e.id || "").toLowerCase().includes(q) ||
-                (e.sources || []).some(s => s.toLowerCase().includes(q))
-              );
-            }
-
-            // Enrich with schedule metadata
-            let enriched = filtered.map(e => ({
-              ...e,
-              _schedule: parseEventSchedule(e.name)
-            }));
-
-            // Filter out ended/concluded events if hideEndedEvents is active
-            if (hideEndedEvents) {
-              enriched = enriched.filter(e => e._schedule.status !== "ended");
-            }
-
-            // Sort logic:
-            // Group 1 (priority 0): LIVE NOW
-            // Group 2 (priority 1): UPCOMING, sorted by time ascending (nearest first)
-            // Group 3 (priority 2): Events with NO time information (kept in original order)
-            // Group 4 (priority 3): Concluded/ended (if visible)
-            enriched.sort((a, b) => {
-              const pa = a._schedule.priority;
-              const pb = b._schedule.priority;
-
-              if (pa !== pb) {
-                return pa - pb;
-              }
-
-              // Within same UPCOMING priority, sort by time ascending
-              if (pa === 1 && pb === 1) {
-                return (a._schedule.time || 0) - (b._schedule.time || 0);
-              }
-
-              // Within LIVE, keep earliest first
-              if (pa === 0 && pb === 0) {
-                return (a._schedule.time || 0) - (b._schedule.time || 0);
-              }
-
-              // For events without time (priority 2), preserve original playlist order (0)
-              return 0;
-            });
-
-            renderChannels(enriched);
-            return;
-          }
-
           const filtered = getCurrentlyFilteredChannels();
           renderChannels(filtered);
         }
@@ -5774,23 +5307,7 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        let activePlaylistType = "channels";
         let activePlaylistFormat = "hls";
-
-        function switchPlaylistType(type) {
-          activePlaylistType = type;
-          const channelsBtn = document.getElementById("typeChannelsBtn");
-          const eventsBtn = document.getElementById("typeEventsBtn");
-          const allBtn = document.getElementById("typeAllBtn");
-
-          if (channelsBtn) channelsBtn.className = (type === "channels") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
-          if (eventsBtn) eventsBtn.className = (type === "events") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
-          if (allBtn) allBtn.className = (type === "all") ? "btn btn-sm btn-primary" : "btn btn-sm btn-secondary";
-
-          if (appSettings) {
-            updateAuthDependentLinks(appSettings);
-          }
-        }
 
         function switchPlaylistFormat(format) {
           activePlaylistFormat = format;
@@ -5819,24 +5336,10 @@ defmodule AcexGateway.Web.DashboardView do
           const encUser = encodeURIComponent(user);
           const encPass = encodeURIComponent(pass);
 
-          if (activePlaylistType === "channels") {
-            if (activePlaylistFormat === "hls") {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/hls/" + encUser + "/" + encPass + "/channels.m3u8" : baseUrl + "/hls/channels.m3u8";
-            } else {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/ts/" + encUser + "/" + encPass + "/channels.m3u8" : baseUrl + "/ts/channels.m3u8";
-            }
-          } else if (activePlaylistType === "events") {
-            if (activePlaylistFormat === "hls") {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/hls/" + encUser + "/" + encPass + "/events.m3u8" : baseUrl + "/hls/events.m3u8";
-            } else {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/ts/" + encUser + "/" + encPass + "/events.m3u8" : baseUrl + "/ts/events.m3u8";
-            }
+          if (activePlaylistFormat === "hls") {
+            m3uUrl = (isAuth && user && pass) ? baseUrl + "/hls/" + encUser + "/" + encPass + "/channels.m3u8" : baseUrl + "/hls/channels.m3u8";
           } else {
-            if (activePlaylistFormat === "hls") {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/hls/" + encUser + "/" + encPass + ".m3u8" : baseUrl + "/hls.m3u8";
-            } else {
-              m3uUrl = (isAuth && user && pass) ? baseUrl + "/ts/" + encUser + "/" + encPass + ".m3u8" : baseUrl + "/ts.m3u8";
-            }
+            m3uUrl = (isAuth && user && pass) ? baseUrl + "/ts/" + encUser + "/" + encPass + "/channels.m3u8" : baseUrl + "/ts/channels.m3u8";
           }
 
           const m3uInput = document.getElementById("m3uUrlInput");
@@ -5845,8 +5348,7 @@ defmodule AcexGateway.Web.DashboardView do
           const downloadLink = document.getElementById("m3uDownloadLink");
           if (downloadLink) {
             downloadLink.href = m3uUrl;
-            const prefix = (activePlaylistType === "channels") ? "acex_channels" : ((activePlaylistType === "events") ? "acex_events" : "acex_playlist");
-            downloadLink.download = prefix + "_" + activePlaylistFormat + ".m3u8";
+            downloadLink.download = "acex_channels_" + activePlaylistFormat + ".m3u8";
             const downloadText = downloadLink.querySelector("span");
             if (downloadText) downloadText.innerText = (activePlaylistFormat === "hls") ? "Download HLS" : "Download TS";
           }
@@ -5896,7 +5398,7 @@ defmodule AcexGateway.Web.DashboardView do
         }
 
         function findChannelMeta(key, target, activeHash) {
-          const list = (currentCatalogTab === "events") ? (allEvents || []) : (allChannels || []);
+          const list = allChannels || [];
           if (!list || !Array.isArray(list)) return null;
           let match = list.find(ch => ch.id === key || ch.id === target);
           if (match) return match;
@@ -5921,7 +5423,7 @@ defmodule AcexGateway.Web.DashboardView do
             }
           });
 
-          const currentCatalog = (currentCatalogTab === "events") ? (allEvents || []) : (allChannels || []);
+          const currentCatalog = allChannels || [];
 
           // Update grid cards
           document.querySelectorAll(".channel-card-sf").forEach(card => {
@@ -5986,14 +5488,15 @@ defmodule AcexGateway.Web.DashboardView do
             if (activeInfo) {
               row.classList.add("table-row-live");
               if (!liveIndicator) {
-                const nameCell = row.children[1];
-                if (nameCell) {
+                const titleSpan = row.querySelector(".table-channel-name");
+                if (titleSpan) {
                   liveIndicator = document.createElement("span");
                   liveIndicator.className = "table-live-indicator chip-status-success";
-                  liveIndicator.style.marginLeft = "6px";
+                  liveIndicator.style.marginLeft = "8px";
                   liveIndicator.style.fontSize = "10px";
-                  liveIndicator.innerText = "● LIVE";
-                  nameCell.appendChild(liveIndicator);
+                  const viewers = activeInfo.viewers || 0;
+                  liveIndicator.innerText = viewers > 0 ? ("● LIVE (" + viewers + ")") : "● LIVE";
+                  titleSpan.parentNode.appendChild(liveIndicator);
                 }
               }
             } else {
@@ -6377,220 +5880,6 @@ defmodule AcexGateway.Web.DashboardView do
           }
         }
 
-        // Remote Playlist Sync Modal Controllers
-        function openSyncModal() {
-          const modal = document.getElementById("syncModal");
-          if (modal) {
-            modal.classList.add("active");
-            fetchSyncStatus();
-          }
-        }
-
-        function closeSyncModal() {
-          const modal = document.getElementById("syncModal");
-          if (modal) modal.classList.remove("active");
-        }
-
-        async function fetchSyncStatus() {
-          const evStatusText = document.getElementById("eventsSyncStatusText");
-          const chStatusText = document.getElementById("channelsSyncStatusText");
-          if (evStatusText) evStatusText.innerText = "Fetching sync status...";
-          if (chStatusText) chStatusText.innerText = "Fetching sync status...";
-
-          try {
-            const res = await fetch("/api/sync/status");
-            if (res.ok) {
-              const status = await res.json();
-              if (status.events) {
-                const evUrl = document.getElementById("syncEventsUrl");
-                const evEn = document.getElementById("syncEventsEnabled");
-                const evInt = document.getElementById("syncEventsInterval");
-                if (evUrl && status.events.url) evUrl.value = status.events.url;
-                if (evEn && typeof status.events.auto_sync === "boolean") evEn.checked = status.events.auto_sync;
-                if (evInt && status.events.interval_minutes) evInt.value = status.events.interval_minutes;
-
-                if (evStatusText) {
-                  const lastSync = status.events.last_synced_at ? new Date(status.events.last_synced_at).toLocaleTimeString() : "Never";
-                  const lastErr = status.events.last_error ? ` (Error: ${status.events.last_error})` : "";
-                  evStatusText.innerText = `Count: ${status.events.count || 0} fixtures | Last synced: ${lastSync}${lastErr}`;
-                }
-              }
-
-              if (status.channels) {
-                const chUrl = document.getElementById("syncChannelsUrl");
-                const chEn = document.getElementById("syncChannelsEnabled");
-                const chInt = document.getElementById("syncChannelsInterval");
-                const chMode = document.getElementById("syncChannelsMode");
-                if (chUrl && status.channels.url) chUrl.value = status.channels.url;
-                if (chEn && typeof status.channels.auto_sync === "boolean") chEn.checked = status.channels.auto_sync;
-                if (chInt && status.channels.interval_hours) chInt.value = status.channels.interval_hours;
-                if (chMode && status.channels.mode) chMode.value = status.channels.mode;
-
-                if (chStatusText) {
-                  const lastSync = status.channels.last_synced_at ? new Date(status.channels.last_synced_at).toLocaleTimeString() : "Never";
-                  const lastErr = status.channels.last_error ? ` (Error: ${status.channels.last_error})` : "";
-                  chStatusText.innerText = `Count: ${status.channels.count || 0} channels | Last synced: ${lastSync}${lastErr}`;
-                }
-              }
-            }
-          } catch (err) {
-            if (evStatusText) evStatusText.innerText = "Failed to load sync status";
-            if (chStatusText) chStatusText.innerText = "Failed to load sync status";
-          }
-        }
-
-        async function triggerSyncEvents(btn = null) {
-          const originalText = btn ? btn.innerHTML : "";
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = "<span>Syncing...</span>";
-          }
-
-          try {
-            const urlInput = document.getElementById("syncEventsUrl");
-            const payload = {};
-            if (urlInput && urlInput.value.trim()) {
-              payload.url = urlInput.value.trim();
-            }
-
-            const res = await fetch("/api/sync/events", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-
-            if (res.ok && data.status === "ok") {
-              showToast(`Synced ${data.count} live sports fixtures!`);
-              // Reload events list
-              try {
-                const evRes = await fetch("/api/events");
-                if (evRes.ok) {
-                  allEvents = await evRes.json();
-                  renderCategoryTabs();
-                  filterChannels();
-                }
-              } catch (_) {}
-              fetchSyncStatus();
-            } else {
-              showToast(data.error || "Event sync failed", false);
-            }
-          } catch (err) {
-            showToast("Event sync error: " + err.message, false);
-          } finally {
-            if (btn) {
-              btn.disabled = false;
-              btn.innerHTML = originalText;
-            }
-          }
-        }
-
-        async function triggerSyncChannels(btn = null) {
-          const originalText = btn ? btn.innerHTML : "";
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = "<span>Syncing...</span>";
-          }
-
-          try {
-            const urlInput = document.getElementById("syncChannelsUrl");
-            const modeInput = document.getElementById("syncChannelsMode");
-            const payload = {};
-            if (urlInput && urlInput.value.trim()) {
-              payload.url = urlInput.value.trim();
-            }
-            if (modeInput && modeInput.value) {
-              payload.mode = modeInput.value;
-            }
-
-            const res = await fetch("/api/sync/channels", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-
-            if (res.ok && data.status === "ok") {
-              showToast(`Synced ${data.count} channels!`);
-              // Reload channels and groups
-              try {
-                const chRes = await fetch("/api/channels");
-                if (chRes.ok) {
-                  allChannels = await chRes.json();
-                  await refreshGroupsFromServer();
-                  updateFleetHealthMetrics();
-                  filterChannels();
-                }
-              } catch (_) {}
-              fetchSyncStatus();
-            } else {
-              showToast(data.error || "Channel sync failed", false);
-            }
-          } catch (err) {
-            showToast("Channel sync error: " + err.message, false);
-          } finally {
-            if (btn) {
-              btn.disabled = false;
-              btn.innerHTML = originalText;
-            }
-          }
-        }
-
-        async function saveSyncSettings(btn = null) {
-          const originalText = btn ? btn.innerHTML : "";
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = "<span>Saving...</span>";
-          }
-
-          const evUrl = document.getElementById("syncEventsUrl")?.value.trim();
-          const evEn = document.getElementById("syncEventsEnabled")?.checked;
-          const evInt = parseInt(document.getElementById("syncEventsInterval")?.value, 10);
-
-          const chUrl = document.getElementById("syncChannelsUrl")?.value.trim();
-          const chEn = document.getElementById("syncChannelsEnabled")?.checked;
-          const chInt = parseInt(document.getElementById("syncChannelsInterval")?.value, 10);
-          const chMode = document.getElementById("syncChannelsMode")?.value;
-
-          try {
-            const res = await fetch("/api/settings", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                events_m3u_url: evUrl,
-                events_sync_enabled: evEn,
-                events_sync_interval_mins: evInt,
-                channels_m3u_url: chUrl,
-                channels_sync_enabled: chEn,
-                channels_sync_interval_hours: chInt,
-                channels_sync_mode: chMode,
-                sync_events_url: evUrl,
-                sync_events_enabled: evEn,
-                sync_events_interval: evInt,
-                sync_channels_url: chUrl,
-                sync_channels_enabled: chEn,
-                sync_channels_interval: chInt,
-                sync_channels_mode: chMode
-              })
-            });
-
-            if (res.ok) {
-              showToast("Sync settings saved!");
-              closeSyncModal();
-            } else {
-              const data = await res.json().catch(() => ({}));
-              showToast(data.error || "Failed to save sync settings", false);
-            }
-          } catch (err) {
-            showToast("Error saving sync settings: " + err.message, false);
-          } finally {
-            if (btn) {
-              btn.disabled = false;
-              btn.innerHTML = originalText;
-            }
-          }
-        }
-
         // Global hotkey: '/' focuses search box, 'Escape' closes modals
         window.addEventListener("keydown", (e) => {
           if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
@@ -6606,24 +5895,17 @@ defmodule AcexGateway.Web.DashboardView do
             closeXtreamModal();
             closeUpdateModal();
             closeGroupModal();
-            closeSyncModal();
           }
         });
 
         // Initialize
+        syncViewButtonsUi();
         renderCategoryTabs();
         updateFleetHealthMetrics();
-        renderChannels(allChannels);
+        filterChannels();
         connectLiveStats();
         pollStatsOnce();
         checkSystemVersion();
-
-        // Periodically refresh event schedules (update LIVE / UPCOMING / ENDED badges)
-        setInterval(() => {
-          if (currentCatalogTab === "events") {
-            filterChannels();
-          }
-        }, 60000);
       </script>
     </body>
     </html>
