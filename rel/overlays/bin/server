@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+# Prevent rapid crash loops from consuming 100% CPU
+STORAGE_DIR="${DATA_DIR:-${STORAGE_BASE_PATH:-/var/lib/acex}}"
+LAST_START_FILE="$STORAGE_DIR/.last_startup"
+RESTART_COUNT_FILE="$STORAGE_DIR/.rapid_restarts"
+
+mkdir -p "$STORAGE_DIR" 2>/dev/null || true
+
+if [ -d "$STORAGE_DIR" ] && [ -w "$STORAGE_DIR" ]; then
+  CURRENT_TIME=$(date +%s)
+  if [ -f "$LAST_START_FILE" ] && [ -f "$RESTART_COUNT_FILE" ]; then
+    LAST_TIME=$(cat "$LAST_START_FILE")
+    DIFF=$((CURRENT_TIME - LAST_TIME))
+    if [ "$DIFF" -lt 15 ]; then
+      COUNT=$(cat "$RESTART_COUNT_FILE")
+      COUNT=$((COUNT + 1))
+      echo "$COUNT" > "$RESTART_COUNT_FILE"
+      if [ "$COUNT" -ge 5 ]; then
+        echo "ERROR: Rapid crash loop detected ($COUNT restarts). Cooling down for 60 seconds to prevent CPU spike..."
+        echo "0" > "$RESTART_COUNT_FILE"
+        sleep 60
+      fi
+    else
+      echo "0" > "$RESTART_COUNT_FILE"
+    fi
+  else
+    echo "0" > "$RESTART_COUNT_FILE"
+  fi
+  echo "$CURRENT_TIME" > "$LAST_START_FILE"
+fi
+
+BIN_DIR="$(cd -P -- "$(dirname -- "$0")" && pwd)"
+RELEASE_ROOT="$(cd "$BIN_DIR/.." && pwd)"
+cd "$RELEASE_ROOT"
+
+# Setup 512MB swap memory on VPS/Pi if permitted and not active
+if [ "${ENABLE_SWAP:-false}" = "true" ]; then
+  if [ -w /proc/sys/vm/swappiness ] && [ "$(swapon --show | wc -l)" -le 1 ]; then
+    if [ ! -f /swapfile ]; then
+      echo "Creating and activating 512MB swap file..."
+      (fallocate -l 512M /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=512) 2>/dev/null || true
+      chmod 0600 /swapfile 2>/dev/null || true
+      mkswap /swapfile 2>/dev/null || true
+    fi
+    swapon /swapfile 2>/dev/null || true
+    sysctl -w vm.swappiness=10 2>/dev/null || true
+    sysctl -w vm.overcommit_memory=1 2>/dev/null || true
+  fi
+fi
+
+exec "$BIN_DIR/acex_gateway" start

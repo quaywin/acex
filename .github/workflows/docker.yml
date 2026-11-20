@@ -1,19 +1,24 @@
-name: Auto-Version & Publish Docker Image
+name: Auto-Version & Publish Releases (Docker & Native)
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  version-build-publish:
+  version:
+    name: Bump Version & Git Tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
 
     steps:
       - name: Checkout repository
@@ -21,7 +26,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Tự động tính toán và tạo tag version mới (mặc định tăng patch: 0.1.0 -> 0.1.1 -> 0.1.2...)
       - name: Bump version and push git tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
@@ -29,6 +33,20 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
           initial_version: 0.1.0
+
+  docker-build:
+    name: Build & Push Docker Image
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.new_tag }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -43,7 +61,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Trích xuất metadata cho Docker
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -51,11 +68,10 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ steps.tag_version.outputs.new_version }}
-            type=raw,value=${{ steps.tag_version.outputs.new_tag }}
+            type=raw,value=${{ needs.version.outputs.new_version }}
+            type=raw,value=${{ needs.version.outputs.new_tag }}
             type=sha,format=short,prefix=sha-
 
-      # Build và Push Docker image kèm version mới
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -65,14 +81,98 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            APP_VERSION=${{ steps.tag_version.outputs.new_tag }}
+            APP_VERSION=${{ needs.version.outputs.new_tag }}
 
-      # Tự động tạo Release trên GitHub kèm Changelog
+  native-build:
+    name: Build Native Release (${{ matrix.arch }})
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      MIX_ENV: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.new_tag }}
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential
+
+      - name: Set up Elixir & Erlang
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.3"
+          otp-version: "27.3"
+
+      - name: Cache Mix dependencies and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: release-${{ matrix.arch }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            release-${{ matrix.arch }}-mix-
+
+      - name: Install production dependencies
+        run: mix deps.get --only prod
+
+      - name: Compile production release
+        run: mix compile
+
+      - name: Build Elixir release tarball
+        run: |
+          mix release --overwrite
+          mkdir -p dist
+          tar -czf "dist/acex-linux-${{ matrix.arch }}.tar.gz" -C _build/prod/rel/acex_gateway .
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: acex-linux-${{ matrix.arch }}
+          path: dist/acex-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-release:
+    name: Publish Unified GitHub Release
+    needs: [version, docker-build, native-build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: acex-linux-*
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: sha256sum acex-linux-*.tar.gz > SHA256SUMS
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag_version.outputs.new_tag }}
-          name: Release ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          tag_name: ${{ needs.version.outputs.new_tag }}
+          name: Release ${{ needs.version.outputs.new_tag }}
+          body: ${{ needs.version.outputs.changelog }}
+          files: |
+            dist/acex-linux-amd64.tar.gz
+            dist/acex-linux-arm64.tar.gz
+            dist/SHA256SUMS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

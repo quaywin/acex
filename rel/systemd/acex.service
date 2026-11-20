@@ -1,0 +1,28 @@
+[Unit]
+Description=AcexGateway Stream Hub & IPTV Gateway
+Documentation=https://github.com/quaywin/acex
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/acex/current
+Environment="PATH=/opt/acex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/etc/acex/env
+ExecStart=/opt/acex/current/bin/server
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+LimitNOFILE=65536
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+# Standard journald logging (automatically rotated by systemd-journald)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=acex
+
+[Install]
+WantedBy=multi-user.target

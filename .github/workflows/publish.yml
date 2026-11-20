@@ -1,0 +1,100 @@
+name: Build and Publish Native Releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Native Release (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      MIX_ENV: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential
+
+      - name: Set up Elixir & Erlang
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.3"
+          otp-version: "27.3"
+
+      - name: Cache Mix dependencies and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: release-${{ matrix.arch }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            release-${{ matrix.arch }}-mix-
+
+      - name: Install production dependencies
+        run: mix deps.get --only prod
+
+      - name: Compile production release
+        run: mix compile
+
+      - name: Build Elixir release tarball
+        run: |
+          mix release --overwrite
+          mkdir -p dist
+          tar -czf "dist/acex-linux-${{ matrix.arch }}.tar.gz" -C _build/prod/rel/acex_gateway .
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: acex-linux-${{ matrix.arch }}
+          path: dist/acex-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: acex-linux-*
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: sha256sum acex-linux-*.tar.gz > SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/acex-linux-amd64.tar.gz
+            dist/acex-linux-arm64.tar.gz
+            dist/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

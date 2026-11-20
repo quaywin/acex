@@ -12,6 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/quaywin/acex/releases"><img src="https://img.shields.io/github/v/release/quaywin/acex?style=flat&color=E11D48" alt="Latest Release"></a>
+  <a href="https://github.com/quaywin/acex/releases/latest"><img src="https://img.shields.io/badge/platform-Linux%20native%20(amd64%20%7C%20arm64)-blue.svg" alt="Native Linux"></a>
   <a href="https://github.com/quaywin/acex/pkgs/container/acex"><img src="https://img.shields.io/badge/Docker-ghcr.io%2Fquaywin%2Facex-blue?logo=docker" alt="Docker Container"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-success.svg" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Port-8686-orange.svg" alt="Port 8686">
@@ -46,7 +47,31 @@ Acex is a lightweight stream gateway and IPTV relay for AceStream. It converts A
 
 ## Quick Start
 
-### 1. Docker Run (Fastest)
+### 1. Native Linux Systemd (Recommended for Best Performance & Raspberry Pi)
+
+AcexGateway runs as a high-performance, native Linux systemd service on **x86_64 (`amd64`)** and **ARM64 (`arm64`)** (Raspberry Pi 64-bit, AWS Graviton, Oracle Cloud ARM, Debian/Ubuntu VPS).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/quaywin/acex/main/install.sh | sudo bash
+```
+
+The installer:
+* Automatically detects your architecture (`amd64` or `arm64`) and downloads the precompiled native release tarball verified with `SHA256SUMS`.
+* Offers automated AceStream Engine setup via local Docker container or connects to your Android TV Box / LAN AceStream engine.
+* Configures and starts `acex.service` managed by systemd with zero virtualization overhead (~35MB RAM).
+* Installs the `acex` CLI helper for instant service control:
+
+```bash
+acex status      # View live service status
+acex logs -f     # Follow real-time application logs
+acex restart     # Gracefully restart AcexGateway
+acex update      # Download latest release and atomically upgrade in ~3 seconds
+acex engine      # Test AceStream Telnet API connectivity
+```
+
+---
+
+### 2. Docker Run (All-in-One for x86_64)
 
 ```bash
 docker run -d \
@@ -66,7 +91,7 @@ docker run -d \
   ghcr.io/quaywin/acex:latest
 ```
 
-### 2. Docker Compose
+### 3. Docker Compose
 
 `docker-compose.yml`:
 

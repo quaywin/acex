@@ -1,7 +1,8 @@
 defmodule AcexGateway.System.Updater do
   @moduledoc """
   Manages system version inspection, GitHub release checking with ETS caching,
-  and 1-click update triggers via Watchtower internal HTTP API or local scripts.
+  and 1-click update triggers via Native systemd symlink swaps, Watchtower internal
+  HTTP API, or local scripts.
   """
 
   require Logger
@@ -9,6 +10,8 @@ defmodule AcexGateway.System.Updater do
   @cache_table :acex_updater_cache
   @cache_ttl_seconds 1800
   @default_repo "quaywin/acex"
+  @install_root "/opt/acex"
+  @service_name "acex.service"
 
   @doc """
   Ensures the ETS cache table exists.
@@ -23,6 +26,17 @@ defmodule AcexGateway.System.Updater do
     end
 
     :ok
+  end
+
+  @doc """
+  Checks if the host is running a Native systemd installation under `/opt/acex`
+  capable of 1-click self-upgrading.
+  """
+  def native_installed? do
+    :os.type() == {:unix, :linux} and
+      File.dir?(Path.join(@install_root, "releases")) and
+      not is_nil(System.find_executable("systemctl")) and
+      not is_nil(System.find_executable("tar"))
   end
 
   @doc """
@@ -54,6 +68,9 @@ defmodule AcexGateway.System.Updater do
     method = detect_update_method()
 
     case method do
+      :native ->
+        trigger_native()
+
       :watchtower ->
         trigger_watchtower()
 
@@ -76,6 +93,9 @@ defmodule AcexGateway.System.Updater do
   """
   def detect_update_method do
     cond do
+      native_installed?() ->
+        :native
+
       System.get_env("WATCHTOWER_ENDPOINT") != nil or
         System.get_env("WATCHTOWER_HTTP_API_TOKEN") != nil or
           System.get_env("WATCHTOWER_TOKEN") != nil ->
@@ -180,6 +200,222 @@ defmodule AcexGateway.System.Updater do
       _ ->
         latest != "" and latest != current
     end
+  end
+
+  defp trigger_native do
+    Logger.info("[Updater] Starting Native systemd upgrade in background...")
+
+    Task.start(fn ->
+      Process.sleep(300)
+
+      case perform_native_upgrade() do
+        {:ok, _} ->
+          Logger.info("[Updater] Native upgrade completed successfully.")
+
+        {:error, reason} ->
+          Logger.error("[Updater] Native upgrade failed: #{inspect(reason)}")
+      end
+    end)
+
+    {:ok,
+     %{
+       status: "updating",
+       method: "native",
+       message: "Downloading latest release and upgrading systemd service in background..."
+     }}
+  end
+
+  @doc """
+  Downloads the latest Native release tarball matching the host CPU architecture,
+  verifies SHA256, extracts to `/opt/acex/releases/<timestamp>`, switches the
+  `/opt/acex/current` symlink, prunes old releases, and restarts `acex.service`.
+  """
+  def perform_native_upgrade do
+    with {:ok, arch} <- detect_arch(),
+         {:ok, tmp_tar} <- download_release_tarball(arch),
+         :ok <- verify_tarball_checksum(tmp_tar, arch),
+         {:ok, release_dir} <- extract_release(tmp_tar),
+         :ok <- switch_current_symlink(release_dir),
+         :ok <- prune_old_releases(),
+         :ok <- restart_systemd_service() do
+      {:ok, :upgrading}
+    end
+  end
+
+  defp detect_arch do
+    case System.cmd("uname", ["-m"], stderr_to_stdout: true) do
+      {out, 0} ->
+        case String.trim(out) do
+          arch when arch in ["x86_64", "amd64"] -> {:ok, "amd64"}
+          arch when arch in ["aarch64", "arm64"] -> {:ok, "arm64"}
+          other -> {:error, "Unsupported architecture: #{other}"}
+        end
+
+      {err, _} ->
+        {:error, "Failed to detect architecture: #{err}"}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp download_release_tarball(arch) do
+    repo = System.get_env("GITHUB_REPO") || @default_repo
+    url = "https://github.com/#{repo}/releases/latest/download/acex-linux-#{arch}.tar.gz"
+
+    tmp_tar =
+      Path.join(System.tmp_dir!(), "acex-upgrade-#{System.unique_integer([:positive])}.tar.gz")
+
+    Logger.info("[Updater] Downloading #{url}...")
+
+    case Req.get(url,
+           headers: [{"user-agent", "AcexGateway-Updater"}],
+           into: File.stream!(tmp_tar),
+           receive_timeout: 120_000
+         ) do
+      {:ok, %{status: 200}} ->
+        {:ok, tmp_tar}
+
+      {:ok, %{status: status}} ->
+        File.rm(tmp_tar)
+        {:error, "Failed to download release archive (HTTP #{status})"}
+
+      {:error, reason} ->
+        File.rm(tmp_tar)
+        {:error, "Download failed: #{inspect(reason)}"}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp verify_tarball_checksum(tmp_tar, arch) do
+    repo = System.get_env("GITHUB_REPO") || @default_repo
+    sums_url = "https://github.com/#{repo}/releases/latest/download/SHA256SUMS"
+    tarball_name = "acex-linux-#{arch}.tar.gz"
+
+    case Req.get(sums_url,
+           headers: [{"user-agent", "AcexGateway-Updater"}],
+           receive_timeout: 30_000
+         ) do
+      {:ok, %{status: 200, body: body}} when is_binary(body) ->
+        case verify_sha256_against_sums(tmp_tar, tarball_name, body) do
+          :ok ->
+            :ok
+
+          {:error, _} = err ->
+            File.rm(tmp_tar)
+            err
+        end
+
+      {:ok, %{status: status}} ->
+        File.rm(tmp_tar)
+        {:error, "Failed to download SHA256SUMS (HTTP #{status})"}
+
+      {:error, reason} ->
+        File.rm(tmp_tar)
+        {:error, "SHA256SUMS download failed: #{inspect(reason)}"}
+    end
+  rescue
+    e ->
+      File.rm(tmp_tar)
+      {:error, Exception.message(e)}
+  end
+
+  @doc false
+  def verify_sha256_against_sums(file_path, tarball_name, sums_body) do
+    expected =
+      sums_body
+      |> String.split("\n", trim: true)
+      |> Enum.find_value(fn line ->
+        case String.split(line, ~r/\s+/, trim: true) do
+          [hash, name] when name == tarball_name -> String.downcase(hash)
+          [hash, "*" <> name] when name == tarball_name -> String.downcase(hash)
+          _ -> nil
+        end
+      end)
+
+    if is_nil(expected) do
+      {:error, "Checksum entry not found for #{tarball_name}"}
+    else
+      actual =
+        file_path
+        |> File.stream!(65_536)
+        |> Enum.reduce(:crypto.hash_init(:sha256), fn chunk, acc ->
+          :crypto.hash_update(acc, chunk)
+        end)
+        |> :crypto.hash_final()
+        |> Base.encode16(case: :lower)
+
+      if actual == expected do
+        :ok
+      else
+        {:error, "Checksum mismatch for #{tarball_name}"}
+      end
+    end
+  end
+
+  defp extract_release(tmp_tar) do
+    release_id =
+      DateTime.utc_now()
+      |> Calendar.strftime("%Y%m%d%H%M%S")
+
+    release_dir = Path.join([@install_root, "releases", release_id])
+    File.mkdir_p!(release_dir)
+
+    try do
+      case System.cmd("tar", ["-xzf", tmp_tar, "-C", release_dir], stderr_to_stdout: true) do
+        {_, 0} ->
+          _ = File.chmod(Path.join([release_dir, "bin", "server"]), 0o755)
+          _ = File.chmod(Path.join([release_dir, "bin", "acex_gateway"]), 0o755)
+          {:ok, release_dir}
+
+        {err, code} ->
+          File.rm_rf(release_dir)
+          {:error, "Failed to extract release tarball (code #{code}): #{err}"}
+      end
+    after
+      File.rm(tmp_tar)
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp switch_current_symlink(release_dir) do
+    current_link = Path.join(@install_root, "current")
+
+    case System.cmd("ln", ["-sfn", release_dir, current_link], stderr_to_stdout: true) do
+      {_, 0} -> :ok
+      {err, code} -> {:error, "Failed to update symlink (code #{code}): #{err}"}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  defp prune_old_releases do
+    releases_dir = Path.join(@install_root, "releases")
+
+    case File.ls(releases_dir) do
+      {:ok, entries} ->
+        entries
+        |> Enum.sort(:desc)
+        |> Enum.drop(2)
+        |> Enum.each(fn old ->
+          File.rm_rf(Path.join(releases_dir, old))
+        end)
+
+        :ok
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp restart_systemd_service do
+    case System.cmd("systemctl", ["restart", "--no-block", @service_name], stderr_to_stdout: true) do
+      {_, 0} -> :ok
+      {err, code} -> {:error, "Failed to restart #{@service_name} (code #{code}): #{err}"}
+    end
+  rescue
+    e -> {:error, Exception.message(e)}
   end
 
   defp trigger_watchtower do
